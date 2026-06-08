@@ -3,6 +3,7 @@ import { useAppStore } from '../store/useAppStore';
 import { api } from '../services/api';
 import { useDataStore } from '../store/useDataStore';
 import { Category } from '../db/db';
+import { generateUUID } from '../lib/utils';
 import { X, Save, Trash, User, Briefcase, Car, Coffee, Home as HomeIcon, Phone, ShoppingCart } from 'lucide-react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -33,7 +34,7 @@ export function CategoryModal() {
   const handleSave = async () => {
     if (!name) return;
     const cat: Category = {
-      id: editingId || crypto.randomUUID(),
+      id: editingId || generateUUID(),
       name,
       type,
       color,

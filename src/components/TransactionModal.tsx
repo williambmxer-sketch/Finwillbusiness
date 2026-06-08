@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useDataStore } from '../store/useDataStore';
 import { api } from '../services/api';
+import { generateUUID } from '../lib/utils';
 import { Transaction, Category, Account, Card } from '../db/db';
 import { X, Save, Trash } from 'lucide-react';
 import { Input } from './ui/input';
@@ -99,7 +100,7 @@ export function TransactionModal() {
     const dateObj = new Date(date + 'T12:00:00');
 
     const tx: Transaction = {
-      id: editingTransactionId || crypto.randomUUID(),
+      id: editingTransactionId || generateUUID(),
       description,
       amount: parseFloat(amount),
       date: dateObj,

@@ -8,6 +8,7 @@ import { motion } from 'motion/react';
 import { useAppStore } from '../../store/useAppStore';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { generateUUID } from '../../lib/utils';
 
 
 function getCycleId(date: Date, closingDay: number, dueDay: number) {
@@ -124,7 +125,7 @@ export function CardDetailsView() {
     // Create local Date from input, setting to noon to avoid timezone shift issues
     const startDate = new Date(date + 'T12:00:00');
     
-    const parentId = numInstallments > 1 ? crypto.randomUUID() : undefined;
+    const parentId = numInstallments > 1 ? generateUUID() : undefined;
 
     const newTransactions: Transaction[] = [];
 
@@ -133,7 +134,7 @@ export function CardDetailsView() {
       txDate.setMonth(txDate.getMonth() + i);
 
       newTransactions.push({
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         description: numInstallments > 1 ? `${description} (${i + 1}/${numInstallments})` : description,
         amount: installmentAmount,
         date: txDate,

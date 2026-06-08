@@ -3,6 +3,7 @@ import { useAppStore } from '../store/useAppStore';
 import { useDataStore } from '../store/useDataStore';
 import { api } from '../services/api';
 import { Card } from '../db/db';
+import { generateUUID } from '../lib/utils';
 import { X, Save, Trash } from 'lucide-react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -57,7 +58,7 @@ export function CardModal() {
     if (!name || !limit) return;
     
     const card: Card = {
-      id: editingCardId || crypto.randomUUID(),
+      id: editingCardId || generateUUID(),
       name,
       bank: bank || 'Banco',
       brand: 'Mastercard', // Simplified for now
