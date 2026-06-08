@@ -154,7 +154,7 @@ export function TransactionModal() {
       setDescription('');
       setDate(new Date().toISOString().split('T')[0]);
       setCategoryId('');
-      setAccountId(accounts[0]?.id || '');
+      setAccountId('');
       
       if (defaultPaymentMethod?.startsWith('card-')) {
         setCardId(defaultPaymentMethod.replace('card-', ''));
@@ -162,14 +162,23 @@ export function TransactionModal() {
         setCardId('money');
       }
 
-      setIsPaid(true);
+      setIsPaid(false);
       setHasInitialized(true);
     }
   }, [editingTransactionId, isTransactionModalOpen, accounts, defaultPaymentMethod, hasInitialized]);
 
   const handleSave = async () => {
     if (!description || !amount || parseFloat(amount) <= 0 || !categoryId || categoryId === 'none') return;
-    if (cardId === 'money' && (!accountId || accountId === 'none')) return;
+    
+    if (type === 'receita' && (!accountId || accountId === 'none' || accountId === '')) {
+      alert('Selecione uma conta para receber o valor.');
+      return;
+    }
+    
+    if (type === 'despesa' && cardId === 'money' && isPaid && (!accountId || accountId === 'none' || accountId === '')) {
+      alert('Selecione uma conta para confirmar o pagamento.');
+      return;
+    }
     
     const txAmount = parseFloat(amount);
 
@@ -197,7 +206,7 @@ export function TransactionModal() {
       date: dateObj,
       type,
       categoryId,
-      accountId: cardId !== 'money' ? undefined : accountId,
+      accountId: (cardId !== 'money' || !accountId || accountId === 'none') ? undefined : accountId,
       cardId: cardId !== 'money' ? cardId : undefined,
       isPaid: cardId !== 'money' ? false : isPaid,
     };
@@ -391,11 +400,13 @@ export function TransactionModal() {
                   </div>
                   {cardId === 'money' && (
                     <div>
-                      <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Conta</Label>
+                      <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">
+                        Conta {isPaid && <span className="text-destructive font-bold">*</span>}
+                      </Label>
                       <CustomSelect 
                         value={accountId} 
                         onValueChange={setAccountId}
-                        placeholder="Selecione..."
+                        placeholder={isPaid ? "Selecione..." : "Opcional..."}
                         options={accounts.map(a => ({
                           value: a.id,
                           label: a.name
@@ -406,7 +417,9 @@ export function TransactionModal() {
                 </div>
               ) : (
                 <div>
-                  <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Conta</Label>
+                  <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">
+                    Conta <span className="text-destructive font-bold">*</span>
+                  </Label>
                   <CustomSelect 
                     value={accountId} 
                     onValueChange={setAccountId}
@@ -420,15 +433,17 @@ export function TransactionModal() {
               )}
               
               {type === 'despesa' && cardId === 'money' && (
-                <div className="flex items-center gap-3 pt-1 ml-1">
-                  <input 
-                    type="checkbox" 
-                    id="isPaid" 
-                    className="rounded-[4px] text-primary focus:ring-primary h-4 w-4 border-input bg-background cursor-pointer"
-                    checked={isPaid}
-                    onChange={e => setIsPaid(e.target.checked)}
-                  />
-                  <Label htmlFor="isPaid" className="text-xs font-semibold cursor-pointer select-none">Confirmar Pagamento</Label>
+                <div className="flex items-center justify-between pt-1 px-1">
+                  <span className="text-xs font-semibold text-foreground select-none">Confirmar Pagamento</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsPaid(!isPaid)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${isPaid ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${isPaid ? 'translate-x-4' : 'translate-x-0'}`}
+                    />
+                  </button>
                 </div>
               )}
             </div>
