@@ -18,7 +18,7 @@ interface ComputedInvoice {
   yearMonth: string;
 }
 
-function getCycleId(date: Date, closingDay: number, dueDay: number) {
+function getCycleId(date: Date, closingDay: number = 1, dueDay: number = 5) {
   let yr = date.getFullYear();
   let mo = date.getMonth();
   let currentMonthClosing = new Date(yr, mo, closingDay, 23, 59, 59);
