@@ -34,11 +34,12 @@ export function ConfirmPaymentModal() {
     // Create local Date from input, setting to noon to avoid timezone shift issues
     const realPaymentDate = new Date(date + 'T12:00:00');
 
+    const isPaidValue = cardId === 'money' ? true : false;
     await api.transactions.update(transaction.id, {
-      paymentDate: realPaymentDate,
-      accountId: accountId || undefined,
-      cardId: cardId,
-      isPaid: true
+      paymentDate: isPaidValue ? realPaymentDate : undefined,
+      accountId: cardId === 'money' ? (accountId || undefined) : undefined,
+      cardId: cardId !== 'money' ? cardId : undefined,
+      isPaid: isPaidValue
     });
 
     if (accountId && cardId === 'money') {

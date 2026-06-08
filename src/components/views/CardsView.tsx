@@ -32,7 +32,7 @@ export function CardsView() {
         ) : (
           cards.map((card, i) => {
             const used = transactions
-              .filter(t => t.cardId === card.id && t.type === 'despesa')
+              .filter(t => t.cardId === card.id && t.type === 'despesa' && !t.isPaid)
               .reduce((sum, t) => sum + t.amount, 0);
             const available = card.limit - used;
             const progress = card.limit > 0 ? (used / card.limit) * 100 : 0;

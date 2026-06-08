@@ -123,7 +123,7 @@ export function CardDetailsView() {
 
     // Check limit
     const currentUsage = allTransactions
-      .filter(t => t.cardId === card.id && t.type === 'despesa')
+      .filter(t => t.cardId === card.id && t.type === 'despesa' && !t.isPaid)
       .reduce((sum, t) => sum + t.amount, 0);
 
     if (currentUsage + totalAmount > card.limit) {
@@ -190,7 +190,7 @@ export function CardDetailsView() {
     );
   }
 
-  const cardUsage = transactions.reduce((acc, t) => acc + t.amount, 0);
+  const cardUsage = transactions.filter(t => !t.isPaid).reduce((acc, t) => acc + t.amount, 0);
   const availableLimit = card.limit - cardUsage;
 
   return (

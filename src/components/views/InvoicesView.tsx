@@ -47,7 +47,7 @@ function getCycleId(date: Date, closingDay: number = 1, dueDay: number = 5) {
 }
 
 export function InvoicesView() {
-  const { setCurrentView, setActiveContextCardId } = useAppStore();
+  const { setCurrentView, setActiveContextCardId, setConfirmModal } = useAppStore();
   const allTransactions = useDataStore(state => state.transactions);
   const cards = useDataStore(state => state.cards);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
@@ -129,13 +129,35 @@ export function InvoicesView() {
   const handlePayInvoice = async () => {
     if (!selectedInvoice || !selectedCardId || selectedInvoice.amount <= 0) return;
     
-    if (selectedInvoice.transactions.length > 0) {
-      await Promise.all(selectedInvoice.transactions.map(t => 
-        api.transactions.update(t.id, { isPaid: true })
-      ));
-    }
+    const card = cards.find(c => c.id === selectedCardId);
+    if (!card) return;
+
+    const executePayInvoice = async () => {
+      if (selectedInvoice.transactions.length > 0) {
+        await Promise.all(selectedInvoice.transactions.map(t => 
+          api.transactions.update(t.id, { isPaid: true })
+        ));
+      }
+      setSelectedInvoice(null);
+    };
+
+    const now = new Date();
+    const { cycleId: currentCycle } = getCycleId(now, card.closingDay, card.dueDay);
+    const closingDate = new Date(now.getFullYear(), now.getMonth(), card.closingDay, 23, 59, 59);
     
-    setSelectedInvoice(null);
+    if (selectedInvoice.yearMonth === currentCycle && now < closingDate) {
+      setConfirmModal({
+        title: 'Pagar Fatura Adiantada',
+        description: 'Você está pagando a fatura antes do fechamento. O limite do cartão será liberado, mas novas compras até o fechamento ainda serão lançadas nesta mesma fatura. Confirma o pagamento?',
+        onConfirm: executePayInvoice
+      });
+    } else {
+      setConfirmModal({
+        title: 'Pagar Fatura',
+        description: `Confirma o pagamento da fatura de ${selectedInvoice.month}? Isso dará baixa em todas as despesas vinculadas a ela.`,
+        onConfirm: executePayInvoice
+      });
+    }
   };
 
   return (
