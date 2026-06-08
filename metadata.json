@@ -1,0 +1,6 @@
+{
+  "name": "Mestre Finanças",
+  "description": "Aplicativo PWA mobile-first completo para controle financeiro, faturas, e gestão inteligente de cartões",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

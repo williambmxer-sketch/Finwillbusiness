@@ -1,0 +1,152 @@
+import React, { useState, useEffect } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../db/db';
+import { X, Save, Trash } from 'lucide-react';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { useAppStore } from '../store/useAppStore';
+
+export function AccountModal() {
+  const { isAccountModalOpen, setAccountModalOpen, editingAccountId, setEditingAccountId } = useAppStore();
+  
+  const accounts = useLiveQuery(() => db.accounts.toArray()) || [];
+
+  const [name, setName] = useState('');
+  const [balance, setBalance] = useState('');
+  const [type, setType] = useState('Corrente');
+
+  const handleBalanceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value === '') {
+      setBalance('');
+      return;
+    }
+    const numericValue = (parseInt(value, 10) / 100).toFixed(2);
+    setBalance(numericValue);
+  };
+
+  const displayBalance = balance ? parseFloat(balance).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+
+  useEffect(() => {
+    if (editingAccountId && isAccountModalOpen) {
+      const account = accounts.find(a => a.id === editingAccountId);
+      if (account) {
+        setName(account.name);
+        setBalance(account.balance.toString());
+        setType(account.type || 'Corrente');
+      }
+    } else if (!editingAccountId && isAccountModalOpen) {
+      setName('');
+      setBalance('');
+      setType('Corrente');
+    }
+  }, [editingAccountId, isAccountModalOpen, accounts]);
+
+  const handleSave = async () => {
+    if (!name || !balance) return;
+
+    const accountData = {
+      name,
+      balance: parseFloat(balance),
+      type
+    };
+
+    if (editingAccountId) {
+      await db.accounts.update(editingAccountId, accountData);
+    } else {
+      await db.accounts.add({
+        ...accountData,
+        color: '#1a1a1a',
+        icon: 'wallet',
+        id: crypto.randomUUID()
+      });
+    }
+
+    closeModal();
+  };
+
+  const handleDelete = async () => {
+    if (editingAccountId) {
+      await db.accounts.delete(editingAccountId);
+      closeModal();
+    }
+  };
+
+  const closeModal = () => {
+    setAccountModalOpen(false);
+    setTimeout(() => setEditingAccountId(null), 200);
+  };
+
+  if (!isAccountModalOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-background/80 backdrop-blur-sm sm:backdrop-blur-md">
+      <div className="w-full max-w-md bg-card border-t sm:border border-border sm:rounded-[20px] rounded-t-[24px] shadow-2xl flex flex-col max-h-[95dvh] sm:max-h-[90dvh] transition-all relative">
+        <div className="sm:hidden absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-muted rounded-full" />
+        
+        <div className="flex justify-between items-center p-5 pb-4 border-b">
+          <h2 className="text-base font-bold tracking-tight">{editingAccountId ? 'Editar Conta' : 'Nova Conta'}</h2>
+          <button onClick={closeModal} className="p-1.5 rounded-full bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+          <div className="space-y-4">
+            <div className="flex flex-col items-center justify-center py-2">
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Saldo Inicial</span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-sm font-semibold text-muted-foreground">R$</span>
+                <Input 
+                  type="text" 
+                  inputMode="numeric"
+                  placeholder="0,00" 
+                  className="w-[180px] p-0 text-center text-4xl font-bold h-12 bg-transparent border-none shadow-none focus-visible:ring-0"
+                  value={displayBalance}
+                  onChange={handleBalanceChange}
+                />
+              </div>
+            </div>
+
+            <div className="bg-muted/10 rounded-[24px] p-5 space-y-4 border border-border/30">
+              <div>
+                <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1.5 block ml-1">Nome da Conta</Label>
+                <Input 
+                  placeholder="Ex: NuBank, Carteira..." 
+                  className="rounded-xl h-11 text-sm bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1.5 block ml-1">Tipo</Label>
+                <div className="flex w-full bg-muted/50 p-1.5 rounded-[16px]">
+                  <button 
+                    onClick={() => setType('Corrente')}
+                    className={`flex-1 py-2.5 rounded-[12px] text-[11px] font-bold uppercase tracking-widest transition-all ${type === 'Corrente' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  >Corrente</button>
+                  <button 
+                    onClick={() => setType('Poupança')}
+                    className={`flex-1 py-2.5 rounded-[12px] text-[11px] font-bold uppercase tracking-widest transition-all ${type === 'Poupança' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  >Poupança</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex gap-3 p-4 border-t pb-8 sm:pb-4 bg-background">
+          {editingAccountId && (
+            <button onClick={handleDelete} className="p-3 w-12 border border-destructive/20 text-destructive rounded-xl flex items-center justify-center hover:bg-destructive/10 transition-colors">
+              <Trash className="w-5 h-5" />
+            </button>
+          )}
+          <button onClick={handleSave} className="flex-1 bg-primary text-primary-foreground text-sm font-bold rounded-xl h-11 flex items-center justify-center transition-all">
+            Salvar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
