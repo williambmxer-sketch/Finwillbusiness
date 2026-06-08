@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { useDataStore } from '../../store/useDataStore';
 import { Card } from '../ui/card';
 import { motion } from 'motion/react';
@@ -86,7 +86,6 @@ export function DashboardView() {
   };
 
   const totalBalance = accounts.reduce((acc, account) => acc + account.balance, 0);
-  const totalCardLimit = cards.reduce((acc, card) => acc + card.limit, 0);
 
   const now = new Date();
   const currentMonth = now.getMonth();
@@ -189,10 +188,10 @@ export function DashboardView() {
               const now = new Date();
               const { cycleId: currentCycle } = getCycleId(now, card.closingDay, card.dueDay);
 
-              // Fatura atual is the sum of unpaid transactions in the current cycle
+              // Fatura atual is the sum of transactions in the current cycle (matching invoices page)
               const currentInvoice = allTransactions
                 .filter(t => {
-                  if (t.type !== 'despesa' || t.cardId !== card.id || t.isPaid) return false;
+                  if (t.type !== 'despesa' || t.cardId !== card.id) return false;
                   const { cycleId } = getCycleId(t.date, card.closingDay, card.dueDay);
                   return cycleId === currentCycle;
                 })
@@ -290,8 +289,26 @@ export function DashboardView() {
                       </div>
                     </div>
                  </div>
-                 <div className={`font-bold text-xs ${t.type === 'receita' ? 'text-emerald-600 dark:text-emerald-500' : 'text-foreground'}`}>
-                   {t.type === 'receita' ? '+' : '-'}{formatCurrency(t.amount)}
+                 <div className="text-right">
+                   <div className={`font-bold text-xs ${t.type === 'receita' ? 'text-emerald-600 dark:text-emerald-500' : 'text-foreground'}`}>
+                     {t.type === 'receita' ? '+' : '-'}{formatCurrency(t.amount)}
+                   </div>
+                   {t.type === 'despesa' && (
+                     t.cardId && t.cardId !== 'money' ? (
+                       <div className={`text-[8px] font-bold uppercase tracking-widest mt-0.5 ${t.isPaid ? 'text-emerald-600 dark:text-emerald-500' : 'text-amber-500'}`}>
+                         {t.isPaid ? 'Pago' : 'Na Fatura'}
+                       </div>
+                     ) : (
+                       <div className={`text-[8px] font-bold uppercase tracking-widest mt-0.5 ${t.isPaid ? 'text-emerald-600 dark:text-emerald-500' : 'text-amber-500'}`}>
+                         {t.isPaid ? 'Pago' : 'Pendente'}
+                       </div>
+                     )
+                   )}
+                   {t.type === 'receita' && (
+                     <div className="text-[8px] font-bold uppercase tracking-widest mt-0.5 text-emerald-600 dark:text-emerald-500">
+                       Recebido
+                     </div>
+                   )}
                  </div>
               </div>
             ))
@@ -302,4 +319,3 @@ export function DashboardView() {
     </div>
   );
 }
-
