@@ -105,6 +105,7 @@ export function TransactionModal() {
   const [accountId, setAccountId] = useState('');
   const [cardId, setCardId] = useState('money');
   const [isPaid, setIsPaid] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
@@ -123,6 +124,7 @@ export function TransactionModal() {
   useEffect(() => {
     if (!isTransactionModalOpen) {
       setHasInitialized(false);
+      setError(null);
       return;
     }
 
@@ -168,15 +170,30 @@ export function TransactionModal() {
   }, [editingTransactionId, isTransactionModalOpen, accounts, defaultPaymentMethod, hasInitialized]);
 
   const handleSave = async () => {
-    if (!description || !amount || parseFloat(amount) <= 0 || !categoryId || categoryId === 'none') return;
+    setError(null);
+
+    if (!amount || parseFloat(amount) <= 0) {
+      setError('Por favor, insira um valor válido para a transação.');
+      return;
+    }
+
+    if (!description || !description.trim()) {
+      setError('Por favor, preencha a descrição da transação.');
+      return;
+    }
+
+    if (!categoryId || categoryId === 'none' || categoryId === '') {
+      setError('Por favor, selecione uma categoria.');
+      return;
+    }
     
     if (type === 'receita' && (!accountId || accountId === 'none' || accountId === '')) {
-      alert('Selecione uma conta para receber o valor.');
+      setError('Selecione a conta de destino para receber o valor.');
       return;
     }
     
     if (type === 'despesa' && cardId === 'money' && isPaid && (!accountId || accountId === 'none' || accountId === '')) {
-      alert('Selecione uma conta para confirmar o pagamento.');
+      setError('Selecione a conta bancária para confirmar o pagamento.');
       return;
     }
     
@@ -293,6 +310,7 @@ export function TransactionModal() {
     setTimeout(() => {
       setEditingTransactionId(null);
       setDefaultPaymentMethod(null);
+      setError(null);
     }, 300);
   };
 
@@ -450,6 +468,12 @@ export function TransactionModal() {
           </div>
         </div>
         
+        {error && (
+          <div className="px-5 py-2 mx-5 mb-1 bg-destructive/10 text-destructive text-xs font-semibold rounded-xl text-center animate-in fade-in-50 slide-in-from-top-1">
+            {error}
+          </div>
+        )}
+
         <div className="flex gap-3 p-4 border-t pb-8 sm:pb-4 bg-background">
           {editingTransactionId && (
             <button onClick={handleDelete} className="p-3 w-12 border border-destructive/20 text-destructive rounded-xl flex items-center justify-center hover:bg-destructive/10 transition-colors">
