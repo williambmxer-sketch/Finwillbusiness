@@ -39,7 +39,8 @@ export const useDataStore = create<DataState>((set, get) => ({
 
   setupSubscriptions: () => {
     // Escuta mudanças em qualquer tabela do Supabase para manter a tela sempre atualizada
-    const channel = supabase.channel('schema-db-changes')
+    const channelName = 'db-changes-' + Math.random().toString(36).substring(7);
+    const channel = supabase.channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public' },
