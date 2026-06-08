@@ -18,8 +18,8 @@ export function ReportsView() {
       
       const monthTx = allTransactions.filter(t => t.date.getMonth() === monthNumber && t.date.getFullYear() === yearNumber);
       
-      const receitas = monthTx.filter(t => t.type === 'receita').reduce((sum, t) => sum + t.amount, 0);
-      const despesas = monthTx.filter(t => t.type === 'despesa').reduce((sum, t) => sum + t.amount, 0);
+      const receitas = monthTx.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+      const despesas = monthTx.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
         
       data.push({
         name: d.toLocaleDateString('pt-BR', { month: 'short' }),
@@ -32,7 +32,7 @@ export function ReportsView() {
 
   const categories = useMemo(() => {
     const expensesByCategory = new Map<string, number>();
-    const expenses = allTransactions.filter(t => t.type === 'despesa');
+    const expenses = allTransactions.filter(t => t.type === 'expense');
     
     expenses.forEach(t => {
       const current = expensesByCategory.get(t.categoryId) || 0;

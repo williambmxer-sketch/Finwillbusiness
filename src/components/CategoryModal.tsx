@@ -14,7 +14,7 @@ export function CategoryModal() {
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
-  const [type, setType] = useState<'receita'|'despesa'>('despesa');
+  const [type, setType] = useState<'income'|'expense'>('expense');
   const [color, setColor] = useState('#3b82f6');
   
   const handleEdit = (c: Category) => {
@@ -27,7 +27,7 @@ export function CategoryModal() {
   const handleCancelEdit = () => {
     setEditingId(null);
     setName('');
-    setType('despesa');
+    setType('expense');
     setColor('#3b82f6');
   };
 
@@ -77,12 +77,12 @@ export function CategoryModal() {
             <div className="flex gap-2 mb-3">
               <div className="flex flex-1 items-center bg-muted/80 p-1.5 rounded-xl basis-1/3">
                 <button 
-                  className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'despesa' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                  onClick={() => setType('despesa')}
+                  className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'expense' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  onClick={() => setType('expense')}
                 >Desp</button>
                 <button 
-                  className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'receita' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                  onClick={() => setType('receita')}
+                  className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'income' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  onClick={() => setType('income')}
                 >Rec</button>
               </div>
               <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-border shadow-sm flex-shrink-0">
@@ -121,7 +121,7 @@ export function CategoryModal() {
                   <div className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: c.color }} />
                   <div>
                     <div className="font-semibold leading-none mb-0.5">{c.name}</div>
-                    <div className="text-[8px] text-muted-foreground uppercase font-bold tracking-wider leading-none">{c.type === 'receita' ? 'Rec' : 'Desp'}</div>
+                    <div className="text-[8px] text-muted-foreground uppercase font-bold tracking-wider leading-none">{c.type === 'income' ? 'Rec' : 'Desp'}</div>
                   </div>
                 </div>
                 <div className="flex gap-1">
