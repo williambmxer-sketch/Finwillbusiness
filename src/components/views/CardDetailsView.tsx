@@ -147,7 +147,7 @@ export function CardDetailsView() {
       });
     }
 
-    await Promise.all(newTransactions.map(t => api.transactions.create(t)));
+    await Promise.all(newTransactions.map(t => api.transactions.add(t)));
 
     // Reset fields for the next rapid entry
     setAmount('');

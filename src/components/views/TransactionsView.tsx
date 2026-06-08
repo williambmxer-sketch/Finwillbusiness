@@ -47,7 +47,7 @@ export function TransactionsView() {
     return `${yr}-${String(mo + 1).padStart(2, '0')}`;
   };
 
-  const cycles = Array.from(new Set(transactions.map(t => getEffectiveCycle(t)))).sort().reverse();
+  const cycles = Array.from<string>(new Set(transactions.map(t => getEffectiveCycle(t)))).sort().reverse();
   if (!cycles.includes(currentCycleId)) {
     cycles.push(currentCycleId);
     cycles.sort().reverse();

@@ -71,7 +71,7 @@ export function CardModal() {
     if (editingCardId) {
       await api.cards.update(editingCardId, card);
     } else {
-      await api.cards.create(card);
+      await api.cards.add(card);
     }
     
     closeModal();

@@ -54,11 +54,10 @@ export function AccountModal() {
     if (editingAccountId) {
       await api.accounts.update(editingAccountId, accountData);
     } else {
-      await api.accounts.create({
+      await api.accounts.add({
         ...accountData,
         color: '#1a1a1a',
-        icon: 'wallet',
-        id: crypto.randomUUID()
+        icon: 'wallet'
       });
     }
 

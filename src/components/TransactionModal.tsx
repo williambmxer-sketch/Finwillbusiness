@@ -136,7 +136,7 @@ export function TransactionModal() {
           }
       }
     } else {
-      await api.transactions.create(tx);
+      await api.transactions.add(tx);
       // Auto-update account balance if paid using an account
       if (tx.accountId && tx.isPaid) {
         const acc = getAcc(tx.accountId);

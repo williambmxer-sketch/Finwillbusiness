@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDataStore } from '../../store/useDataStore';
-import { db, Transaction, Card } from '../../db/db';
+import { api } from '../../services/api';
+import { Transaction, Card } from '../../db/db';
 import { formatCurrency } from '../../utils/formatters';
 import { Receipt, ChevronRight, X, ArrowDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -46,7 +47,7 @@ function getCycleId(date: Date, closingDay: number, dueDay: number) {
 }
 
 export function InvoicesView() {
-  const { setCurrentView } = useAppStore();
+  const { setCurrentView, setActiveContextCardId } = useAppStore();
   const allTransactions = useDataStore(state => state.transactions);
   const cards = useDataStore(state => state.cards);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);

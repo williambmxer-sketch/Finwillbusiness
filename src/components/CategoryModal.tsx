@@ -42,7 +42,7 @@ export function CategoryModal() {
     if (editingId) {
       await api.categories.update(cat.id, cat);
     } else {
-      await api.categories.create(cat);
+      await api.categories.add(cat);
     }
     handleCancelEdit();
   };

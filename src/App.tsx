@@ -48,8 +48,7 @@ export default function App() {
   useEffect(() => {
     if (session) {
       useDataStore.getState().fetchData();
-      const cleanup = useDataStore.getState().setupSubscriptions();
-      return () => cleanup();
+      useDataStore.getState().setupSubscriptions();
     }
   }, [session]);
 
