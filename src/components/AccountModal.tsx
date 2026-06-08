@@ -13,7 +13,7 @@ export function AccountModal() {
 
   const [name, setName] = useState('');
   const [balance, setBalance] = useState('');
-  const [type, setType] = useState('Corrente');
+  const [type, setType] = useState<'checking' | 'savings'>('checking');
 
   const handleBalanceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
@@ -33,12 +33,12 @@ export function AccountModal() {
       if (account) {
         setName(account.name);
         setBalance(account.balance.toString());
-        setType(account.type || 'Corrente');
+        setType((account.type as 'checking' | 'savings') || 'checking');
       }
     } else if (!editingAccountId && isAccountModalOpen) {
       setName('');
       setBalance('');
-      setType('Corrente');
+      setType('checking');
     }
   }, [editingAccountId, isAccountModalOpen, accounts]);
 
@@ -122,12 +122,12 @@ export function AccountModal() {
                 <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1.5 block ml-1">Tipo</Label>
                 <div className="flex w-full bg-muted/50 p-1.5 rounded-[16px]">
                   <button 
-                    onClick={() => setType('Corrente')}
-                    className={`flex-1 py-2.5 rounded-[12px] text-[11px] font-bold uppercase tracking-widest transition-all ${type === 'Corrente' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                    onClick={() => setType('checking')}
+                    className={`flex-1 py-2.5 rounded-[12px] text-[11px] font-bold uppercase tracking-widest transition-all ${type === 'checking' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                   >Corrente</button>
                   <button 
-                    onClick={() => setType('Poupança')}
-                    className={`flex-1 py-2.5 rounded-[12px] text-[11px] font-bold uppercase tracking-widest transition-all ${type === 'Poupança' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                    onClick={() => setType('savings')}
+                    className={`flex-1 py-2.5 rounded-[12px] text-[11px] font-bold uppercase tracking-widest transition-all ${type === 'savings' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                   >Poupança</button>
                 </div>
               </div>
