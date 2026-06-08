@@ -206,26 +206,46 @@ export function TransactionModal() {
 
     if (editingTransactionId) {
       const oldTx = useDataStore.getState().transactions.find(t => t.id === editingTransactionId);
-      if (oldTx) {
-          // Revert old transaction impact
-          if (oldTx.accountId && oldTx.isPaid) {
-              const oldAcc = getAcc(oldTx.accountId);
-              if (oldAcc) {
-                  await api.accounts.update(oldTx.accountId, {
-                      balance: oldAcc.balance - (oldTx.type === 'receita' ? oldTx.amount : -oldTx.amount)
-                  });
-              }
-          }
-      }
       await api.transactions.update(editingTransactionId, tx);
-      // Apply new transaction impact
-      if (tx.accountId && tx.isPaid) {
-          const newAcc = getAcc(tx.accountId);
-          if (newAcc) {
-              await api.accounts.update(tx.accountId, {
-                  balance: newAcc.balance + (tx.type === 'receita' ? tx.amount : -tx.amount)
-              });
+
+      if (oldTx) {
+        if (oldTx.accountId === tx.accountId) {
+          // Same account: calculate net difference and update once
+          let balanceDiff = 0;
+          if (oldTx.isPaid) {
+            balanceDiff -= (oldTx.type === 'receita' ? oldTx.amount : -oldTx.amount);
           }
+          if (tx.isPaid) {
+            balanceDiff += (tx.type === 'receita' ? tx.amount : -tx.amount);
+          }
+          
+          if (tx.accountId && balanceDiff !== 0) {
+            const acc = getAcc(tx.accountId);
+            if (acc) {
+              await api.accounts.update(tx.accountId, {
+                balance: acc.balance + balanceDiff
+              });
+            }
+          }
+        } else {
+          // Different accounts: update both separately (no race condition since IDs are different)
+          if (oldTx.accountId && oldTx.isPaid) {
+            const oldAcc = getAcc(oldTx.accountId);
+            if (oldAcc) {
+              await api.accounts.update(oldTx.accountId, {
+                balance: oldAcc.balance - (oldTx.type === 'receita' ? oldTx.amount : -oldTx.amount)
+              });
+            }
+          }
+          if (tx.accountId && tx.isPaid) {
+            const newAcc = getAcc(tx.accountId);
+            if (newAcc) {
+              await api.accounts.update(tx.accountId, {
+                balance: newAcc.balance + (tx.type === 'receita' ? tx.amount : -tx.amount)
+              });
+            }
+          }
+        }
       }
     } else {
       await api.transactions.add(tx);
