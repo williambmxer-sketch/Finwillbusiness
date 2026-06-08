@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db/db';
+import { useDataStore } from '../store/useDataStore';
+import { api } from '../services/api';
 import { X, Save, Trash } from 'lucide-react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -9,7 +9,7 @@ import { useAppStore } from '../store/useAppStore';
 export function AccountModal() {
   const { isAccountModalOpen, setAccountModalOpen, editingAccountId, setEditingAccountId } = useAppStore();
   
-  const accounts = useLiveQuery(() => db.accounts.toArray()) || [];
+  const accounts = useDataStore(state => state.accounts);
 
   const [name, setName] = useState('');
   const [balance, setBalance] = useState('');
@@ -52,9 +52,9 @@ export function AccountModal() {
     };
 
     if (editingAccountId) {
-      await db.accounts.update(editingAccountId, accountData);
+      await api.accounts.update(editingAccountId, accountData);
     } else {
-      await db.accounts.add({
+      await api.accounts.create({
         ...accountData,
         color: '#1a1a1a',
         icon: 'wallet',
@@ -67,7 +67,7 @@ export function AccountModal() {
 
   const handleDelete = async () => {
     if (editingAccountId) {
-      await db.accounts.delete(editingAccountId);
+      await api.accounts.delete(editingAccountId);
       closeModal();
     }
   };

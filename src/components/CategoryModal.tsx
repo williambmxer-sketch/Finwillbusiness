@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { db, Category } from '../db/db';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { api } from '../services/api';
+import { useDataStore } from '../store/useDataStore';
+import { Category } from '../db/db';
 import { X, Save, Trash, User, Briefcase, Car, Coffee, Home as HomeIcon, Phone, ShoppingCart } from 'lucide-react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 
 export function CategoryModal() {
   const { isCategoryModalOpen, setCategoryModalOpen } = useAppStore();
-  const categories = useLiveQuery(() => db.categories.toArray()) || [];
+  const categories = useDataStore(state => state.categories);
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -39,15 +40,15 @@ export function CategoryModal() {
       icon: 'Tag', // default icon for newly created specific tags
     };
     if (editingId) {
-      await db.categories.put(cat);
+      await api.categories.update(cat.id, cat);
     } else {
-      await db.categories.add(cat);
+      await api.categories.create(cat);
     }
     handleCancelEdit();
   };
 
   const handleDelete = async (id: string) => {
-    await db.categories.delete(id);
+    await api.categories.delete(id);
     if (editingId === id) handleCancelEdit();
   };
 

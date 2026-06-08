@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db, Transaction } from '../../db/db';
+import { useDataStore } from '../../store/useDataStore';
+import { api } from '../../services/api';
+import { Transaction } from '../../db/db';
 import { formatCurrency } from '../../utils/formatters';
 import { ChevronLeft, CreditCard, ShoppingBag, Clock, TrendingDown, Pencil, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -40,17 +41,17 @@ function getCycleId(date: Date, closingDay: number, dueDay: number) {
 export function CardDetailsView() {
   const { setCurrentView, activeContextCardId, setEditingCardId, setCardModalOpen, setEditingTransactionId, setTransactionModalOpen } = useAppStore();
   
-  const card = useLiveQuery(() => 
-    db.cards.get(activeContextCardId || '')
-  );
+  const cards = useDataStore(state => state.cards);
+  const card = cards.find(c => c.id === activeContextCardId);
 
-  const categories = useLiveQuery(() => db.categories.toArray()) || [];
-  const transactions = useLiveQuery(() => 
-    db.transactions
+  const categories = useDataStore(state => state.categories);
+  const allTransactions = useDataStore(state => state.transactions);
+  
+  const transactions = React.useMemo(() => {
+    return allTransactions
       .filter(t => t.cardId === activeContextCardId && t.type === 'expense')
-      .reverse()
-      .sortBy('date')
-  ) || [];
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [allTransactions, activeContextCardId]);
 
   const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
 
@@ -146,7 +147,7 @@ export function CardDetailsView() {
       });
     }
 
-    await db.transactions.bulkAdd(newTransactions);
+    await Promise.all(newTransactions.map(t => api.transactions.create(t)));
 
     // Reset fields for the next rapid entry
     setAmount('');
@@ -156,7 +157,7 @@ export function CardDetailsView() {
 
   const handleDeleteTransaction = async (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir esta despesa?')) {
-      await db.transactions.delete(id);
+      await api.transactions.delete(id);
     }
   };
 

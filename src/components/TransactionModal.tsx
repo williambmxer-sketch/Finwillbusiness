@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { db, Transaction, Category, Account, Card } from '../db/db';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { useDataStore } from '../store/useDataStore';
+import { api } from '../services/api';
+import { Transaction, Category, Account, Card } from '../db/db';
 import { X, Save, Trash } from 'lucide-react';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -16,9 +17,9 @@ export function TransactionModal() {
     currentView
   } = useAppStore();
   
-  const categories = useLiveQuery(() => db.categories.toArray());
-  const accounts = useLiveQuery(() => db.accounts.toArray());
-  const cards = useLiveQuery(() => db.cards.toArray());
+  const categories = useDataStore(state => state.categories);
+  const accounts = useDataStore(state => state.accounts);
+  const cards = useDataStore(state => state.cards);
 
   const [type, setType] = useState<'income'|'expense'>('expense');
   const [amount, setAmount] = useState('');
@@ -59,8 +60,8 @@ export function TransactionModal() {
     // If it's empty, we'll just not set a default account right now to prevent loops.
     
     if (editingTransactionId) {
-      db.transactions.get(editingTransactionId).then(t => {
-        if (t) {
+      const t = useDataStore.getState().transactions.find(tx => tx.id === editingTransactionId);
+      if (t) {
           setType(t.type);
           setAmount((t.amount).toString());
           setDescription(t.description);
@@ -71,7 +72,6 @@ export function TransactionModal() {
           setIsPaid(t.isPaid);
           setHasInitialized(true);
         }
-      });
     } else {
       setType('expense');
       setAmount('');
@@ -110,36 +110,38 @@ export function TransactionModal() {
       isPaid: cardId !== 'money' ? false : isPaid,
     };
 
+    const getAcc = (id: string) => useDataStore.getState().accounts.find(a => a.id === id);
+
     if (editingTransactionId) {
-      const oldTx = await db.transactions.get(editingTransactionId);
+      const oldTx = useDataStore.getState().transactions.find(t => t.id === editingTransactionId);
       if (oldTx) {
           // Revert old transaction impact
           if (oldTx.accountId && oldTx.isPaid) {
-              const oldAcc = await db.accounts.get(oldTx.accountId);
+              const oldAcc = getAcc(oldTx.accountId);
               if (oldAcc) {
-                  await db.accounts.update(oldTx.accountId, {
+                  await api.accounts.update(oldTx.accountId, {
                       balance: oldAcc.balance - (oldTx.type === 'income' ? oldTx.amount : -oldTx.amount)
                   });
               }
           }
       }
-      await db.transactions.put(tx);
+      await api.transactions.update(editingTransactionId, tx);
       // Apply new transaction impact
       if (tx.accountId && tx.isPaid) {
-          const newAcc = await db.accounts.get(tx.accountId);
+          const newAcc = getAcc(tx.accountId);
           if (newAcc) {
-              await db.accounts.update(tx.accountId, {
+              await api.accounts.update(tx.accountId, {
                   balance: newAcc.balance + (tx.type === 'income' ? tx.amount : -tx.amount)
               });
           }
       }
     } else {
-      await db.transactions.add(tx);
+      await api.transactions.create(tx);
       // Auto-update account balance if paid using an account
       if (tx.accountId && tx.isPaid) {
-        const acc = await db.accounts.get(tx.accountId);
+        const acc = getAcc(tx.accountId);
         if (acc) {
-          await db.accounts.update(tx.accountId, {
+          await api.accounts.update(tx.accountId, {
             balance: acc.balance + (tx.type === 'income' ? tx.amount : -tx.amount)
           });
         }
@@ -151,16 +153,16 @@ export function TransactionModal() {
 
   const handleDelete = async () => {
     if (editingTransactionId) {
-      const oldTx = await db.transactions.get(editingTransactionId);
+      const oldTx = useDataStore.getState().transactions.find(t => t.id === editingTransactionId);
       if (oldTx && oldTx.accountId && oldTx.isPaid) {
-          const oldAcc = await db.accounts.get(oldTx.accountId);
+          const oldAcc = useDataStore.getState().accounts.find(a => a.id === oldTx.accountId);
           if (oldAcc) {
-              await db.accounts.update(oldTx.accountId, {
+              await api.accounts.update(oldTx.accountId, {
                   balance: oldAcc.balance - (oldTx.type === 'income' ? oldTx.amount : -oldTx.amount)
               });
           }
       }
-      await db.transactions.delete(editingTransactionId);
+      await api.transactions.delete(editingTransactionId);
       closeModal();
     }
   };

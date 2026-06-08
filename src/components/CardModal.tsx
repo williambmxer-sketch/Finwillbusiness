@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { db, Card } from '../db/db';
+import { useDataStore } from '../store/useDataStore';
+import { api } from '../services/api';
+import { Card } from '../db/db';
 import { X, Save, Trash } from 'lucide-react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -30,8 +32,8 @@ export function CardModal() {
 
   useEffect(() => {
     if (editingCardId && isCardModalOpen) {
-      db.cards.get(editingCardId).then(c => {
-        if (c) {
+      const c = useDataStore.getState().cards.find(card => card.id === editingCardId);
+      if (c) {
           setName(c.name);
           setBank(c.bank);
           setLimit(c.limit.toString());
@@ -40,7 +42,6 @@ export function CardModal() {
           setLastFour(c.lastFour);
           setColor(c.color);
         }
-      });
     } else {
       setName('');
       setBank('');
@@ -68,9 +69,9 @@ export function CardModal() {
     };
 
     if (editingCardId) {
-      await db.cards.put(card);
+      await api.cards.update(editingCardId, card);
     } else {
-      await db.cards.add(card);
+      await api.cards.create(card);
     }
     
     closeModal();
@@ -78,7 +79,7 @@ export function CardModal() {
 
   const handleDelete = async () => {
     if (editingCardId) {
-      await db.cards.delete(editingCardId);
+      await api.cards.delete(editingCardId);
       closeModal();
     }
   };

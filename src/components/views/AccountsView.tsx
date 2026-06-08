@@ -1,12 +1,11 @@
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../../db/db';
+import { useDataStore } from '../../store/useDataStore';
 import { formatCurrency } from '../../utils/formatters';
 import { Plus, Landmark } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAppStore } from '../../store/useAppStore';
 
 export function AccountsView() {
-  const accounts = useLiveQuery(() => db.accounts.toArray()) || [];
+  const accounts = useDataStore(state => state.accounts);
   const { setAccountModalOpen, setEditingAccountId, setCurrentView, setActiveAccountId } = useAppStore();
 
   const totalBalance = accounts.reduce((acc, account) => acc + account.balance, 0);

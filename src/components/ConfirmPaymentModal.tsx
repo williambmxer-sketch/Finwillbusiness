@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db/db';
+import { useDataStore } from '../store/useDataStore';
+import { api } from '../services/api';
 import { useAppStore } from '../store/useAppStore';
 import { X, CheckCircle2 } from 'lucide-react';
 import { Input } from './ui/input';
@@ -9,13 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 export function ConfirmPaymentModal() {
   const { confirmPaymentTransactionId, setConfirmPaymentTransactionId } = useAppStore();
   
-  const transaction = useLiveQuery(
-    () => confirmPaymentTransactionId ? db.transactions.get(confirmPaymentTransactionId) : undefined,
-    [confirmPaymentTransactionId]
-  );
-  
-  const accounts = useLiveQuery(() => db.accounts.toArray()) || [];
-  const cards = useLiveQuery(() => db.cards.toArray()) || [];
+  const allTransactions = useDataStore(state => state.transactions);
+  const transaction = allTransactions.find(t => t.id === confirmPaymentTransactionId);
+  const accounts = useDataStore(state => state.accounts);
+  const cards = useDataStore(state => state.cards);
 
   const [date, setDate] = useState('');
   const [accountId, setAccountId] = useState('');
@@ -38,7 +35,7 @@ export function ConfirmPaymentModal() {
     // Create local Date from input, setting to noon to avoid timezone shift issues
     const realPaymentDate = new Date(date + 'T12:00:00');
 
-    await db.transactions.update(transaction.id, {
+    await api.transactions.update(transaction.id, {
       paymentDate: realPaymentDate,
       accountId: accountId || undefined,
       cardId: cardId,
@@ -46,9 +43,9 @@ export function ConfirmPaymentModal() {
     });
 
     if (accountId && cardId === 'money') {
-      const acc = await db.accounts.get(accountId);
+      const acc = useDataStore.getState().accounts.find(a => a.id === accountId);
       if (acc) {
-        await db.accounts.update(accountId, {
+        await api.accounts.update(accountId, {
           balance: acc.balance + (transaction.type === 'income' ? transaction.amount : -transaction.amount)
         });
       }

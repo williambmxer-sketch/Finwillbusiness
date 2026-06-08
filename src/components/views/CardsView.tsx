@@ -1,5 +1,5 @@
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../../db/db';
+import { useDataStore } from '../../store/useDataStore';
+import { api } from '../../services/api';
 import { formatCurrency } from '../../utils/formatters';
 import { Plus, CreditCard as CardIcon } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -7,7 +7,7 @@ import { Progress } from '../ui/progress';
 import { useAppStore } from '../../store/useAppStore';
 
 export function CardsView() {
-  const cards = useLiveQuery(() => db.cards.toArray()) || [];
+  const cards = useDataStore((state) => state.cards);
   const { setCardModalOpen, setEditingCardId, setCurrentView, setActiveContextCardId } = useAppStore();
 
   return (

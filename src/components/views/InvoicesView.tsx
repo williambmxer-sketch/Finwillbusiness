@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { useDataStore } from '../../store/useDataStore';
 import { db, Transaction, Card } from '../../db/db';
 import { formatCurrency } from '../../utils/formatters';
 import { Receipt, ChevronRight, X, ArrowDown } from 'lucide-react';
@@ -46,8 +46,9 @@ function getCycleId(date: Date, closingDay: number, dueDay: number) {
 }
 
 export function InvoicesView() {
-  const { setDefaultPaymentMethod, setTransactionModalOpen, setActiveContextCardId } = useAppStore();
-  const cards = useLiveQuery(() => db.cards.toArray()) || [];
+  const { setCurrentView } = useAppStore();
+  const allTransactions = useDataStore(state => state.transactions);
+  const cards = useDataStore(state => state.cards);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -61,15 +62,11 @@ export function InvoicesView() {
     return () => setActiveContextCardId(null);
   }, [selectedCardId, setActiveContextCardId]);
 
-  const transactions = useLiveQuery(
-    () => selectedCardId ? db.transactions.where({ cardId: selectedCardId }).toArray() : [],
-    [selectedCardId]
-  ) || [];
+  const transactions = useMemo(() => {
+    return selectedCardId ? allTransactions.filter(t => t.cardId === selectedCardId) : [];
+  }, [allTransactions, selectedCardId]);
 
-  const dbInvoices = useLiveQuery(
-    () => selectedCardId ? db.invoices.where({ cardId: selectedCardId }).toArray() : [],
-    [selectedCardId]
-  ) || [];
+  const dbInvoices: any[] = []; // Invoices exist as computed only for now
 
   const computedInvoices = useMemo(() => {
     if (!selectedCardId) return [];
@@ -131,19 +128,10 @@ export function InvoicesView() {
   const handlePayInvoice = async () => {
     if (!selectedInvoice || !selectedCardId || selectedInvoice.amount <= 0) return;
     
-    await db.invoices.put({
-      id: selectedInvoice.id,
-      cardId: selectedCardId,
-      month: selectedInvoice.yearMonth,
-      status: 'paid',
-      totalAmount: selectedInvoice.amount,
-      dueDate: selectedInvoice.dueDate,
-      closingDate: selectedInvoice.dueDate
-    });
-
     if (selectedInvoice.transactions.length > 0) {
-      const txIds = selectedInvoice.transactions.map(t => t.id);
-      await db.transactions.where('id').anyOf(txIds).modify({ isPaid: true });
+      await Promise.all(selectedInvoice.transactions.map(t => 
+        api.transactions.update(t.id, { isPaid: true })
+      ));
     }
     
     setSelectedInvoice(null);

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../../db/db';
+import { useDataStore } from '../../store/useDataStore';
+import { api } from '../../services/api';
 import { formatCurrency } from '../../utils/formatters';
 import { Plus, ChevronLeft, Landmark, TrendingUp, TrendingDown, Clock, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -9,27 +9,26 @@ import { useAppStore } from '../../store/useAppStore';
 export function AccountDetailsView() {
   const { setCurrentView, activeAccountId, setEditingAccountId, setAccountModalOpen, setEditingTransactionId, setTransactionModalOpen } = useAppStore();
   
-  const account = useLiveQuery(() => 
-    db.accounts.get(activeAccountId || '')
-  );
+  const accounts = useDataStore(state => state.accounts);
+  const account = accounts.find(a => a.id === activeAccountId);
 
-  const transactions = useLiveQuery(() => 
-    db.transactions
+  const allTransactions = useDataStore(state => state.transactions);
+  const transactions = React.useMemo(() => {
+    return allTransactions
       .filter(t => t.accountId === activeAccountId)
-      .reverse()
-      .sortBy('date')
-  ) || [];
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [allTransactions, activeAccountId]);
 
   const handleQuickPay = async (e: React.MouseEvent, t: any) => {
     e.stopPropagation();
     if (t.isPaid || t.cardId !== 'money') return;
     
-    await db.transactions.update(t.id, { isPaid: true });
+    await api.transactions.update(t.id, { isPaid: true });
     
     if (t.accountId) {
-      const acc = await db.accounts.get(t.accountId);
+      const acc = useDataStore.getState().accounts.find(a => a.id === t.accountId);
       if (acc) {
-        await db.accounts.update(t.accountId, {
+        await api.accounts.update(t.accountId, {
           balance: acc.balance + (t.type === 'income' ? t.amount : -t.amount)
         });
       }
