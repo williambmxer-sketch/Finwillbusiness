@@ -21,7 +21,7 @@ export function TransactionModal() {
   const accounts = useDataStore(state => state.accounts);
   const cards = useDataStore(state => state.cards);
 
-  const [type, setType] = useState<'income'|'expense'>('expense');
+  const [type, setType] = useState<'receita'|'despesa'>('despesa');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -73,7 +73,7 @@ export function TransactionModal() {
           setHasInitialized(true);
         }
     } else {
-      setType('expense');
+      setType('despesa');
       setAmount('');
       setDescription('');
       setDate(new Date().toISOString().split('T')[0]);
@@ -120,7 +120,7 @@ export function TransactionModal() {
               const oldAcc = getAcc(oldTx.accountId);
               if (oldAcc) {
                   await api.accounts.update(oldTx.accountId, {
-                      balance: oldAcc.balance - (oldTx.type === 'income' ? oldTx.amount : -oldTx.amount)
+                      balance: oldAcc.balance - (oldTx.type === 'receita' ? oldTx.amount : -oldTx.amount)
                   });
               }
           }
@@ -131,7 +131,7 @@ export function TransactionModal() {
           const newAcc = getAcc(tx.accountId);
           if (newAcc) {
               await api.accounts.update(tx.accountId, {
-                  balance: newAcc.balance + (tx.type === 'income' ? tx.amount : -tx.amount)
+                  balance: newAcc.balance + (tx.type === 'receita' ? tx.amount : -tx.amount)
               });
           }
       }
@@ -142,7 +142,7 @@ export function TransactionModal() {
         const acc = getAcc(tx.accountId);
         if (acc) {
           await api.accounts.update(tx.accountId, {
-            balance: acc.balance + (tx.type === 'income' ? tx.amount : -tx.amount)
+            balance: acc.balance + (tx.type === 'receita' ? tx.amount : -tx.amount)
           });
         }
       }
@@ -158,7 +158,7 @@ export function TransactionModal() {
           const oldAcc = useDataStore.getState().accounts.find(a => a.id === oldTx.accountId);
           if (oldAcc) {
               await api.accounts.update(oldTx.accountId, {
-                  balance: oldAcc.balance - (oldTx.type === 'income' ? oldTx.amount : -oldTx.amount)
+                  balance: oldAcc.balance - (oldTx.type === 'receita' ? oldTx.amount : -oldTx.amount)
               });
           }
       }
@@ -192,13 +192,13 @@ export function TransactionModal() {
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
           <div className="flex bg-muted/50 p-1.5 rounded-[16px]">
             <button 
-              className={`flex-1 py-2.5 rounded-[12px] text-[11px] font-bold uppercase tracking-widest transition-all ${type === 'expense' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'} disabled:opacity-30 disabled:cursor-not-allowed`}
-              onClick={() => setType('expense')}
+              className={`flex-1 py-2.5 rounded-[12px] text-[11px] font-bold uppercase tracking-widest transition-all ${type === 'despesa' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'} disabled:opacity-30 disabled:cursor-not-allowed`}
+              onClick={() => setType('despesa')}
               disabled={!!activeContextCardId && currentView === 'cardDetails'}
             >Despesa</button>
             <button 
-              className={`flex-1 py-2.5 rounded-[12px] text-[11px] font-bold uppercase tracking-widest transition-all ${type === 'income' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'} disabled:opacity-30 disabled:cursor-not-allowed`}
-              onClick={() => setType('income')}
+              className={`flex-1 py-2.5 rounded-[12px] text-[11px] font-bold uppercase tracking-widest transition-all ${type === 'receita' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'} disabled:opacity-30 disabled:cursor-not-allowed`}
+              onClick={() => setType('receita')}
               disabled={!!activeContextCardId && currentView === 'cardDetails'}
             >Receita</button>
           </div>
@@ -258,7 +258,7 @@ export function TransactionModal() {
                 </div>
               </div>
 
-              {type === 'expense' && (
+              {type === 'despesa' && (
                 <div>
                   <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1.5 block ml-1">Método de Pagamento</Label>
                   <Select value={cardId || "none"} onValueChange={setCardId} disabled={!!activeContextCardId && currentView === 'cardDetails'}>
@@ -282,7 +282,7 @@ export function TransactionModal() {
                 </div>
               )}
 
-              {(type === 'income' || cardId === 'money') && (
+              {(type === 'receita' || cardId === 'money') && (
                 <div>
                   <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1.5 block ml-1">Conta</Label>
                   <Select value={accountId || "none"} onValueChange={setAccountId}>

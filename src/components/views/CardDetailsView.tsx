@@ -49,7 +49,7 @@ export function CardDetailsView() {
   
   const transactions = React.useMemo(() => {
     return allTransactions
-      .filter(t => t.cardId === activeContextCardId && t.type === 'expense')
+      .filter(t => t.cardId === activeContextCardId && t.type === 'despesa')
       .sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [allTransactions, activeContextCardId]);
 
@@ -137,7 +137,7 @@ export function CardDetailsView() {
         description: numInstallments > 1 ? `${description} (${i + 1}/${numInstallments})` : description,
         amount: installmentAmount,
         date: txDate,
-        type: 'expense',
+        type: 'despesa',
         categoryId,
         cardId: card.id,
         installments: numInstallments > 1 ? numInstallments : undefined,
@@ -284,7 +284,7 @@ export function CardDetailsView() {
                 </SelectValue>
               </SelectTrigger>
               <SelectContent className="rounded-xl z-[200]">
-                {categories.filter(c => c.type === 'expense').map(c => (
+                {categories.filter(c => c.type === 'despesa').map(c => (
                   <SelectItem key={c.id} value={c.id} className="text-xs font-medium">{c.name}</SelectItem>
                 ))}
               </SelectContent>
