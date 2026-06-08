@@ -16,6 +16,37 @@ import { formatCurrency } from '../../utils/formatters';
 
 import { useAppStore } from '../../store/useAppStore';
 
+function getCycleId(dateVal: Date | string, closingDay: number = 10, dueDay: number = 17) {
+  const date = typeof dateVal === 'string' ? new Date(dateVal) : dateVal;
+  if (!date || isNaN(date.getTime())) {
+    return { cycleId: '', dueDate: new Date() };
+  }
+  let yr = date.getFullYear();
+  let mo = date.getMonth();
+  let currentMonthClosing = new Date(yr, mo, closingDay, 23, 59, 59);
+  
+  let cycleMonth = mo;
+  let cycleYear = yr;
+
+  if (date > currentMonthClosing) {
+    cycleMonth += 1;
+    if (cycleMonth > 11) { cycleMonth = 0; cycleYear++; }
+  }
+  
+  let dueMonth = cycleMonth;
+  let dueYear = cycleYear;
+  if (dueDay < closingDay) {
+    dueMonth += 1;
+    if (dueMonth > 11) { dueMonth = 0; dueYear++; }
+  }
+
+  let finalDueDate = new Date(dueYear, dueMonth, dueDay);
+  return {
+    cycleId: `${dueYear}-${dueMonth + 1}`,
+    dueDate: finalDueDate
+  };
+}
+
 export function DashboardView() {
   const { setCategoryModalOpen, setCurrentView } = useAppStore();
   const accounts = useDataStore(state => state.accounts);
@@ -109,7 +140,7 @@ export function DashboardView() {
            <button onClick={() => setCurrentView('accounts')} className="bg-primary/10 text-primary p-2.5 rounded-[11px] hover:bg-primary/20 transition-colors">
              <Landmark className="h-5 w-5" />
            </button>
-        </div>
+         </div>
       </header>
 
       {/* Main Stats Grid */}
@@ -155,7 +186,20 @@ export function DashboardView() {
             </div>
           ) : (
             cards.map(card => {
-              const cardUsage = allTransactions
+              const now = new Date();
+              const { cycleId: currentCycle } = getCycleId(now, card.closingDay, card.dueDay);
+
+              // Fatura atual is the sum of unpaid transactions in the current cycle
+              const currentInvoice = allTransactions
+                .filter(t => {
+                  if (t.type !== 'despesa' || t.cardId !== card.id || t.isPaid) return false;
+                  const { cycleId } = getCycleId(t.date, card.closingDay, card.dueDay);
+                  return cycleId === currentCycle;
+                })
+                .reduce((acc, t) => acc + t.amount, 0);
+
+              // Total unpaid across all cycles to accurately subtract from limit
+              const totalUnpaid = allTransactions
                 .filter(t => t.type === 'despesa' && t.cardId === card.id && !t.isPaid)
                 .reduce((acc, t) => acc + t.amount, 0);
 
@@ -177,11 +221,11 @@ export function DashboardView() {
                     <div className="flex justify-between items-end">
                        <div>
                          <div className="text-[9px] uppercase font-bold tracking-widest opacity-70 mb-0.5">Fatura atual</div>
-                         <div className="text-lg font-bold">{formatCurrency(cardUsage)}</div>
+                         <div className="text-lg font-bold">{formatCurrency(currentInvoice)}</div>
                        </div>
                        <div className="text-right">
                          <div className="text-[9px] uppercase font-bold tracking-widest opacity-70 mb-0.5">Disponível</div>
-                         <div className="text-sm font-semibold">{formatCurrency(card.limit - cardUsage)}</div>
+                         <div className="text-sm font-semibold">{formatCurrency(card.limit - totalUnpaid)}</div>
                        </div>
                     </div>
                   </div>

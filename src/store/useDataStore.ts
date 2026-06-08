@@ -11,7 +11,7 @@ interface DataState {
   isLoading: boolean;
   error: string | null;
   fetchData: () => Promise<void>;
-  setupSubscriptions: () => void;
+  setupSubscriptions: () => (() => void);
 }
 
 export const useDataStore = create<DataState>((set, get) => ({
