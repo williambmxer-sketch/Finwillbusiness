@@ -11,21 +11,6 @@
     <title>Mestre - Finanças Pessoais</title>
   </head>
   <body>
-    <script>
-      window.addEventListener('error', function(e) {
-        var errDiv = document.createElement('div');
-        errDiv.style.position = 'fixed';
-        errDiv.style.top = '10%';
-        errDiv.style.left = '10%';
-        errDiv.style.width = '80%';
-        errDiv.style.backgroundColor = '#ff0000';
-        errDiv.style.color = '#ffffff';
-        errDiv.style.padding = '20px';
-        errDiv.style.zIndex = '999999';
-        errDiv.innerHTML = '<h3>CRITICAL REACT ERROR</h3><p>' + e.message + '</p><pre>' + (e.error ? e.error.stack : '') + '</pre>';
-        document.body.appendChild(errDiv);
-      });
-    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
