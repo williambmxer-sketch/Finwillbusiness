@@ -242,7 +242,7 @@ export function TransactionModal() {
                   />
                 </div>
                 <div>
-                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1.5 block ml-1">Categoria</Label>
+                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1.5 block ml-1">Categoria (Total: {categories?.length || 0})</Label>
                   <Select value={categoryId || "none"} onValueChange={setCategoryId}>
                     <SelectTrigger className="rounded-xl h-11 text-sm bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none">
                       <SelectValue placeholder="Selecione...">
