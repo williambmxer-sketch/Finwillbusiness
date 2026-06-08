@@ -43,11 +43,11 @@ export function AccountModal() {
   }, [editingAccountId, isAccountModalOpen, accounts]);
 
   const handleSave = async () => {
-    if (!name || !balance) return;
+    if (!name) return;
 
     const accountData = {
       name,
-      balance: parseFloat(balance),
+      balance: balance ? parseFloat(balance) : 0,
       type
     };
 
