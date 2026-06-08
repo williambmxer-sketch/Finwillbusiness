@@ -38,6 +38,11 @@ export const useDataStore = create<DataState>((set, get) => ({
   },
 
   setupSubscriptions: () => {
+    const handleLocalMutation = () => get().fetchData();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('db_mutation', handleLocalMutation);
+    }
+
     // Escuta mudanças em qualquer tabela do Supabase para manter a tela sempre atualizada
     const channelName = 'db-changes-' + Math.random().toString(36).substring(7);
     const channel = supabase.channel(channelName)
@@ -54,6 +59,9 @@ export const useDataStore = create<DataState>((set, get) => ({
 
     return () => {
       supabase.removeChannel(channel);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('db_mutation', handleLocalMutation);
+      }
     };
   }
 }));

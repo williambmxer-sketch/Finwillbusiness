@@ -106,6 +106,12 @@ const getUserId = async () => {
   return session.user.id;
 };
 
+const notifyMutation = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('db_mutation'));
+  }
+};
+
 export const api = {
   categories: {
     list: async (): Promise<Category[]> => {
@@ -120,16 +126,19 @@ export const api = {
         usuario_id: userId
       }).select().single();
       if (error) throw error;
+      notifyMutation();
       return mappers.category.toApp(data);
     },
     update: async (id: string, category: Partial<Category>) => {
       const { data, error } = await supabase.from('categorias').update(mappers.category.toDb(category)).eq('id', id).select().single();
       if (error) throw error;
+      notifyMutation();
       return mappers.category.toApp(data);
     },
     delete: async (id: string) => {
       const { error } = await supabase.from('categorias').delete().eq('id', id);
       if (error) throw error;
+      notifyMutation();
     }
   },
 
@@ -146,16 +155,19 @@ export const api = {
         usuario_id: userId
       }).select().single();
       if (error) throw error;
+      notifyMutation();
       return mappers.account.toApp(data);
     },
     update: async (id: string, account: Partial<Account>) => {
       const { data, error } = await supabase.from('contas').update(mappers.account.toDb(account)).eq('id', id).select().single();
       if (error) throw error;
+      notifyMutation();
       return mappers.account.toApp(data);
     },
     delete: async (id: string) => {
       const { error } = await supabase.from('contas').delete().eq('id', id);
       if (error) throw error;
+      notifyMutation();
     }
   },
 
@@ -172,16 +184,19 @@ export const api = {
         usuario_id: userId
       }).select().single();
       if (error) throw error;
+      notifyMutation();
       return mappers.card.toApp(data);
     },
     update: async (id: string, card: Partial<Card>) => {
       const { data, error } = await supabase.from('cartoes').update(mappers.card.toDb(card)).eq('id', id).select().single();
       if (error) throw error;
+      notifyMutation();
       return mappers.card.toApp(data);
     },
     delete: async (id: string) => {
       const { error } = await supabase.from('cartoes').delete().eq('id', id);
       if (error) throw error;
+      notifyMutation();
     }
   },
 
@@ -198,6 +213,7 @@ export const api = {
         usuario_id: userId
       }).select().single();
       if (error) throw error;
+      notifyMutation();
       return mappers.transaction.toApp(data);
     },
     bulkAdd: async (transactions: Omit<Transaction, 'id'>[]) => {
@@ -208,16 +224,19 @@ export const api = {
       }));
       const { data, error } = await supabase.from('transacoes').insert(payload).select();
       if (error) throw error;
+      notifyMutation();
       return (data || []).map(mappers.transaction.toApp);
     },
     update: async (id: string, transaction: Partial<Transaction>) => {
       const { data, error } = await supabase.from('transacoes').update(mappers.transaction.toDb(transaction)).eq('id', id).select().single();
       if (error) throw error;
+      notifyMutation();
       return mappers.transaction.toApp(data);
     },
     delete: async (id: string) => {
       const { error } = await supabase.from('transacoes').delete().eq('id', id);
       if (error) throw error;
+      notifyMutation();
     }
   }
 };
