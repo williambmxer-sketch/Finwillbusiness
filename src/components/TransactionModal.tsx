@@ -251,8 +251,14 @@ export function TransactionModal() {
                     </SelectTrigger>
                     <SelectContent className="rounded-xl z-[200]">
                       <SelectItem value="none" disabled className="hidden">Selecione...</SelectItem>
-                      {categories.filter(c => c.type === type).map(c => (
-                        <SelectItem key={c.id} value={c.id} className="text-sm font-medium">{c.name}</SelectItem>
+                      {categories.filter(c => {
+                        const ct = String(c.type || '').toLowerCase();
+                        const t = String(type || '').toLowerCase();
+                        return ct === t || 
+                               (t === 'despesa' && (ct === 'expense' || ct === 'despesa' || ct === 'desp')) ||
+                               (t === 'receita' && (ct === 'income' || ct === 'receita' || ct === 'rec'));
+                      }).map(c => (
+                        <SelectItem key={c.id} value={c.id} className="text-sm font-medium">{c.name} ({String(c.type)})</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
