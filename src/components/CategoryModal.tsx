@@ -33,19 +33,23 @@ export function CategoryModal() {
 
   const handleSave = async () => {
     if (!name) return;
-    const cat: Category = {
-      id: editingId || generateUUID(),
-      name,
-      type,
-      color,
-      icon: 'Tag', // default icon for newly created specific tags
-    };
-    if (editingId) {
-      await api.categories.update(cat.id, cat);
-    } else {
-      await api.categories.add(cat);
+    try {
+      const cat: Category = {
+        id: editingId || generateUUID(),
+        name,
+        type,
+        color,
+        icon: 'Tag', // default icon for newly created specific tags
+      };
+      if (editingId) {
+        await api.categories.update(cat.id, cat);
+      } else {
+        await api.categories.add(cat);
+      }
+      handleCancelEdit();
+    } catch (error: any) {
+      alert('Erro ao salvar categoria: ' + error.message);
     }
-    handleCancelEdit();
   };
 
   const handleDelete = async (id: string) => {
