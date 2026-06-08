@@ -8,7 +8,7 @@ import { Input } from '../ui/input';
 import { useAppStore } from '../../store/useAppStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
-type FilterType = 'all' | 'income' | 'expense' | 'pending' | 'paid';
+type FilterType = 'all' | 'receita' | 'despesa' | 'pending' | 'paid';
 
 export function TransactionsView() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -72,7 +72,7 @@ export function TransactionsView() {
       const accounts = useDataStore.getState().accounts;
       const acc = accounts.find(a => a.id === t.accountId);
       if (acc) {
-        const amountChange = t.type === 'income' ? t.amount : -t.amount;
+        const amountChange = t.type === 'receita' ? t.amount : -t.amount;
         const balanceChange = isNowPaid ? amountChange : -amountChange;
         
         await api.accounts.update(t.accountId, {
@@ -85,8 +85,8 @@ export function TransactionsView() {
   const filtered = transactions.filter(t => {
     if (selectedCycle !== 'all' && getEffectiveCycle(t) !== selectedCycle) return false;
     if (searchTerm && !t.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-    if (filterType === 'income' && t.type !== 'income') return false;
-    if (filterType === 'expense' && t.type !== 'expense') return false;
+    if (filterType === 'receita' && t.type !== 'receita') return false;
+    if (filterType === 'despesa' && t.type !== 'despesa') return false;
     if (filterType === 'pending' && t.isPaid) return false;
     if (filterType === 'paid' && !t.isPaid) return false;
     return true;
@@ -111,7 +111,7 @@ export function TransactionsView() {
             description: `Fatura ${card ? card.name : 'Cartão'}`,
             amount: 0,
             date: new Date(t.date), // Just a reference date
-            type: 'expense',
+            type: 'despesa',
             isPaid: false, 
             color: card?.color,
             brand: card?.brand
@@ -119,7 +119,7 @@ export function TransactionsView() {
         }
         
         const inv = cardInvoices.get(invoiceKey);
-        if (t.type === 'expense') {
+        if (t.type === 'despesa') {
            inv.amount += t.amount;
         } else {
            inv.amount -= t.amount;
@@ -176,16 +176,16 @@ export function TransactionsView() {
           <SelectTrigger className="w-1/2 bg-muted/30 border-border/50 rounded-[11px] h-10 text-xs font-bold uppercase tracking-wider text-muted-foreground focus:ring-primary shadow-sm hover:bg-muted/50 transition-colors">
             <SelectValue placeholder="Filtrar por...">
               {filterType === 'all' && '✨ TODAS'}
-              {filterType === 'income' && '🟢 RECEITAS'}
-              {filterType === 'expense' && '🔴 DESPESAS'}
+              {filterType === 'receita' && '🟢 RECEITAS'}
+              {filterType === 'despesa' && '🔴 DESPESAS'}
               {filterType === 'pending' && '⏳ PENDENTES'}
               {filterType === 'paid' && '✅ PAGAS'}
             </SelectValue>
           </SelectTrigger>
           <SelectContent className="rounded-xl z-[200]">
             <SelectItem value="all" className="text-sm font-medium">✨ TODAS AS TRANSAÇÕES</SelectItem>
-            <SelectItem value="income" className="text-sm font-medium text-emerald-600 dark:text-emerald-500">🟢 RECEITAS</SelectItem>
-            <SelectItem value="expense" className="text-sm font-medium text-rose-600 dark:text-rose-500">🔴 DESPESAS</SelectItem>
+            <SelectItem value="receita" className="text-sm font-medium text-emerald-600 dark:text-emerald-500">🟢 RECEITAS</SelectItem>
+            <SelectItem value="despesa" className="text-sm font-medium text-rose-600 dark:text-rose-500">🔴 DESPESAS</SelectItem>
             <SelectItem value="pending" className="text-sm font-medium text-amber-600 dark:text-amber-500">⏳ PENDENTES</SelectItem>
             <SelectItem value="paid" className="text-sm font-medium text-primary">✅ PAGAS</SelectItem>
           </SelectContent>
@@ -227,10 +227,10 @@ export function TransactionsView() {
                           </div>
                         ) : (
                           <div className={`p-2 rounded-[11px] ${
-                            t.type === 'income' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500' : 
+                            t.type === 'receita' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500' : 
                             !t.isPaid ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-500' : 'bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:text-rose-500'
                           }`}>
-                            {t.type === 'income' ? <TrendingUp className="h-4 w-4" /> : 
+                            {t.type === 'receita' ? <TrendingUp className="h-4 w-4" /> : 
                              !t.isPaid ? <Clock className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                           </div>
                         )}
@@ -255,10 +255,10 @@ export function TransactionsView() {
                      <div className="flex items-center gap-3 text-right">
                        <div>
                          <div className={`font-bold text-xs ${
-                           t.type === 'income' ? 'text-emerald-600 dark:text-emerald-500' : 
+                           t.type === 'receita' ? 'text-emerald-600 dark:text-emerald-500' : 
                            (t.isPaid || isInvoice) ? 'text-foreground' : 'text-amber-600 dark:text-amber-500'
                          }`}>
-                           {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                           {t.type === 'receita' ? '+' : '-'}{formatCurrency(t.amount)}
                          </div>
                          {!t.isPaid && !isInvoice && <div className="text-[9px] text-amber-500 font-bold uppercase tracking-widest mt-1">Pendente</div>}
                          {t.isPaid && !isInvoice && <div className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest mt-1">Pago</div>}

@@ -66,11 +66,11 @@ export function DashboardView() {
   });
 
   const totalIncomes = currentMonthTransactions
-    .filter(t => t.type === 'income')
+    .filter(t => t.type === 'receita')
     .reduce((acc, t) => acc + t.amount, 0);
 
   const totalExpenses = currentMonthTransactions
-    .filter(t => t.type === 'expense')
+    .filter(t => t.type === 'despesa')
     .reduce((acc, t) => acc + t.amount, 0);
 
   const chartData = useMemo(() => {
@@ -82,7 +82,7 @@ export function DashboardView() {
       const yearNumber = d.getFullYear();
       
       const monthExpenses = allTransactions
-        .filter(t => t.type === 'expense' && t.date.getMonth() === monthNumber && t.date.getFullYear() === yearNumber)
+        .filter(t => t.type === 'despesa' && t.date.getMonth() === monthNumber && t.date.getFullYear() === yearNumber)
         .reduce((sum, t) => sum + t.amount, 0);
         
       data.push({
@@ -156,7 +156,7 @@ export function DashboardView() {
           ) : (
             cards.map(card => {
               const cardUsage = allTransactions
-                .filter(t => t.type === 'expense' && t.cardId === card.id && !t.isPaid)
+                .filter(t => t.type === 'despesa' && t.cardId === card.id && !t.isPaid)
                 .reduce((acc, t) => acc + t.amount, 0);
 
               return (
@@ -236,8 +236,8 @@ export function DashboardView() {
             transactions.map(t => (
               <div key={t.id} className="flex justify-between items-center p-3 bg-card border shadow-sm rounded-[11px]">
                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-[11px] ${t.type === 'income' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500' : 'bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:text-rose-500'}`}>
-                      {t.type === 'income' ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                    <div className={`p-2 rounded-[11px] ${t.type === 'receita' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500' : 'bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:text-rose-500'}`}>
+                      {t.type === 'receita' ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                     </div>
                     <div>
                       <div className="font-semibold text-xs tracking-tight mb-0.5">{t.description}</div>
@@ -246,8 +246,8 @@ export function DashboardView() {
                       </div>
                     </div>
                  </div>
-                 <div className={`font-bold text-xs ${t.type === 'income' ? 'text-emerald-600 dark:text-emerald-500' : 'text-foreground'}`}>
-                   {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                 <div className={`font-bold text-xs ${t.type === 'receita' ? 'text-emerald-600 dark:text-emerald-500' : 'text-foreground'}`}>
+                   {t.type === 'receita' ? '+' : '-'}{formatCurrency(t.amount)}
                  </div>
               </div>
             ))

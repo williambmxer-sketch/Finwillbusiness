@@ -26,7 +26,7 @@ export interface Category {
   name: string;
   icon: string;
   color: string;
-  type: 'income' | 'expense';
+  type: 'receita' | 'despesa';
 }
 
 export interface Transaction {
@@ -34,7 +34,7 @@ export interface Transaction {
   description: string;
   amount: number;
   date: Date;
-  type: 'income' | 'expense';
+  type: 'receita' | 'despesa';
   categoryId: string;
   accountId?: string;
   cardId?: string; // If it's a credit card transaction

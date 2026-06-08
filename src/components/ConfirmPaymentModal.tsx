@@ -46,7 +46,7 @@ export function ConfirmPaymentModal() {
       const acc = useDataStore.getState().accounts.find(a => a.id === accountId);
       if (acc) {
         await api.accounts.update(accountId, {
-          balance: acc.balance + (transaction.type === 'income' ? transaction.amount : -transaction.amount)
+          balance: acc.balance + (transaction.type === 'receita' ? transaction.amount : -transaction.amount)
         });
       }
     }

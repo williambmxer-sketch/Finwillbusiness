@@ -29,7 +29,7 @@ export function AccountDetailsView() {
       const acc = useDataStore.getState().accounts.find(a => a.id === t.accountId);
       if (acc) {
         await api.accounts.update(t.accountId, {
-          balance: acc.balance + (t.type === 'income' ? t.amount : -t.amount)
+          balance: acc.balance + (t.type === 'receita' ? t.amount : -t.amount)
         });
       }
     }
@@ -49,8 +49,8 @@ export function AccountDetailsView() {
   }
 
   // Calculate a mock evolution or just use the current balance as the focal point
-  const totalIncomes = transactions.filter(t => t.type === 'income' && t.isPaid).reduce((acc, t) => acc + t.amount, 0);
-  const totalExpenses = transactions.filter(t => t.type === 'expense' && t.isPaid).reduce((acc, t) => acc + t.amount, 0);
+  const totalIncomes = transactions.filter(t => t.type === 'receita' && t.isPaid).reduce((acc, t) => acc + t.amount, 0);
+  const totalExpenses = transactions.filter(t => t.type === 'despesa' && t.isPaid).reduce((acc, t) => acc + t.amount, 0);
 
   return (
     <div className="flex flex-col h-full bg-background relative pt-8 px-4 max-w-lg mx-auto w-full">
@@ -124,10 +124,10 @@ export function AccountDetailsView() {
               >
                  <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-[11px] ${
-                      t.type === 'income' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500' : 
+                      t.type === 'receita' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500' : 
                       !t.isPaid ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-500' : 'bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:text-rose-500'
                     }`}>
-                      {t.type === 'income' ? <TrendingUp className="h-4 w-4" /> : 
+                      {t.type === 'receita' ? <TrendingUp className="h-4 w-4" /> : 
                        !t.isPaid ? <Clock className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                     </div>
                     <div>
@@ -140,10 +140,10 @@ export function AccountDetailsView() {
                  <div className="flex items-center gap-3 text-right">
                    <div>
                      <div className={`font-bold text-xs ${
-                       t.type === 'income' ? 'text-emerald-600 dark:text-emerald-500' : 
+                       t.type === 'receita' ? 'text-emerald-600 dark:text-emerald-500' : 
                        t.isPaid ? 'text-foreground' : 'text-amber-600 dark:text-amber-500'
                      }`}>
-                       {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                       {t.type === 'receita' ? '+' : '-'}{formatCurrency(t.amount)}
                      </div>
                      {!t.isPaid && <div className="text-[9px] text-amber-500 font-bold uppercase tracking-widest mt-1">Pendente</div>}
                    </div>

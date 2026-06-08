@@ -97,7 +97,7 @@ export function InvoicesView() {
       
       const inv = invoiceMap.get(invoiceId)!;
       inv.transactions.push(t);
-      if (t.type === 'expense') {
+      if (t.type === 'despesa') {
         inv.amount += t.amount;
       } else {
         inv.amount -= t.amount;
@@ -254,7 +254,7 @@ export function InvoicesView() {
                         <div className="text-[9px] text-muted-foreground">{t.date.toLocaleDateString('pt-BR')}</div>
                       </div>
                       <div className="font-bold text-xs">
-                        {t.type === 'expense' ? `-${formatCurrency(t.amount)}` : `+${formatCurrency(t.amount)}`}
+                        {t.type === 'despesa' ? `-${formatCurrency(t.amount)}` : `+${formatCurrency(t.amount)}`}
                       </div>
                     </div>
                   ))
