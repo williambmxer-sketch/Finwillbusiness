@@ -40,7 +40,7 @@ function getCycleId(date: Date, closingDay: number, dueDay: number) {
 }
 
 export function CardDetailsView() {
-  const { setCurrentView, activeContextCardId, setEditingCardId, setCardModalOpen, setEditingTransactionId, setTransactionModalOpen } = useAppStore();
+  const { setCurrentView, activeContextCardId, setEditingCardId, setCardModalOpen, setEditingTransactionId, setTransactionModalOpen, setConfirmModal } = useAppStore();
   
   const cards = useDataStore(state => state.cards);
   const card = cards.find(c => c.id === activeContextCardId);
@@ -167,10 +167,14 @@ export function CardDetailsView() {
     // Keep categoryId, date and installments to make repetitive entry faster
   };
 
-  const handleDeleteTransaction = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir esta despesa?')) {
-      await api.transactions.delete(id);
-    }
+  const handleDeleteTransaction = (id: string) => {
+    setConfirmModal({
+      title: 'Excluir Despesa',
+      description: 'Tem certeza que deseja excluir permanentemente esta despesa?',
+      onConfirm: async () => {
+        await api.transactions.delete(id);
+      }
+    });
   };
 
   if (!card) {

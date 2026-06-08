@@ -30,7 +30,6 @@ export function ConfirmPaymentModal() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!window.confirm('Confirma o pagamento desta transação?')) return;
 
     // Create local Date from input, setting to noon to avoid timezone shift issues
     const realPaymentDate = new Date(date + 'T12:00:00');

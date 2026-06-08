@@ -19,7 +19,7 @@ export function TransactionsView() {
   const currentCycleId = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const [selectedCycle, setSelectedCycle] = useState<string>(currentCycleId);
 
-  const { setTransactionModalOpen, setEditingTransactionId, setCategoryModalOpen, setConfirmPaymentTransactionId } = useAppStore();
+  const { setTransactionModalOpen, setEditingTransactionId, setCategoryModalOpen, setConfirmPaymentTransactionId, setConfirmModal } = useAppStore();
   
   const allTransactions = useDataStore(state => state.transactions);
   const cards = useDataStore(state => state.cards);
@@ -63,9 +63,19 @@ export function TransactionsView() {
     const isNowPaid = !t.isPaid;
     
     if (!isNowPaid) {
-      if (!window.confirm('Deseja cancelar o pagamento e estornar o valor (se aplicável)?')) return;
+      setConfirmModal({
+        title: 'Estornar Pagamento',
+        description: 'Deseja cancelar o pagamento e estornar o valor desta transação?',
+        onConfirm: async () => {
+          await executeTogglePayment(t, isNowPaid);
+        }
+      });
+    } else {
+      await executeTogglePayment(t, isNowPaid);
     }
-    
+  };
+
+  const executeTogglePayment = async (t: any, isNowPaid: boolean) => {
     await api.transactions.update(t.id, { isPaid: isNowPaid });
     
     if (t.accountId && t.cardId === 'money') {

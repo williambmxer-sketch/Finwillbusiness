@@ -25,6 +25,7 @@ import { CardModal } from './components/CardModal';
 import { CategoryModal } from './components/CategoryModal';
 import { AccountModal } from './components/AccountModal';
 import { ConfirmPaymentModal } from './components/ConfirmPaymentModal';
+import { ConfirmationModal } from './components/ConfirmationModal';
 
 export default function App() {
   const { currentView, setCurrentView, setTransactionModalOpen, setEditingTransactionId, activeContextCardId, setDefaultPaymentMethod } = useAppStore();
@@ -153,6 +154,7 @@ export default function App() {
       <CategoryModal />
       <AccountModal />
       <ConfirmPaymentModal />
+      <ConfirmationModal />
     </div>
   );
 }

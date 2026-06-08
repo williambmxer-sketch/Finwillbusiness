@@ -32,6 +32,13 @@ interface AppState {
 
   isCategoryModalOpen: boolean;
   setCategoryModalOpen: (open: boolean) => void;
+
+  confirmModal: {
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  } | null;
+  setConfirmModal: (modal: { title: string; description: string; onConfirm: () => void } | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -74,4 +81,7 @@ export const useAppStore = create<AppState>((set) => ({
 
   isCategoryModalOpen: false,
   setCategoryModalOpen: (open) => set({ isCategoryModalOpen: open }),
+  
+  confirmModal: null,
+  setConfirmModal: (modal) => set({ confirmModal: modal }),
 }));
