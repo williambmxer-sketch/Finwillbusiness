@@ -15,7 +15,7 @@ export interface Card {
 export interface Account {
   id: string;
   name: string;
-  type: 'checking' | 'savings' | 'wallet' | 'investment';
+  type: 'corrente' | 'poupança' | 'carteira' | 'investimento';
   balance: number;
   color: string;
   icon: string;
