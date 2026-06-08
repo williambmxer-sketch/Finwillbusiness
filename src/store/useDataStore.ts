@@ -31,6 +31,8 @@ export const useDataStore = create<DataState>((set, get) => ({
         api.cards.list(),
         api.transactions.list()
       ]);
+      console.log('[DEBUG fetchData] categories:', JSON.stringify(categories));
+      console.log('[DEBUG fetchData] categories.length:', categories.length);
       set({ categories, accounts, cards, transactions, isLoading: false });
     } catch (err: any) {
       set({ error: err.message, isLoading: false });

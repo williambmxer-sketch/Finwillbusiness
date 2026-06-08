@@ -120,6 +120,17 @@ export function CardDetailsView() {
 
     const numInstallments = Math.max(1, parseInt(installments, 10) || 1);
     const totalAmount = parseFloat(amount);
+
+    // Check limit
+    const currentUsage = allTransactions
+      .filter(t => t.cardId === card.id && t.type === 'despesa')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    if (currentUsage + totalAmount > card.limit) {
+      alert(`Limite do cartão excedido! Limite disponível: R$ ${(card.limit - currentUsage).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+      return;
+    }
+
     const installmentAmount = totalAmount / numInstallments;
     
     // Create local Date from input, setting to noon to avoid timezone shift issues

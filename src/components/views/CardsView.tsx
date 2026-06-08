@@ -8,6 +8,7 @@ import { useAppStore } from '../../store/useAppStore';
 
 export function CardsView() {
   const cards = useDataStore((state) => state.cards);
+  const transactions = useDataStore((state) => state.transactions);
   const { setCardModalOpen, setEditingCardId, setCurrentView, setActiveContextCardId } = useAppStore();
 
   return (
@@ -30,9 +31,11 @@ export function CardsView() {
           <div className="text-center text-muted-foreground p-8 border border-dashed rounded-[11px] border-border/50 text-xs">Nenhum cartão cadastrado.</div>
         ) : (
           cards.map((card, i) => {
-            const used = 4500; // Mock calculation
+            const used = transactions
+              .filter(t => t.cardId === card.id && t.type === 'despesa')
+              .reduce((sum, t) => sum + t.amount, 0);
             const available = card.limit - used;
-            const progress = (used / card.limit) * 100;
+            const progress = card.limit > 0 ? (used / card.limit) * 100 : 0;
 
             return (
               <motion.div 

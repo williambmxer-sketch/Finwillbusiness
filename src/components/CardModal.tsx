@@ -4,12 +4,89 @@ import { useDataStore } from '../store/useDataStore';
 import { api } from '../services/api';
 import { Card } from '../db/db';
 import { generateUUID } from '../lib/utils';
-import { X, Save, Trash } from 'lucide-react';
+import { X, Save, Trash, ChevronDown } from 'lucide-react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 
+interface DropdownOption {
+  value: string;
+  label: string;
+  disabled?: boolean;
+}
+
+function CustomSelect({
+  value,
+  onValueChange,
+  options,
+  placeholder = "Selecione...",
+  disabled = false
+}: {
+  value: string;
+  onValueChange: (val: string) => void;
+  options: DropdownOption[];
+  placeholder?: string;
+  disabled?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find(o => o.value === value);
+
+  return (
+    <div className="relative w-full" ref={ref}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full rounded-xl h-11 px-3.5 text-sm bg-muted/50 border border-transparent text-left flex items-center justify-between focus:ring-1 focus:ring-primary focus:bg-background transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <span className={!selectedOption ? "text-muted-foreground" : "text-foreground font-medium"}>
+          {selectedOption ? selectedOption.label : placeholder}
+        </span>
+        <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0 ml-2" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-[250] mt-1 w-full max-h-60 overflow-y-auto rounded-xl bg-card border border-border shadow-xl py-1 outline-none animate-in fade-in-50 slide-in-from-top-1">
+          {options.length === 0 ? (
+            <div className="px-3.5 py-2 text-xs text-muted-foreground text-center">Nenhuma opção disponível</div>
+          ) : (
+            options.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                disabled={opt.disabled}
+                onClick={() => {
+                  onValueChange(opt.value);
+                  setIsOpen(false);
+                }}
+                className={`w-full text-left px-3.5 py-2.5 text-sm hover:bg-muted transition-colors flex items-center justify-between ${
+                  opt.value === value ? 'bg-primary/5 text-primary font-semibold' : 'text-foreground font-medium'
+                } ${opt.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {opt.label}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function CardModal() {
   const { isCardModalOpen, setCardModalOpen, editingCardId, setEditingCardId } = useAppStore();
+  const accounts = useDataStore(state => state.accounts);
 
   const [name, setName] = useState('');
   const [bank, setBank] = useState('');
@@ -104,75 +181,89 @@ export function CardModal() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+        <div className="flex-1 p-5 flex flex-col gap-4">
           <div className="space-y-4">
-            <div className="flex flex-col items-center justify-center py-2">
-              <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Limite do Cartão</span>
+            <div className="flex flex-col items-center justify-center py-1">
+              <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-0.5">Limite do Cartão</span>
               <div className="flex items-baseline gap-1">
-                <span className="text-sm font-semibold text-muted-foreground">R$</span>
+                <span className="text-sm font-bold text-muted-foreground">R$</span>
                 <Input 
                   type="text" 
                   inputMode="numeric"
                   placeholder="0,00"
-                  className="w-[180px] p-0 text-center text-4xl font-bold h-12 bg-transparent border-none shadow-none focus-visible:ring-0"
+                  className="w-[180px] p-0 text-center text-3xl font-extrabold h-9 bg-transparent border-none shadow-none focus-visible:ring-0"
                   value={displayLimit}
                   onChange={handleLimitChange}
                 />
               </div>
             </div>
 
-            <div className="bg-muted/10 rounded-[24px] p-5 space-y-4 border border-border/30">
-              <div>
-                <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1.5 block ml-1">Nome do Cartão</Label>
-                <Input 
-                  placeholder="Ex: NuBank Black" 
-                  className="rounded-xl h-11 text-sm bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                />
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Nome do Cartão</Label>
+                  <Input 
+                    placeholder="Ex: NuBank Black" 
+                    className="rounded-xl h-10 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none"
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Banco / Conta</Label>
+                  <CustomSelect
+                    value={bank}
+                    onValueChange={setBank}
+                    placeholder="Selecione..."
+                    options={accounts.map(acc => ({
+                      value: acc.name,
+                      label: acc.name
+                    }))}
+                  />
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1.5 block ml-1">4 Últimos Dígitos</Label>
+                  <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">4 Últimos Dígitos</Label>
                   <Input 
                     placeholder="1234"
                     maxLength={4}
-                    className="rounded-xl h-11 text-sm bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-mono tracking-widest"
+                    className="rounded-xl h-10 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-mono tracking-widest"
                     value={lastFour}
                     onChange={e => setLastFour(e.target.value)}
                   />
                 </div>
                 <div>
-                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1.5 block ml-1">Cor</Label>
-                  <div className="h-11 flex items-center bg-background border border-border shadow-sm rounded-xl px-3 relative">
+                  <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Cor</Label>
+                  <div className="h-10 flex items-center bg-muted/50 border border-transparent shadow-none rounded-xl px-3 relative cursor-pointer">
                      <input 
                       type="color" 
                       value={color}
                       onChange={e => setColor(e.target.value)}
                       className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                     />
-                    <div className="w-5 h-5 rounded-full border border-border mr-2" style={{ backgroundColor: color }} />
-                    <span className="text-xs uppercase font-mono text-muted-foreground flex-1">{color}</span>
+                    <div className="w-4 h-4 rounded-full border border-border/30 mr-2 shrink-0 shadow-sm" style={{ backgroundColor: color }} />
+                    <span className="text-[10px] uppercase font-mono text-muted-foreground flex-1 select-none">{color}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1.5 block ml-1">Dia Fechamento</Label>
+                  <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Dia Fechamento</Label>
                   <Input 
                     type="number" min="1" max="31"
-                    className="rounded-xl h-11 text-sm bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-medium"
+                    className="rounded-xl h-10 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-medium"
                     value={closingDay}
                     onChange={e => setClosingDay(e.target.value)}
                   />
                 </div>
                 <div>
-                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1.5 block ml-1">Dia Vencimento</Label>
+                  <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Dia Vencimento</Label>
                   <Input 
                     type="number" min="1" max="31"
-                    className="rounded-xl h-11 text-sm bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-medium"
+                    className="rounded-xl h-10 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-medium"
                     value={dueDay}
                     onChange={e => setDueDay(e.target.value)}
                   />

@@ -4,10 +4,85 @@ import { useDataStore } from '../store/useDataStore';
 import { api } from '../services/api';
 import { generateUUID } from '../lib/utils';
 import { Transaction, Category, Account, Card } from '../db/db';
-import { X, Save, Trash } from 'lucide-react';
+import { X, Save, Trash, ChevronDown } from 'lucide-react';
 import { Input } from './ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Label } from './ui/label';
+
+interface DropdownOption {
+  value: string;
+  label: string;
+  disabled?: boolean;
+}
+
+function CustomSelect({
+  value,
+  onValueChange,
+  options,
+  placeholder = "Selecione...",
+  disabled = false
+}: {
+  value: string;
+  onValueChange: (val: string) => void;
+  options: DropdownOption[];
+  placeholder?: string;
+  disabled?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find(o => o.value === value);
+
+  return (
+    <div className="relative w-full" ref={ref}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full rounded-xl h-11 px-3.5 text-sm bg-muted/50 border border-transparent text-left flex items-center justify-between focus:ring-1 focus:ring-primary focus:bg-background transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <span className={!selectedOption ? "text-muted-foreground" : "text-foreground font-medium"}>
+          {selectedOption ? selectedOption.label : placeholder}
+        </span>
+        <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0 ml-2" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-[250] mt-1 w-full max-h-60 overflow-y-auto rounded-xl bg-card border border-border shadow-xl py-1 outline-none animate-in fade-in-50 slide-in-from-top-1">
+          {options.length === 0 ? (
+            <div className="px-3.5 py-2 text-xs text-muted-foreground text-center">Nenhuma opção disponível</div>
+          ) : (
+            options.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                disabled={opt.disabled}
+                onClick={() => {
+                  onValueChange(opt.value);
+                  setIsOpen(false);
+                }}
+                className={`w-full text-left px-3.5 py-2.5 text-sm hover:bg-muted transition-colors flex items-center justify-between ${
+                  opt.value === value ? 'bg-primary/5 text-primary font-semibold' : 'text-foreground font-medium'
+                } ${opt.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {opt.label}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function TransactionModal() {
   const { 
@@ -96,6 +171,22 @@ export function TransactionModal() {
     if (!description || !amount || parseFloat(amount) <= 0 || !categoryId || categoryId === 'none') return;
     if (cardId === 'money' && (!accountId || accountId === 'none')) return;
     
+    const txAmount = parseFloat(amount);
+
+    if (cardId !== 'money') {
+      const card = cards.find(c => c.id === cardId);
+      if (card) {
+        const currentUsage = useDataStore.getState().transactions
+          .filter(t => t.cardId === card.id && t.type === 'despesa' && t.id !== editingTransactionId)
+          .reduce((sum, t) => sum + t.amount, 0);
+        
+        if (currentUsage + txAmount > card.limit) {
+          alert(`Limite do cartão excedido! Limite disponível: R$ ${(card.limit - currentUsage).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+          return;
+        }
+      }
+    }
+
     // Convert date string with local timezone offset
     const dateObj = new Date(date + 'T12:00:00');
 
@@ -190,42 +281,41 @@ export function TransactionModal() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-          <div className="flex bg-muted/50 p-1.5 rounded-[16px]">
+        <div className="flex-1 p-5 flex flex-col gap-4">
+          <div className="flex bg-muted/50 p-1 rounded-[12px]">
             <button 
-              className={`flex-1 py-2.5 rounded-[12px] text-[11px] font-bold uppercase tracking-widest transition-all ${type === 'despesa' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'} disabled:opacity-30 disabled:cursor-not-allowed`}
+              className={`flex-1 py-2 rounded-[10px] text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'despesa' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'} disabled:opacity-30 disabled:cursor-not-allowed`}
               onClick={() => setType('despesa')}
               disabled={!!activeContextCardId && currentView === 'cardDetails'}
             >Despesa</button>
             <button 
-              className={`flex-1 py-2.5 rounded-[12px] text-[11px] font-bold uppercase tracking-widest transition-all ${type === 'receita' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'} disabled:opacity-30 disabled:cursor-not-allowed`}
+              className={`flex-1 py-2 rounded-[10px] text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'receita' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'} disabled:opacity-30 disabled:cursor-not-allowed`}
               onClick={() => setType('receita')}
               disabled={!!activeContextCardId && currentView === 'cardDetails'}
             >Receita</button>
           </div>
 
           <div className="space-y-4">
-            <div className="flex flex-col items-center justify-center py-2">
-              <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Valor</span>
+            <div className="flex flex-col items-center justify-center py-1">
               <div className="flex items-baseline gap-1">
-                <span className="text-sm font-semibold text-muted-foreground">R$</span>
+                <span className="text-sm font-bold text-muted-foreground">R$</span>
                 <Input 
                   type="text" 
                   inputMode="numeric"
                   placeholder="0,00" 
-                  className="w-[180px] p-0 text-center text-4xl font-bold h-12 bg-transparent border-none shadow-none focus-visible:ring-0"
+                  className="w-[180px] p-0 text-center text-3xl font-extrabold h-9 bg-transparent border-none shadow-none focus-visible:ring-0"
                   value={displayAmount}
                   onChange={handleAmountChange}
                 />
               </div>
             </div>
 
-            <div className="bg-muted/10 rounded-[24px] p-5 space-y-4 border border-border/30">
+            <div className="space-y-3">
               <div>
-                <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1.5 block ml-1">Descrição</Label>
+                <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Descrição</Label>
                 <Input 
                   placeholder="Ex: Almoço" 
-                  className="rounded-xl h-11 text-sm bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none"
+                  className="rounded-xl h-10 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none"
                   value={description}
                   onChange={e => setDescription(e.target.value)}
                 />
@@ -233,91 +323,92 @@ export function TransactionModal() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1.5 block ml-1">Data</Label>
+                  <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Data</Label>
                   <Input 
                     type="date" 
-                    className="rounded-xl h-11 text-sm bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none uppercase font-medium"
+                    className="rounded-xl h-10 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none uppercase font-medium"
                     value={date}
                     onChange={e => setDate(e.target.value)}
                   />
                 </div>
                 <div>
-                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1.5 block ml-1">Categoria</Label>
-                  <Select value={categoryId || "none"} onValueChange={setCategoryId}>
-                    <SelectTrigger className="rounded-xl h-11 text-sm bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none">
-                      <SelectValue placeholder="Selecione...">
-                        {categoryId === "none" ? "Selecione..." : categories?.find(c => c.id === categoryId)?.name || "Selecione..."}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl z-[200]">
-                      <SelectItem value="none" disabled className="hidden">Selecione...</SelectItem>
-                      {categories.filter(c => {
-                        const ct = String(c.type || '').toLowerCase();
-                        const t = String(type || '').toLowerCase();
-                        return ct === t || 
-                               (t === 'despesa' && (ct === 'expense' || ct === 'despesa' || ct === 'desp')) ||
-                               (t === 'receita' && (ct === 'income' || ct === 'receita' || ct === 'rec'));
-                      }).map(c => (
-                        <SelectItem key={c.id} value={c.id} className="text-sm font-medium">{c.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Categoria</Label>
+                  <CustomSelect 
+                    value={categoryId} 
+                    onValueChange={setCategoryId}
+                    placeholder="Selecione..."
+                    options={categories.filter(c => {
+                      const ct = String(c.type || '').toLowerCase();
+                      const t = String(type || '').toLowerCase();
+                      return ct === t || 
+                             (t === 'despesa' && (ct === 'expense' || ct === 'despesa' || ct === 'desp')) ||
+                             (t === 'receita' && (ct === 'income' || ct === 'receita' || ct === 'rec'));
+                    }).map(c => ({
+                      value: c.id,
+                      label: c.name
+                    }))}
+                  />
                 </div>
               </div>
 
-              {type === 'despesa' && (
-                <div>
-                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1.5 block ml-1">Método de Pagamento</Label>
-                  <Select value={cardId || "none"} onValueChange={setCardId} disabled={!!activeContextCardId && currentView === 'cardDetails'}>
-                    <SelectTrigger className="rounded-xl h-11 text-sm bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none disabled:opacity-50 disabled:cursor-not-allowed">
-                      <SelectValue placeholder="Selecione...">
-                        {cardId === 'money' ? 'Conta Corrente / PIX / Dinheiro' : 
-                         cardId === 'none' ? 'Selecione...' :
-                         cards?.find(c => c.id === cardId) 
-                           ? `${cards.find(c => c.id === cardId)?.name} ${cards.find(c => c.id === cardId)?.lastFour ? `(Final ${cards.find(c => c.id === cardId)?.lastFour})` : ''}` 
-                           : "Selecione..."}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl z-[200]">
-                      <SelectItem value="none" disabled className="hidden">Selecione...</SelectItem>
-                      <SelectItem value="money" className="text-sm font-medium">Conta Corrente / PIX / Dinheiro</SelectItem>
-                      {cards.map(c => (
-                        <SelectItem key={c.id} value={c.id} className="text-sm font-medium">{c.name} {c.lastFour ? `(Final ${c.lastFour})` : ''}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              {type === 'despesa' ? (
+                <div className={`grid ${cardId === 'money' ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
+                  <div>
+                    <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Pagamento</Label>
+                    <CustomSelect 
+                      value={cardId} 
+                      onValueChange={setCardId}
+                      placeholder="Selecione..."
+                      disabled={!!activeContextCardId && currentView === 'cardDetails'}
+                      options={[
+                        { value: 'money', label: 'PIX' },
+                        ...cards.map(c => ({
+                          value: c.id,
+                          label: c.name
+                        }))
+                      ]}
+                    />
+                  </div>
+                  {cardId === 'money' && (
+                    <div>
+                      <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Conta</Label>
+                      <CustomSelect 
+                        value={accountId} 
+                        onValueChange={setAccountId}
+                        placeholder="Selecione..."
+                        options={accounts.map(a => ({
+                          value: a.id,
+                          label: a.name
+                        }))}
+                      />
+                    </div>
+                  )}
                 </div>
-              )}
-
-              {(type === 'receita' || cardId === 'money') && (
+              ) : (
                 <div>
-                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1.5 block ml-1">Conta</Label>
-                  <Select value={accountId || "none"} onValueChange={setAccountId}>
-                    <SelectTrigger className="rounded-xl h-11 text-sm bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none">
-                      <SelectValue placeholder="Selecione...">
-                        {accountId === "none" ? "Selecione..." : accounts?.find(a => a.id === accountId)?.name || "Selecione..."}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl z-[200]">
-                      <SelectItem value="none" disabled className="hidden">Selecione...</SelectItem>
-                      {accounts.map(a => (
-                        <SelectItem key={a.id} value={a.id} className="text-sm font-medium">{a.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Conta</Label>
+                  <CustomSelect 
+                    value={accountId} 
+                    onValueChange={setAccountId}
+                    placeholder="Selecione..."
+                    options={accounts.map(a => ({
+                      value: a.id,
+                      label: a.name
+                    }))}
+                  />
                 </div>
               )}
               
-              {cardId === 'money' && (
-                <div className="flex items-center gap-3 mt-1 ml-1">
+              {type === 'despesa' && cardId === 'money' && (
+                <div className="flex items-center gap-3 pt-1 ml-1">
                   <input 
                     type="checkbox" 
                     id="isPaid" 
-                    className="rounded-[4px] text-primary focus:ring-primary h-4 w-4 border-input bg-background"
+                    className="rounded-[4px] text-primary focus:ring-primary h-4 w-4 border-input bg-background cursor-pointer"
                     checked={isPaid}
                     onChange={e => setIsPaid(e.target.checked)}
                   />
-                  <Label htmlFor="isPaid" className="text-sm font-semibold cursor-pointer">Confirmar Pagamento</Label>
+                  <Label htmlFor="isPaid" className="text-xs font-semibold cursor-pointer select-none">Confirmar Pagamento</Label>
                 </div>
               )}
             </div>
