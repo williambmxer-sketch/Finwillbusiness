@@ -4,9 +4,8 @@ import { api } from '../services/api';
 import { useDataStore } from '../store/useDataStore';
 import { Category } from '../db/db';
 import { generateUUID } from '../lib/utils';
-import { X, Save, Trash, User, Briefcase, Car, Coffee, Home as HomeIcon, Phone, ShoppingCart } from 'lucide-react';
+import { X, Trash, AlertCircle } from 'lucide-react';
 import { Input } from './ui/input';
-import { Label } from './ui/label';
 
 interface CustomPaymentMethod {
   id: string;
@@ -17,7 +16,11 @@ interface CustomPaymentMethod {
 export function CategoryModal() {
   const { isCategoryModalOpen, setCategoryModalOpen } = useAppStore();
   const categories = useDataStore(state => state.categories);
-  
+  const transactions = useDataStore(state => state.transactions);
+
+  // Set of category IDs that are actually used in at least one transaction
+  const usedCategoryIds = new Set(transactions.map(t => t.categoryId));
+
   const [activeTab, setActiveTab] = useState<'categories' | 'payment_methods'>('categories');
 
   // Categories state
@@ -25,12 +28,14 @@ export function CategoryModal() {
   const [name, setName] = useState('');
   const [type, setType] = useState<'receita'|'despesa'>('despesa');
   const [color, setColor] = useState('#3b82f6');
-  
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
   // Custom Payment Methods state
   const [paymentMethods, setPaymentMethods] = useState<CustomPaymentMethod[]>([]);
   const [pmName, setPmName] = useState('');
   const [pmAllowInstallments, setPmAllowInstallments] = useState(true);
   const [editingPmId, setEditingPmId] = useState<string | null>(null);
+  const [confirmDeletePmId, setConfirmDeletePmId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isCategoryModalOpen) {
@@ -49,12 +54,13 @@ export function CategoryModal() {
   }, [isCategoryModalOpen]);
 
   const handleEdit = (c: Category) => {
+    setConfirmDeleteId(null);
     setEditingId(c.id);
     setName(c.name);
     setType(c.type);
     setColor(c.color);
   };
-  
+
   const handleCancelEdit = () => {
     setEditingId(null);
     setName('');
@@ -63,14 +69,16 @@ export function CategoryModal() {
   };
 
   const handleSave = async () => {
-    if (!name) return;
+    if (!name.trim()) return;
     try {
+      const existing = categories.find(c => c.id === editingId);
       const cat: Category = {
         id: editingId || generateUUID(),
-        name,
-        type,
+        name: name.trim(),
+        // on edit, keep original type; on new, use selected type
+        type: editingId ? (existing?.type ?? type) : type,
         color,
-        icon: 'Tag', // default icon for newly created specific tags
+        icon: existing?.icon || 'Tag',
       };
       if (editingId) {
         await api.categories.update(cat.id, cat);
@@ -79,12 +87,13 @@ export function CategoryModal() {
       }
       handleCancelEdit();
     } catch (error: any) {
-      alert('Erro ao salvar categoria: ' + error.message);
+      console.error('Erro ao salvar categoria:', error);
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteCategory = async (id: string) => {
     await api.categories.delete(id);
+    setConfirmDeleteId(null);
     if (editingId === id) handleCancelEdit();
   };
 
@@ -126,6 +135,7 @@ export function CategoryModal() {
     const updated = paymentMethods.filter(pm => pm.id !== id);
     setPaymentMethods(updated);
     localStorage.setItem('custom_payment_methods', JSON.stringify(updated));
+    setConfirmDeletePmId(null);
     if (editingPmId === id) handleCancelEditPaymentMethod();
     window.dispatchEvent(new Event('db_mutation'));
   };
@@ -161,29 +171,36 @@ export function CategoryModal() {
               {/* Form */}
               <div className="p-4 bg-muted/10 border-b">
                 <div className="flex gap-2 mb-3">
-                  <div className="flex flex-1 items-center bg-muted/80 p-1.5 rounded-xl basis-1/3">
-                    <button 
-                      className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'despesa' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                      onClick={() => setType('despesa')}
-                    >Desp</button>
-                    <button 
-                      className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'receita' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                      onClick={() => setType('receita')}
-                    >Rec</button>
-                  </div>
+                  {/* Type toggle — hidden when editing (type is locked) */}
+                  {!editingId ? (
+                    <div className="flex flex-1 items-center bg-muted/80 p-1.5 rounded-xl">
+                      <button
+                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'despesa' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                        onClick={() => setType('despesa')}
+                      >Desp</button>
+                      <button
+                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'receita' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                        onClick={() => setType('receita')}
+                      >Rec</button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-1 items-center px-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground bg-muted/40 rounded-xl">
+                      {type === 'receita' ? '🟢 Receita' : '🔴 Despesa'}
+                    </div>
+                  )}
                   <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-border shadow-sm flex-shrink-0">
-                    <input 
-                      type="color" 
+                    <input
+                      type="color"
                       value={color}
                       onChange={e => setColor(e.target.value)}
                       className="absolute -inset-2 w-12 h-12 cursor-pointer"
                     />
                   </div>
                 </div>
-                
+
                 <div className="flex gap-2">
-                  <Input 
-                    placeholder="Nome da categoria..." 
+                  <Input
+                    placeholder="Nome da categoria..."
                     className="rounded-[12px] h-11 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary shadow-none flex-1"
                     value={name}
                     onChange={e => setName(e.target.value)}
@@ -201,21 +218,74 @@ export function CategoryModal() {
 
               {/* List */}
               <div className="flex-1 overflow-y-auto p-2 space-y-1.5 pb-8 sm:pb-2">
-                {categories.map(c => (
-                  <div key={c.id} className="flex items-center justify-between p-1.5 px-2 rounded-lg bg-card border border-border/50 shadow-sm hover:border-primary/30 transition-colors text-xs">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: c.color }} />
-                      <div>
-                        <div className="font-semibold leading-none mb-0.5">{c.name}</div>
-                        <div className="text-[8px] text-muted-foreground uppercase font-bold tracking-wider leading-none">{c.type === 'receita' ? 'Rec' : 'Desp'}</div>
+                {categories.map(c => {
+                  const inUse = usedCategoryIds.has(c.id);
+                  const isConfirming = confirmDeleteId === c.id;
+                  return (
+                    <div key={c.id} className="rounded-lg bg-card border border-border/50 shadow-sm hover:border-primary/30 transition-colors text-xs overflow-hidden">
+                      <div className="flex items-center justify-between p-1.5 px-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full shadow-sm shrink-0" style={{ backgroundColor: c.color }} />
+                          <div>
+                            <div className="font-semibold leading-none mb-0.5">{c.name}</div>
+                            <div className="text-[8px] text-muted-foreground uppercase font-bold tracking-wider leading-none flex items-center gap-1">
+                              {c.type === 'receita' ? 'Rec' : 'Desp'}
+                              {inUse && <span className="text-primary/60">· em uso</span>}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-1 items-center">
+                          <button
+                            onClick={() => handleEdit(c)}
+                            className="text-[9px] font-bold text-primary px-2 py-1 bg-primary/10 rounded uppercase tracking-wider hover:bg-primary/20 transition-colors"
+                          >Editar</button>
+                          {inUse ? (
+                            <div className="relative group">
+                              <button
+                                disabled
+                                className="text-muted-foreground/40 p-1 bg-muted/30 rounded cursor-not-allowed"
+                              >
+                                <Trash className="w-3 h-3" />
+                              </button>
+                              <div className="absolute right-0 bottom-full mb-1.5 hidden group-hover:flex items-center gap-1 bg-popover border border-border text-[9px] text-muted-foreground font-medium rounded-lg px-2 py-1 shadow-lg whitespace-nowrap z-50">
+                                <AlertCircle className="w-2.5 h-2.5 text-amber-500" />
+                                Categoria em uso
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmDeleteId(isConfirming ? null : c.id)}
+                              className={`p-1 rounded transition-colors ${
+                                isConfirming
+                                  ? 'bg-destructive/20 text-destructive'
+                                  : 'text-destructive/60 bg-destructive/10 hover:bg-destructive/20 hover:text-destructive'
+                              }`}
+                            >
+                              <Trash className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
                       </div>
+
+                      {/* Inline confirm row */}
+                      {isConfirming && (
+                        <div className="flex items-center justify-between px-3 py-2 bg-destructive/5 border-t border-destructive/10 animate-in fade-in-50 slide-in-from-top-1 duration-150">
+                          <span className="text-[10px] text-destructive/80 font-medium">Excluir "{c.name}"?</span>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="text-[9px] font-bold text-muted-foreground hover:text-foreground uppercase tracking-wider px-2 py-1 rounded hover:bg-muted transition-colors"
+                            >Cancelar</button>
+                            <button
+                              onClick={() => handleDeleteCategory(c.id)}
+                              className="text-[9px] font-bold text-destructive bg-destructive/10 hover:bg-destructive/20 uppercase tracking-wider px-2 py-1 rounded transition-colors"
+                            >Confirmar</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex gap-1">
-                      <button onClick={() => handleEdit(c)} className="text-[9px] font-bold text-primary px-2 py-1 bg-primary/10 rounded uppercase tracking-wider hover:bg-primary/20 transition-colors">Editar</button>
-                      <button onClick={() => handleDelete(c.id)} className="text-destructive p-1 bg-destructive/10 rounded hover:bg-destructive/20 transition-colors"><Trash className="w-3 h-3" /></button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {categories.length === 0 && (
                   <div className="text-center text-muted-foreground p-8 border border-dashed rounded-[16px] border-border/50 text-xs">
                     Nenhuma categoria cadastrada
@@ -259,23 +329,50 @@ export function CategoryModal() {
 
               {/* List custom payment methods */}
               <div className="flex-1 overflow-y-auto p-2 space-y-1.5 pb-8 sm:pb-2">
-                {paymentMethods.map(pm => (
-                  <div key={pm.id} className="flex items-center justify-between p-1.5 px-2 rounded-lg bg-card border border-border/50 shadow-sm hover:border-primary/30 transition-colors text-xs">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                      <div>
-                        <div className="font-semibold leading-none mb-0.5">{pm.name}</div>
-                        <div className="text-[8px] text-muted-foreground uppercase font-bold tracking-wider leading-none">
-                          {pm.allowInstallments ? 'Permite parcelas' : 'À vista'}
+                {paymentMethods.map(pm => {
+                  const isConfirmingPm = confirmDeletePmId === pm.id;
+                  return (
+                    <div key={pm.id} className="rounded-lg bg-card border border-border/50 shadow-sm hover:border-primary/30 transition-colors text-xs overflow-hidden">
+                      <div className="flex items-center justify-between p-1.5 px-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                          <div>
+                            <div className="font-semibold leading-none mb-0.5">{pm.name}</div>
+                            <div className="text-[8px] text-muted-foreground uppercase font-bold tracking-wider leading-none">
+                              {pm.allowInstallments ? 'Permite parcelas' : 'À vista'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <button onClick={() => handleEditPaymentMethod(pm)} className="text-[9px] font-bold text-primary px-2 py-1 bg-primary/10 rounded uppercase tracking-wider hover:bg-primary/20 transition-colors">Editar</button>
+                          <button
+                            onClick={() => setConfirmDeletePmId(isConfirmingPm ? null : pm.id)}
+                            className={`p-1 rounded transition-colors ${
+                              isConfirmingPm
+                                ? 'bg-destructive/20 text-destructive'
+                                : 'text-destructive/60 bg-destructive/10 hover:bg-destructive/20 hover:text-destructive'
+                            }`}
+                          ><Trash className="w-3 h-3" /></button>
                         </div>
                       </div>
+                      {isConfirmingPm && (
+                        <div className="flex items-center justify-between px-3 py-2 bg-destructive/5 border-t border-destructive/10 animate-in fade-in-50 slide-in-from-top-1 duration-150">
+                          <span className="text-[10px] text-destructive/80 font-medium">Excluir "{pm.name}"?</span>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setConfirmDeletePmId(null)}
+                              className="text-[9px] font-bold text-muted-foreground hover:text-foreground uppercase tracking-wider px-2 py-1 rounded hover:bg-muted transition-colors"
+                            >Cancelar</button>
+                            <button
+                              onClick={() => handleDeletePaymentMethod(pm.id)}
+                              className="text-[9px] font-bold text-destructive bg-destructive/10 hover:bg-destructive/20 uppercase tracking-wider px-2 py-1 rounded transition-colors"
+                            >Confirmar</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex gap-1">
-                      <button onClick={() => handleEditPaymentMethod(pm)} className="text-[9px] font-bold text-primary px-2 py-1 bg-primary/10 rounded uppercase tracking-wider hover:bg-primary/20 transition-colors">Editar</button>
-                      <button onClick={() => handleDeletePaymentMethod(pm.id)} className="text-destructive p-1 bg-destructive/10 rounded hover:bg-destructive/20 transition-colors"><Trash className="w-3 h-3" /></button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {paymentMethods.length === 0 && (
                   <div className="text-center text-muted-foreground p-8 border border-dashed rounded-[16px] border-border/50 text-xs">
                     Nenhuma forma de pagamento cadastrada
