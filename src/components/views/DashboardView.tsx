@@ -378,10 +378,16 @@ export function DashboardView() {
                      )
                    )}
                    {t.type === 'receita' && (
-                     <div className={`text-[8px] font-bold uppercase tracking-widest mt-0.5 ${t.isPaid ? 'text-emerald-600 dark:text-emerald-500' : 'text-amber-500'}`}>
-                       {t.isPaid ? 'Recebido' : 'Pendente'}
-                     </div>
-                   )}
+                      t.isGroupedInstallments ? (
+                        <div className={`text-[8px] font-bold uppercase tracking-widest mt-0.5 ${t.isPaid ? 'text-emerald-600 dark:text-emerald-500' : 'text-amber-500'}`}>
+                          {t.totalPaid}/{t.installmentCount} Recebido
+                        </div>
+                      ) : (
+                        <div className={`text-[8px] font-bold uppercase tracking-widest mt-0.5 ${t.isPaid ? 'text-emerald-600 dark:text-emerald-500' : 'text-amber-500'}`}>
+                          {t.isPaid ? 'Recebido' : 'Pendente'}
+                        </div>
+                      )
+                    )}
                  </div>
               </div>
             ))
