@@ -3,7 +3,8 @@ import { useDataStore } from '../../store/useDataStore';
 import { api } from '../../services/api';
 import { Transaction } from '../../db/db';
 import { formatCurrency } from '../../utils/formatters';
-import { ChevronLeft, CreditCard, ShoppingBag, Clock, TrendingDown, Pencil, Trash2 } from 'lucide-react';
+import { getCycleId } from '../../utils/cycleUtils';
+import { ChevronLeft, CreditCard, ShoppingBag, Clock, TrendingDown, Pencil, Trash2, Search } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAppStore } from '../../store/useAppStore';
 import { Input } from '../ui/input';
@@ -11,33 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { generateUUID } from '../../lib/utils';
 
 
-function getCycleId(date: Date, closingDay: number, dueDay: number) {
-  let yr = date.getFullYear();
-  let mo = date.getMonth();
-  let currentMonthClosing = new Date(yr, mo, closingDay, 23, 59, 59);
 
-  let cycleMonth = mo;
-  let cycleYear = yr;
 
-  if (date > currentMonthClosing) {
-    cycleMonth += 1;
-    if (cycleMonth > 11) { cycleMonth = 0; cycleYear++; }
-  }
-
-  let dueMonth = cycleMonth;
-  let dueYear = cycleYear;
-  if (dueDay < closingDay) {
-    dueMonth += 1;
-    if (dueMonth > 11) { dueMonth = 0; dueYear++; }
-  }
-
-  let finalDueDate = new Date(dueYear, dueMonth, dueDay);
-  return {
-    cycleId: `${dueYear}-${dueMonth + 1}`,
-    dueDate: finalDueDate,
-    monthName: finalDueDate.toLocaleDateString('pt-BR', { month: 'long' })
-  };
-}
 
 export function CardDetailsView() {
   const { setCurrentView, activeContextCardId, setEditingCardId, setCardModalOpen, setEditingTransactionId, setTransactionModalOpen, setConfirmModal } = useAppStore();
@@ -55,6 +31,7 @@ export function CardDetailsView() {
   }, [allTransactions, activeContextCardId]);
 
   const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const cardCycles = React.useMemo(() => {
     if (!card) return [];
@@ -91,9 +68,13 @@ export function CardDetailsView() {
     if (!card || !selectedCycleId) return [];
     return transactions.filter(t => {
       const { cycleId } = getCycleId(t.date, card.closingDay, card.dueDay);
-      return cycleId === selectedCycleId;
+      if (cycleId !== selectedCycleId) return false;
+      if (searchTerm.trim()) {
+        return t.description.toLowerCase().includes(searchTerm.toLowerCase());
+      }
+      return true;
     });
-  }, [transactions, card, selectedCycleId]);
+  }, [transactions, card, selectedCycleId, searchTerm]);
 
   // Quick Add Form State
   const [amount, setAmount] = useState('');
@@ -330,6 +311,17 @@ export function CardDetailsView() {
           </Select>
         </div>
 
+        {/* Search */}
+        <div className="relative mb-3">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Buscar lançamento..."
+            className="pl-9 h-9 text-xs bg-muted/50 border-none rounded-[11px] focus-visible:ring-primary shadow-inner"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
+        </div>
+
         <div className="flex flex-col gap-2.5 pb-24">
           {visibleTransactions.length === 0 ? (
             <div className="text-center text-muted-foreground p-8 flex flex-col items-center border border-dashed rounded-[11px] border-border/50">
@@ -357,8 +349,22 @@ export function CardDetailsView() {
                         </span>
                       )}
                     </div>
-                    <div className="text-[10px] text-muted-foreground flex items-center gap-2 font-medium">
+                    <div className="text-[10px] text-muted-foreground flex items-center gap-2 font-medium flex-wrap">
                       <span>{new Date(t.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</span>
+                      {(() => {
+                        const cat = categories.find(c => c.id === t.categoryId);
+                        if (!cat) return null;
+                        return (
+                          <span className="flex items-center gap-1">
+                            <span className="opacity-30">•</span>
+                            <span
+                              className="w-1.5 h-1.5 rounded-full inline-block flex-none"
+                              style={{ backgroundColor: cat.color || '#aaa' }}
+                            />
+                            <span className="opacity-60">{cat.name}</span>
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

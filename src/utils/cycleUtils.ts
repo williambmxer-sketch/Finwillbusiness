@@ -10,8 +10,9 @@
  *   → Fatura fecha em 25/jun → vence em 05/jul → cycleId = "2026-07"
  */
 export interface CycleResult {
-  cycleId: string; // formato "YYYY-MM", ex: "2026-07"
+  cycleId: string;   // formato "YYYY-MM", ex: "2026-07"
   dueDate: Date;
+  monthName: string; // ex: "julho"
 }
 
 export function getCycleId(
@@ -21,7 +22,7 @@ export function getCycleId(
 ): CycleResult {
   const date = typeof dateVal === 'string' ? new Date(dateVal) : dateVal;
   if (!date || isNaN(date.getTime())) {
-    return { cycleId: '', dueDate: new Date() };
+    return { cycleId: '', dueDate: new Date(), monthName: '' };
   }
 
   let yr = date.getFullYear();
@@ -47,6 +48,7 @@ export function getCycleId(
   return {
     cycleId: `${dueYear}-${String(dueMonth + 1).padStart(2, '0')}`,
     dueDate: new Date(dueYear, dueMonth, dueDay),
+    monthName: new Date(dueYear, dueMonth, dueDay).toLocaleDateString('pt-BR', { month: 'long' }),
   };
 }
 
