@@ -191,6 +191,14 @@ export function ReportsView() {
                   }
                 },
                 {
+                  label: 'Próximo mês', fn: () => {
+                    const d = new Date();
+                    const f = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+                    const l = new Date(d.getFullYear(), d.getMonth() + 2, 0);
+                    setStartDate(toDateStr(f)); setEndDate(toDateStr(l));
+                  }
+                },
+                {
                   label: 'Últimos 3 meses', fn: () => {
                     const d = new Date();
                     const f = new Date(d.getFullYear(), d.getMonth() - 2, 1);
