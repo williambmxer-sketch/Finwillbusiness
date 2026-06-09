@@ -372,7 +372,22 @@ export function TransactionsView() {
                             )}
                           </div>
                           <div className="text-[10px] text-muted-foreground flex flex-col gap-0.5 font-medium">
-                            <span>{isInvoice ? 'Vencimento da Fatura' : 'Lançamento'}: {t.date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</span>
+                            <span className="flex items-center gap-1 flex-wrap">
+                              {isInvoice ? 'Vencimento da Fatura' : 'Lançamento'}: {t.date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                              {!isInvoice && (() => {
+                                const category = useDataStore.getState().categories.find(c => c.id === t.categoryId);
+                                if (!category) return null;
+                                return (
+                                  <>
+                                    <span className="opacity-40">•</span>
+                                    <span className="flex items-center gap-1.5">
+                                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: category.color || '#ccc' }} />
+                                      <span>{category.name}</span>
+                                    </span >
+                                  </>
+                                );
+                              })()}
+                            </span>
                             {t.isPaid && t.paymentDate && (
                               <span className="text-emerald-600 dark:text-emerald-500 font-bold">Pago em: {new Date(t.paymentDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</span>
                             )}
