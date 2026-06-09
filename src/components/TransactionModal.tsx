@@ -110,11 +110,12 @@ export function TransactionModal() {
   const [categoryId, setCategoryId] = useState('');
   const [accountId, setAccountId] = useState('');
   const [cardId, setCardId] = useState('money');
-  const [isPaid, setIsPaid] = useState(true);
+  const [isPaid, setIsPaid] = useState(false);
   const [installments, setInstallments] = useState('1');
   const [customPaymentMethods, setCustomPaymentMethods] = useState<CustomPaymentMethod[]>([]);
   const [firstInstallmentIn30Days, setFirstInstallmentIn30Days] = useState(false);
   const [payFirstInstallmentToday, setPayFirstInstallmentToday] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -126,6 +127,16 @@ export function TransactionModal() {
       setPayFirstInstallmentToday(false);
     }
   }, [cardId]);
+
+  useEffect(() => {
+    if (!editingTransactionId && hasInitialized) {
+      if (type === 'receita') {
+        setIsPaid(false);
+      } else {
+        setIsPaid(false);
+      }
+    }
+  }, [type, editingTransactionId, hasInitialized]);
 
   useEffect(() => {
     if (isTransactionModalOpen) {
@@ -154,8 +165,6 @@ export function TransactionModal() {
   };
 
   const displayAmount = amount ? parseFloat(amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
-
-  const [hasInitialized, setHasInitialized] = useState(false);
 
   useEffect(() => {
     if (!isTransactionModalOpen) {
@@ -246,7 +255,7 @@ export function TransactionModal() {
       return;
     }
 
-    if (type === 'receita' && (!accountId || accountId === 'none' || accountId === '')) {
+    if (type === 'receita' && isPaid && (!accountId || accountId === 'none' || accountId === '')) {
       setError('Selecione a conta de destino para receber o valor.');
       return;
     }
@@ -356,9 +365,9 @@ export function TransactionModal() {
         date: dateObj,
         type,
         categoryId,
-        accountId: (cardId !== 'money' || !accountId || accountId === 'none') ? undefined : accountId,
-        cardId: isCard ? cardId : undefined,
-        isPaid: cardId !== 'money' ? false : isPaid,
+        accountId: (type === 'despesa' && cardId !== 'money') || !isPaid || !accountId || accountId === 'none' ? undefined : accountId,
+        cardId: type === 'despesa' && isCard ? cardId : undefined,
+        isPaid: type === 'despesa' && cardId !== 'money' ? false : isPaid,
         notes: isCustom ? `paymentMethod:${paymentMethodName}` : undefined,
       };
 
@@ -593,25 +602,29 @@ export function TransactionModal() {
                   )}
                 </div>
               ) : (
-                <div>
-                  <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">
-                    Conta <span className="text-destructive font-bold">*</span>
-                  </Label>
-                  <CustomSelect
-                    value={accountId}
-                    onValueChange={setAccountId}
-                    placeholder="Selecione..."
-                    options={accounts.map(a => ({
-                      value: a.id,
-                      label: `${a.name} • ${formatCurrency(a.balance)}`
-                    }))}
-                  />
-                </div>
+                showAccountSelector && (
+                  <div>
+                    <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">
+                      Conta <span className="text-destructive font-bold">*</span>
+                    </Label>
+                    <CustomSelect
+                      value={accountId}
+                      onValueChange={setAccountId}
+                      placeholder="Selecione..."
+                      options={accounts.map(a => ({
+                        value: a.id,
+                        label: `${a.name} • ${formatCurrency(a.balance)}`
+                      }))}
+                    />
+                  </div>
+                )
               )}
 
-              {type === 'despesa' && cardId === 'money' && (
+              {((type === 'despesa' && cardId === 'money') || type === 'receita') && (
                 <div className="flex items-center justify-between pt-1 px-1">
-                  <span className="text-xs font-semibold text-foreground select-none">Confirmar Pagamento</span>
+                  <span className="text-xs font-semibold text-foreground select-none">
+                    {type === 'receita' ? 'Confirmar Recebimento' : 'Confirmar Pagamento'}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setIsPaid(!isPaid)}
