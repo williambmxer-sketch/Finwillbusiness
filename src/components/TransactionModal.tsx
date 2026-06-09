@@ -121,6 +121,7 @@ export function TransactionModal() {
   const [installmentActionType, setInstallmentActionType] = useState<'edit' | 'delete' | null>(null);
   const [installmentMode, setInstallmentMode] = useState<'divide' | 'repeat'>('divide');
   const [balanceWarning, setBalanceWarning] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
     if (cardId.startsWith('custom-')) {
@@ -651,6 +652,7 @@ export function TransactionModal() {
       setBalanceWarning(null);
       setKeepOpen(false);
       setInstallmentActionType(null);
+      setConfirmingDelete(false);
     }, 300);
   };
 
@@ -994,9 +996,30 @@ export function TransactionModal() {
 
         <div className="flex gap-3 p-4 border-t pb-8 sm:pb-4 bg-background">
           {editingTransactionId && (
-            <button onClick={handleDelete} className="p-3 w-12 border border-destructive/20 text-destructive rounded-xl flex items-center justify-center hover:bg-destructive/10 transition-colors">
-              <Trash className="w-5 h-5" />
-            </button>
+            confirmingDelete ? (
+              <div className="flex items-center gap-2 animate-in fade-in-0 zoom-in-95 duration-150">
+                <span className="text-xs font-semibold text-destructive whitespace-nowrap">Excluir?</span>
+                <button
+                  onClick={() => { setConfirmingDelete(false); handleDelete(); }}
+                  className="px-3 h-11 bg-destructive text-destructive-foreground text-xs font-bold rounded-xl hover:bg-destructive/90 transition-colors"
+                >
+                  Sim
+                </button>
+                <button
+                  onClick={() => setConfirmingDelete(false)}
+                  className="px-3 h-11 bg-muted text-foreground text-xs font-bold rounded-xl hover:bg-muted/80 transition-colors"
+                >
+                  Não
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmingDelete(true)}
+                className="p-3 w-12 border border-destructive/20 text-destructive rounded-xl flex items-center justify-center hover:bg-destructive/10 transition-colors"
+              >
+                <Trash className="w-5 h-5" />
+              </button>
+            )
           )}
           <button onClick={handleSave} className={`flex-1 text-sm font-bold rounded-xl h-11 flex items-center justify-center gap-2 transition-all ${balanceWarning ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}>
             {balanceWarning ? 'Confirmar mesmo assim' : 'Salvar'}
