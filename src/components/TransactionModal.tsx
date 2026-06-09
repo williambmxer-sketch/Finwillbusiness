@@ -468,7 +468,7 @@ export function TransactionModal() {
           </button>
         </div>
 
-        <div className="flex-1 p-5 flex flex-col gap-4 overflow-y-auto">
+        <div className="flex-1 p-5 flex flex-col gap-3 overflow-visible">
           <div className="flex bg-muted/50 p-1 rounded-[12px] shrink-0">
             <button
               className={`flex-1 py-2 rounded-[10px] text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'despesa' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'} disabled:opacity-30 disabled:cursor-not-allowed`}
@@ -482,7 +482,7 @@ export function TransactionModal() {
             >Receita</button>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="flex flex-col items-center justify-center py-1">
               <div className="flex items-baseline gap-1">
                 <span className="text-sm font-bold text-muted-foreground">R$</span>
@@ -497,7 +497,7 @@ export function TransactionModal() {
               </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               <div>
                 <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Descrição</Label>
                 <Input
@@ -567,7 +567,7 @@ export function TransactionModal() {
                         type="number"
                         min="1"
                         max="72"
-                        className="rounded-xl h-11 text-sm bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-medium text-center"
+                        className="rounded-xl h-10 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-medium text-center"
                         value={installments}
                         onChange={e => setInstallments(e.target.value)}
                         disabled={!!editingTransactionId}
