@@ -576,7 +576,7 @@ export function TransactionModal() {
                     </div>
                   )}
                   {showAccountSelector && (
-                    <div className="col-span-2 sm:col-span-1">
+                    <div className="col-span-2">
                       <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">
                         Conta <span className="text-destructive font-bold">*</span>
                       </Label>
