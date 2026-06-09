@@ -245,8 +245,8 @@ export function InvoicesView() {
               onClick={() => setSelectedCardId(c.id)}
               className={`flex-1 min-w-fit px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${selectedCardId === c.id ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }}></div>
-              <span className="truncate max-w-[80px]">{c.name.split(' ')[0]}</span>
+              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }}></div>
+              <span className="truncate max-w-[120px]">{c.name}</span>
             </button>
           ))}
         </div>
