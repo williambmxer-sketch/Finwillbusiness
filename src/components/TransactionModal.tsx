@@ -120,6 +120,7 @@ export function TransactionModal() {
   const [keepOpen, setKeepOpen] = useState(false);
   const [installmentActionType, setInstallmentActionType] = useState<'edit' | 'delete' | null>(null);
   const [installmentMode, setInstallmentMode] = useState<'divide' | 'repeat'>('divide');
+  const [balanceWarning, setBalanceWarning] = useState<string | null>(null);
 
   useEffect(() => {
     if (cardId.startsWith('custom-')) {
@@ -175,6 +176,7 @@ export function TransactionModal() {
     if (!isTransactionModalOpen) {
       setHasInitialized(false);
       setError(null);
+      setBalanceWarning(null);
       return;
     }
 
@@ -284,8 +286,8 @@ export function TransactionModal() {
         const oldTx = editingTransactionId ? useDataStore.getState().transactions.find(t => t.id === editingTransactionId) : null;
         const originalAmountPaidOnSameAcc = (oldTx && oldTx.isPaid && oldTx.accountId === accountId) ? oldTx.amount : 0;
         const netDeduction = txAmount - originalAmountPaidOnSameAcc;
-        if (acc.balance < netDeduction) {
-          setError(`Saldo insuficiente na conta selecionada! Saldo disponível: R$ ${acc.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        if (acc.balance < netDeduction && !balanceWarning) {
+          setBalanceWarning(`Saldo insuficiente na conta selecionada. Saldo disponível: ${acc.balance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}. Clique em Salvar novamente para confirmar mesmo assim.`);
           return;
         }
       }
@@ -294,9 +296,9 @@ export function TransactionModal() {
     if (type === 'despesa' && showInstallments && numInstallments > 1 && !firstInstallmentIn30Days && payFirstInstallmentToday && accountId) {
       const accountsList = useDataStore.getState().accounts;
       const acc = accountsList.find(a => a.id === accountId);
-      const firstInstallmentAmount = txAmount / numInstallments;
-      if (acc && acc.balance < firstInstallmentAmount) {
-        setError(`Saldo insuficiente para pagar a entrada! Saldo disponível: R$ ${acc.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+      const firstInstallmentAmount = installmentMode === 'divide' ? txAmount / numInstallments : txAmount;
+      if (acc && acc.balance < firstInstallmentAmount && !balanceWarning) {
+        setBalanceWarning(`Saldo insuficiente para pagar a entrada. Saldo disponível: ${acc.balance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}. Clique em Salvar novamente para confirmar mesmo assim.`);
         return;
       }
     }
@@ -458,6 +460,7 @@ export function TransactionModal() {
       }
     }
 
+    setBalanceWarning(null);
     if (keepOpen && !editingTransactionId) {
       setAmount('');
       setDescription('');
@@ -615,6 +618,7 @@ export function TransactionModal() {
       setEditingTransactionId(null);
       setDefaultPaymentMethod(null);
       setError(null);
+      setBalanceWarning(null);
       setKeepOpen(false);
       setInstallmentActionType(null);
     }, 300);
@@ -952,14 +956,20 @@ export function TransactionModal() {
           </div>
         )}
 
+        {balanceWarning && (
+          <div className="px-4 py-2.5 mx-5 mb-1 bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-[11px] font-medium rounded-xl animate-in fade-in-50 slide-in-from-top-1 leading-relaxed">
+            ⚠ {balanceWarning}
+          </div>
+        )}
+
         <div className="flex gap-3 p-4 border-t pb-8 sm:pb-4 bg-background">
           {editingTransactionId && (
             <button onClick={handleDelete} className="p-3 w-12 border border-destructive/20 text-destructive rounded-xl flex items-center justify-center hover:bg-destructive/10 transition-colors">
               <Trash className="w-5 h-5" />
             </button>
           )}
-          <button onClick={handleSave} className="flex-1 bg-primary text-primary-foreground text-sm font-bold rounded-xl h-11 flex items-center justify-center gap-2 hover:bg-primary/90 transition-all">
-            Salvar
+          <button onClick={handleSave} className={`flex-1 text-sm font-bold rounded-xl h-11 flex items-center justify-center gap-2 transition-all ${balanceWarning ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}>
+            {balanceWarning ? 'Confirmar mesmo assim' : 'Salvar'}
           </button>
         </div>
 
