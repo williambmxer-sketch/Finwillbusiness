@@ -119,6 +119,7 @@ export function TransactionModal() {
   const [error, setError] = useState<string | null>(null);
   const [keepOpen, setKeepOpen] = useState(false);
   const [installmentActionType, setInstallmentActionType] = useState<'edit' | 'delete' | null>(null);
+  const [installmentMode, setInstallmentMode] = useState<'divide' | 'repeat'>('divide');
 
   useEffect(() => {
     if (cardId.startsWith('custom-')) {
@@ -134,8 +135,10 @@ export function TransactionModal() {
     if (!editingTransactionId && hasInitialized) {
       if (type === 'receita') {
         setIsPaid(false);
+        setInstallmentMode('repeat');
       } else {
         setIsPaid(false);
+        setInstallmentMode('divide');
       }
     }
   }, [type, editingTransactionId, hasInitialized]);
@@ -331,7 +334,10 @@ export function TransactionModal() {
 
     if (numInstallments > 1 && !editingTransactionId) {
       const parentId = generateUUID();
-      const installmentAmount = txAmount / numInstallments;
+      // 'divide': split total equally; 'repeat': repeat full amount each month
+      const installmentAmount = installmentMode === 'divide'
+        ? txAmount / numInstallments
+        : txAmount;
       const newTransactions: Transaction[] = [];
 
       for (let i = 0; i < numInstallments; i++) {
@@ -362,18 +368,19 @@ export function TransactionModal() {
 
       await api.transactions.bulkAdd(newTransactions);
 
+      const firstPaidAmount = installmentMode === 'divide' ? txAmount / numInstallments : txAmount;
       if (type === 'receita' && isPaid && accountId) {
         const acc = getAcc(accountId);
         if (acc) {
           await api.accounts.update(accountId, {
-            balance: acc.balance + installmentAmount
+            balance: acc.balance + firstPaidAmount
           });
         }
       } else if (type === 'despesa' && !firstInstallmentIn30Days && payFirstInstallmentToday && accountId) {
         const acc = getAcc(accountId);
         if (acc) {
           await api.accounts.update(accountId, {
-            balance: acc.balance - installmentAmount
+            balance: acc.balance - firstPaidAmount
           });
         }
       }
@@ -738,6 +745,43 @@ export function TransactionModal() {
                       />
                     </div>
                   )}
+                  {showInstallments && numInstallments > 1 && !editingTransactionId && (
+                    <div className="col-span-2">
+                      <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Modo</Label>
+                      <div className="flex bg-muted/50 p-1 rounded-[10px]">
+                        <button
+                          type="button"
+                          onClick={() => setInstallmentMode('divide')}
+                          className={`flex-1 py-1.5 rounded-[8px] text-[10px] font-bold uppercase tracking-widest transition-all ${
+                            installmentMode === 'divide'
+                              ? 'bg-background text-foreground shadow-sm'
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          Dividir
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setInstallmentMode('repeat')}
+                          className={`flex-1 py-1.5 rounded-[8px] text-[10px] font-bold uppercase tracking-widest transition-all ${
+                            installmentMode === 'repeat'
+                              ? 'bg-background text-foreground shadow-sm'
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          Repetir
+                        </button>
+                      </div>
+                      {amount && parseFloat(amount) > 0 && (
+                        <p className="text-[10px] text-muted-foreground mt-1 ml-1">
+                          {installmentMode === 'divide'
+                            ? `${numInstallments}x de ${(parseFloat(amount) / numInstallments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} — total ${parseFloat(amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+                            : `${numInstallments}x de ${parseFloat(amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} — total ${(parseFloat(amount) * numInstallments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+                          }
+                        </p>
+                      )}
+                    </div>
+                  )}
                   {showAccountSelector && (
                     <div className="col-span-2">
                       <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">
@@ -784,6 +828,43 @@ export function TransactionModal() {
                           onChange={e => setInstallments(e.target.value)}
                           disabled={!!editingTransactionId}
                         />
+                      </div>
+                    )}
+                    {showInstallments && numInstallments > 1 && !editingTransactionId && (
+                      <div className="col-span-2">
+                        <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Modo</Label>
+                        <div className="flex bg-muted/50 p-1 rounded-[10px]">
+                          <button
+                            type="button"
+                            onClick={() => setInstallmentMode('divide')}
+                            className={`flex-1 py-1.5 rounded-[8px] text-[10px] font-bold uppercase tracking-widest transition-all ${
+                              installmentMode === 'divide'
+                                ? 'bg-background text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            Dividir
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setInstallmentMode('repeat')}
+                            className={`flex-1 py-1.5 rounded-[8px] text-[10px] font-bold uppercase tracking-widest transition-all ${
+                              installmentMode === 'repeat'
+                                ? 'bg-background text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            Repetir
+                          </button>
+                        </div>
+                        {amount && parseFloat(amount) > 0 && (
+                          <p className="text-[10px] text-muted-foreground mt-1 ml-1">
+                            {installmentMode === 'divide'
+                              ? `${numInstallments}x de ${(parseFloat(amount) / numInstallments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} — total ${parseFloat(amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+                              : `${numInstallments}x de ${parseFloat(amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} — total ${(parseFloat(amount) * numInstallments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+                            }
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
