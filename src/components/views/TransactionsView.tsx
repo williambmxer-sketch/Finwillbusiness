@@ -81,8 +81,10 @@ export function TransactionsView() {
     
     if (!isNowPaid) {
       setConfirmModal({
-        title: 'Estornar Pagamento',
-        description: 'Deseja cancelar o pagamento e estornar o valor desta transação?',
+        title: t.type === 'receita' ? 'Estornar Recebimento' : 'Estornar Pagamento',
+        description: t.type === 'receita'
+          ? 'Deseja cancelar o recebimento e estornar o valor desta transação?'
+          : 'Deseja cancelar o pagamento e estornar o valor desta transação?',
         onConfirm: async () => {
           await executeTogglePayment(t, isNowPaid);
         }
@@ -444,6 +446,8 @@ export function TransactionsView() {
                             >
                               {t.isPaid ? (
                                 <><Clock className="w-4 h-4" /> Tornar Pendente</>
+                              ) : t.type === 'receita' ? (
+                                <><CheckCircle2 className="w-4 h-4" /> Confirmar Recebimento</>
                               ) : (
                                 <><CheckCircle2 className="w-4 h-4" /> Confirmar Pagamento</>
                               )}
