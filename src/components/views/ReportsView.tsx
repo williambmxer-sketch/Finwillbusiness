@@ -19,7 +19,7 @@ export function ReportsView() {
       const monthTx = allTransactions.filter(t => t.date.getMonth() === monthNumber && t.date.getFullYear() === yearNumber);
       
       const receitas = monthTx.filter(t => t.type === 'receita' && t.isPaid).reduce((sum, t) => sum + t.amount, 0);
-      const despesas = monthTx.filter(t => t.type === 'despesa' && (t.isPaid || (t.cardId && t.cardId !== 'money'))).reduce((sum, t) => sum + t.amount, 0);
+      const despesas = monthTx.filter(t => t.type === 'despesa' && (t.isPaid || (t.cardId && t.cardId !== 'money') || (t.notes && t.notes.startsWith('paymentMethod:')))).reduce((sum, t) => sum + t.amount, 0);
         
       data.push({
         name: d.toLocaleDateString('pt-BR', { month: 'short' }),
@@ -32,7 +32,7 @@ export function ReportsView() {
 
   const categories = useMemo(() => {
     const expensesByCategory = new Map<string, number>();
-    const expenses = allTransactions.filter(t => t.type === 'despesa' && (t.isPaid || (t.cardId && t.cardId !== 'money')));
+    const expenses = allTransactions.filter(t => t.type === 'despesa' && (t.isPaid || (t.cardId && t.cardId !== 'money') || (t.notes && t.notes.startsWith('paymentMethod:'))));
     
     expenses.forEach(t => {
       const current = expensesByCategory.get(t.categoryId) || 0;

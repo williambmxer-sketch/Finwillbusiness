@@ -141,7 +141,7 @@ export function DashboardView() {
     .reduce((acc, t) => acc + t.amount, 0);
 
   const totalExpenses = currentMonthTransactions
-    .filter(t => t.type === 'despesa' && (t.isPaid || (t.cardId && t.cardId !== 'money')))
+    .filter(t => t.type === 'despesa' && (t.isPaid || (t.cardId && t.cardId !== 'money') || (t.notes && t.notes.startsWith('paymentMethod:'))))
     .reduce((acc, t) => acc + t.amount, 0);
 
   const chartData = useMemo(() => {
@@ -153,7 +153,7 @@ export function DashboardView() {
       const yearNumber = d.getFullYear();
       
       const monthExpenses = allTransactions
-        .filter(t => t.type === 'despesa' && t.date.getMonth() === monthNumber && t.date.getFullYear() === yearNumber && (t.isPaid || (t.cardId && t.cardId !== 'money')))
+        .filter(t => t.type === 'despesa' && t.date.getMonth() === monthNumber && t.date.getFullYear() === yearNumber && (t.isPaid || (t.cardId && t.cardId !== 'money') || (t.notes && t.notes.startsWith('paymentMethod:'))))
         .reduce((sum, t) => sum + t.amount, 0);
         
       data.push({

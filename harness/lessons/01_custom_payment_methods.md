@@ -17,9 +17,13 @@ O usuário precisava cadastrar formas de pagamento neutras (como "Crediário", "
   - `name`: Nome (ex: "Crediário").
   - `allowInstallments`: Switch booleano que define se o formulário de transação deve solicitar o número de parcelas para este método.
 - **Vínculo com Transações**: Para não violar as tabelas relacionais do Supabase (`transacoes`), vinculamos as formas de pagamento personalizadas utilizando o campo `notes` (observações) no formato: `paymentMethod:NomeDaForma`. O campo `cardId` permanece `undefined` (já que não é um cartão físico cadastrado) e `accountId` permanece `undefined` enquanto a transação estiver pendente.
+  - **Soma de Despesas**: As compras por formas personalizadas (mesmo pendentes) são contabilizadas como despesas contraídas no Dashboard e Relatórios, utilizando a checagem do prefixo `paymentMethod:` nas observações.
 
 ### B. Ciclo de Vida e Baixa
-- **Lançamento**: Ao lançar a despesa, se for selecionada uma forma personalizada com parcelas (`installments > 1`), o sistema divide o valor bruto igualmente entre as parcelas e gera os lançamentos futuros no banco via `bulkAdd`, todos com `isPaid = false`.
+- **Lançamento e Carência**: Ao lançar a despesa parcelada (`installments > 1`), o sistema exibe a opção **"Primeira parcela em 30 dias"**.
+  - Se ativada (comportamento padrão para crediários/boletos), as parcelas são salvas com vencimentos a partir de `D+30` (próximo mês).
+  - Se desativada (comportamento padrão para cartões de crédito ou compras com entrada), as parcelas iniciam no mês atual (`D+0`).
+  - O valor bruto é dividido igualmente e gerado no banco via `bulkAdd` com `isPaid = false`.
 - **Baixa**: Cada parcela aparece individualmente no extrato como "Pendente". Ao clicar em "Confirmar Pagamento", o usuário seleciona a conta bancária real de débito e a transação passa a ter `isPaid = true` e `accountId` preenchido, abatendo o saldo bancário.
 
 ### C. Alerta de Saldo
