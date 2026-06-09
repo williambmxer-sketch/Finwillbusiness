@@ -117,6 +117,8 @@ export function TransactionModal() {
   const [payFirstInstallmentToday, setPayFirstInstallmentToday] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [keepOpen, setKeepOpen] = useState(false);
+  const [installmentActionType, setInstallmentActionType] = useState<'edit' | 'delete' | null>(null);
 
   useEffect(() => {
     if (cardId.startsWith('custom-')) {
@@ -314,6 +316,15 @@ export function TransactionModal() {
       }
     }
 
+    // Intercept if editing an installment transaction
+    if (editingTransactionId) {
+      const oldTx = useDataStore.getState().transactions.find(t => t.id === editingTransactionId);
+      if (oldTx && oldTx.parentId && oldTx.installments && oldTx.installments > 1) {
+        setInstallmentActionType('edit');
+        return;
+      }
+    }
+
     // Convert date string with local timezone offset
     const dateObj = new Date(date + 'T12:00:00');
     const getAcc = (id: string) => useDataStore.getState().accounts.find(a => a.id === id);
@@ -431,23 +442,155 @@ export function TransactionModal() {
       }
     }
 
-    closeModal();
+    if (keepOpen && !editingTransactionId) {
+      setAmount('');
+      setDescription('');
+      setCategoryId('');
+      setIsPaid(false);
+      setInstallments('1');
+      setError(null);
+    } else {
+      closeModal();
+    }
   };
 
   const handleDelete = async () => {
     if (editingTransactionId) {
       const oldTx = useDataStore.getState().transactions.find(t => t.id === editingTransactionId);
-      if (oldTx && oldTx.accountId && oldTx.isPaid) {
-        const oldAcc = useDataStore.getState().accounts.find(a => a.id === oldTx.accountId);
-        if (oldAcc) {
-          await api.accounts.update(oldTx.accountId, {
-            balance: oldAcc.balance - (oldTx.type === 'receita' ? oldTx.amount : -oldTx.amount)
-          });
+      if (oldTx) {
+        if (oldTx.parentId && oldTx.installments && oldTx.installments > 1) {
+          setInstallmentActionType('delete');
+          return;
+        }
+
+        if (oldTx.accountId && oldTx.isPaid) {
+          const oldAcc = useDataStore.getState().accounts.find(a => a.id === oldTx.accountId);
+          if (oldAcc) {
+            await api.accounts.update(oldTx.accountId, {
+              balance: oldAcc.balance - (oldTx.type === 'receita' ? oldTx.amount : -oldTx.amount)
+            });
+          }
+        }
+        await api.transactions.delete(editingTransactionId);
+        closeModal();
+      }
+    }
+  };
+
+  const handleInstallmentAction = async (scope: 'only' | 'following' | 'all') => {
+    if (!editingTransactionId) return;
+    const oldTx = useDataStore.getState().transactions.find(t => t.id === editingTransactionId);
+    if (!oldTx) return;
+
+    const txAmount = parseFloat(amount);
+    const dateObj = new Date(date + 'T12:00:00');
+    const isCustom = cardId.startsWith('custom-');
+    const isCard = cardId !== 'money' && !isCustom;
+    const paymentMethodName = isCustom ? (selectedPaymentMethod?.name || cardId.replace('custom-', '')) : undefined;
+    const getAcc = (id: string) => useDataStore.getState().accounts.find(a => a.id === id);
+
+    if (installmentActionType === 'edit') {
+      let targets: Transaction[] = [];
+      if (scope === 'only') {
+        targets = [oldTx];
+      } else if (scope === 'following') {
+        targets = useDataStore.getState().transactions.filter(
+          t => t.parentId === oldTx.parentId && t.currentInstallment! >= oldTx.currentInstallment!
+        );
+      } else {
+        targets = useDataStore.getState().transactions.filter(
+          t => t.parentId === oldTx.parentId
+        );
+      }
+
+      for (const t of targets) {
+        const isThis = t.id === oldTx.id;
+        const newDescription = isThis 
+          ? description 
+          : `${description.replace(/\s\(\d+\/\d+\)$/, '')} (${t.currentInstallment}/${t.installments})`;
+          
+        const newTx: Transaction = {
+          ...t,
+          description: newDescription,
+          amount: txAmount,
+          categoryId,
+          accountId: (type === 'despesa' && cardId !== 'money') || !isPaid || !accountId || accountId === 'none' ? undefined : accountId,
+          cardId: type === 'despesa' && isCard ? cardId : undefined,
+          isPaid: type === 'despesa' && cardId !== 'money' ? false : isPaid,
+          notes: isCustom ? `paymentMethod:${paymentMethodName}` : undefined,
+        };
+
+        if (isThis) {
+          newTx.date = dateObj;
+        }
+
+        await api.transactions.update(t.id, newTx);
+
+        if (t.accountId === newTx.accountId) {
+          let balanceDiff = 0;
+          if (t.isPaid) {
+            balanceDiff -= (t.type === 'receita' ? t.amount : -t.amount);
+          }
+          if (newTx.isPaid) {
+            balanceDiff += (newTx.type === 'receita' ? newTx.amount : -newTx.amount);
+          }
+
+          if (newTx.accountId && balanceDiff !== 0) {
+            const acc = getAcc(newTx.accountId);
+            if (acc) {
+              await api.accounts.update(newTx.accountId, {
+                balance: acc.balance + balanceDiff
+              });
+            }
+          }
+        } else {
+          if (t.accountId && t.isPaid) {
+            const oldAcc = getAcc(t.accountId);
+            if (oldAcc) {
+              await api.accounts.update(t.accountId, {
+                balance: oldAcc.balance - (t.type === 'receita' ? t.amount : -t.amount)
+              });
+            }
+          }
+          if (newTx.accountId && newTx.isPaid) {
+            const newAcc = getAcc(newTx.accountId);
+            if (newAcc) {
+              await api.accounts.update(newTx.accountId, {
+                balance: newAcc.balance + (newTx.type === 'receita' ? newTx.amount : -newTx.amount)
+              });
+            }
+          }
         }
       }
-      await api.transactions.delete(editingTransactionId);
-      closeModal();
+    } else if (installmentActionType === 'delete') {
+      let targets: Transaction[] = [];
+      if (scope === 'only') {
+        targets = [oldTx];
+      } else if (scope === 'following') {
+        targets = useDataStore.getState().transactions.filter(
+          t => t.parentId === oldTx.parentId && t.currentInstallment! >= oldTx.currentInstallment!
+        );
+      } else {
+        targets = useDataStore.getState().transactions.filter(
+          t => t.parentId === oldTx.parentId
+        );
+      }
+
+      for (const t of targets) {
+        if (t.accountId && t.isPaid) {
+          const oldAcc = getAcc(t.accountId);
+          if (oldAcc) {
+            await api.accounts.update(t.accountId, {
+              balance: oldAcc.balance - (t.type === 'receita' ? t.amount : -t.amount)
+            });
+          }
+        }
+        await api.transactions.delete(t.id);
+      }
     }
+
+    setInstallmentActionType(null);
+    closeModal();
   };
 
   const closeModal = () => {
@@ -456,6 +599,8 @@ export function TransactionModal() {
       setEditingTransactionId(null);
       setDefaultPaymentMethod(null);
       setError(null);
+      setKeepOpen(false);
+      setInstallmentActionType(null);
     }, 300);
   };
 
@@ -674,6 +819,23 @@ export function TransactionModal() {
                   )}
                 </div>
               )}
+
+              {!editingTransactionId && (
+                <div className="flex items-center justify-between pt-1 px-1 border-t border-border/20 mt-1 pt-2">
+                  <span className="text-xs font-semibold text-foreground select-none">
+                    Fixar modal aberto (continuar lançando)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setKeepOpen(!keepOpen)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${keepOpen ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${keepOpen ? 'translate-x-4' : 'translate-x-0'}`}
+                    />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -694,6 +856,51 @@ export function TransactionModal() {
             Salvar
           </button>
         </div>
+
+        {installmentActionType && (
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-[280] flex items-center justify-center p-4">
+            <div className="bg-card w-full max-w-[280px] rounded-[20px] border border-border shadow-xl p-5 flex flex-col items-center text-center animate-in zoom-in-95 duration-150">
+              <h3 className="text-sm font-bold tracking-tight mb-2">
+                {installmentActionType === 'edit' ? 'Editar Parcelamento' : 'Excluir Parcelamento'}
+              </h3>
+              <p className="text-[11px] text-muted-foreground mb-4 leading-relaxed">
+                Esta transação faz parte de um parcelamento. Como você deseja aplicar esta {installmentActionType === 'edit' ? 'alteração' : 'exclusão'}?
+              </p>
+              
+              <div className="flex flex-col w-full gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => handleInstallmentAction('only')}
+                  className="w-full py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold rounded-lg transition-all"
+                >
+                  Apenas esta parcela
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleInstallmentAction('following')}
+                  className="w-full py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold rounded-lg transition-all"
+                >
+                  Esta e as próximas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleInstallmentAction('all')}
+                  className="w-full py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold rounded-lg transition-all"
+                >
+                  Todas as parcelas
+                </button>
+              </div>
+              
+              <button
+                type="button"
+                onClick={() => setInstallmentActionType(null)}
+                className="text-xs text-muted-foreground hover:text-foreground font-medium underline"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
