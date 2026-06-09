@@ -113,13 +113,16 @@ export function TransactionModal() {
   const [installments, setInstallments] = useState('1');
   const [customPaymentMethods, setCustomPaymentMethods] = useState<CustomPaymentMethod[]>([]);
   const [firstInstallmentIn30Days, setFirstInstallmentIn30Days] = useState(false);
+  const [payFirstInstallmentToday, setPayFirstInstallmentToday] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (cardId.startsWith('custom-')) {
       setFirstInstallmentIn30Days(true);
+      setPayFirstInstallmentToday(false);
     } else {
       setFirstInstallmentIn30Days(false);
+      setPayFirstInstallmentToday(false);
     }
   }, [cardId]);
 
@@ -192,6 +195,8 @@ export function TransactionModal() {
         setCardId(pmId);
         setIsPaid(t.isPaid);
         setInstallments((t.installments || 1).toString());
+        setFirstInstallmentIn30Days(false);
+        setPayFirstInstallmentToday(false);
         setHasInitialized(true);
       }
     } else {
@@ -220,6 +225,8 @@ export function TransactionModal() {
 
   const showInstallments = (cardId !== 'money' && !selectedPaymentMethod) || (selectedPaymentMethod?.allowInstallments);
 
+  const numInstallments = showInstallments ? Math.max(1, parseInt(installments, 10) || 1) : 1;
+
   const handleSave = async () => {
     setError(null);
 
@@ -243,14 +250,19 @@ export function TransactionModal() {
       return;
     }
 
+    const txAmount = parseFloat(amount);
+
     if (type === 'despesa' && cardId === 'money' && isPaid && (!accountId || accountId === 'none' || accountId === '')) {
       setError('Selecione a conta bancária para confirmar o pagamento.');
       return;
     }
 
-    const txAmount = parseFloat(amount);
+    if (type === 'despesa' && showInstallments && numInstallments > 1 && !firstInstallmentIn30Days && payFirstInstallmentToday && (!accountId || accountId === 'none' || accountId === '')) {
+      setError('Selecione a conta bancária para a entrada / primeira parcela.');
+      return;
+    }
 
-    if (type === 'despesa' && isPaid && accountId) {
+    if (type === 'despesa' && isPaid && accountId && cardId === 'money') {
       const accountsList = useDataStore.getState().accounts;
       const acc = accountsList.find(a => a.id === accountId);
       if (acc) {
@@ -261,6 +273,16 @@ export function TransactionModal() {
           alert(`Saldo insuficiente na conta selecionada! Saldo disponível: R$ ${acc.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
           return;
         }
+      }
+    }
+
+    if (type === 'despesa' && showInstallments && numInstallments > 1 && !firstInstallmentIn30Days && payFirstInstallmentToday && accountId) {
+      const accountsList = useDataStore.getState().accounts;
+      const acc = accountsList.find(a => a.id === accountId);
+      const firstInstallmentAmount = txAmount / numInstallments;
+      if (acc && acc.balance < firstInstallmentAmount) {
+        alert(`Saldo insuficiente para pagar a entrada! Saldo disponível: R$ ${acc.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        return;
       }
     }
 
@@ -284,7 +306,6 @@ export function TransactionModal() {
 
     // Convert date string with local timezone offset
     const dateObj = new Date(date + 'T12:00:00');
-    const numInstallments = showInstallments ? Math.max(1, parseInt(installments, 10) || 1) : 1;
     const getAcc = (id: string) => useDataStore.getState().accounts.find(a => a.id === id);
 
     if (numInstallments > 1 && !editingTransactionId) {
@@ -297,6 +318,8 @@ export function TransactionModal() {
         const monthOffset = firstInstallmentIn30Days ? i + 1 : i;
         txDate.setMonth(txDate.getMonth() + monthOffset);
 
+        const isThisPaid = (!firstInstallmentIn30Days && i === 0) ? payFirstInstallmentToday : false;
+
         newTransactions.push({
           id: generateUUID(),
           description: `${description} (${i + 1}/${numInstallments})`,
@@ -305,16 +328,25 @@ export function TransactionModal() {
           type: 'despesa',
           categoryId,
           cardId: isCard ? cardId : undefined,
-          accountId: undefined,
+          accountId: isThisPaid ? accountId : undefined,
           installments: numInstallments,
           currentInstallment: i + 1,
           parentId,
-          isPaid: false,
+          isPaid: isThisPaid,
           notes: isCustom ? `paymentMethod:${paymentMethodName}` : undefined,
         });
       }
 
       await api.transactions.bulkAdd(newTransactions);
+
+      if (!firstInstallmentIn30Days && payFirstInstallmentToday && accountId) {
+        const acc = getAcc(accountId);
+        if (acc) {
+          await api.accounts.update(accountId, {
+            balance: acc.balance - installmentAmount
+          });
+        }
+      }
     } else {
       const tx: Transaction = {
         id: editingTransactionId || generateUUID(),
@@ -419,6 +451,11 @@ export function TransactionModal() {
 
   if (!isTransactionModalOpen || !categories || !accounts || !cards) return null;
 
+  const showAccountSelector = 
+    (type === 'receita') ||
+    (type === 'despesa' && cardId === 'money' && isPaid) ||
+    (type === 'despesa' && showInstallments && numInstallments > 1 && !firstInstallmentIn30Days && payFirstInstallmentToday);
+
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-background/80 backdrop-blur-sm sm:backdrop-blur-md">
       <div className="w-full max-w-md bg-card border-t sm:border border-border sm:rounded-[20px] rounded-t-[24px] shadow-2xl flex flex-col max-h-[95dvh] sm:max-h-[90dvh] transition-all relative">
@@ -431,8 +468,8 @@ export function TransactionModal() {
           </button>
         </div>
 
-        <div className="flex-1 p-5 flex flex-col gap-4">
-          <div className="flex bg-muted/50 p-1 rounded-[12px]">
+        <div className="flex-1 p-5 flex flex-col gap-4 overflow-y-auto">
+          <div className="flex bg-muted/50 p-1 rounded-[12px] shrink-0">
             <button
               className={`flex-1 py-2 rounded-[10px] text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'despesa' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'} disabled:opacity-30 disabled:cursor-not-allowed`}
               onClick={() => setType('despesa')}
@@ -502,8 +539,8 @@ export function TransactionModal() {
               </div>
 
               {type === 'despesa' ? (
-                <div className={`grid ${(cardId === 'money' && isPaid) || showInstallments ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
-                  <div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-1">
                     <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Pagamento</Label>
                     <CustomSelect
                       value={cardId}
@@ -523,8 +560,22 @@ export function TransactionModal() {
                       ]}
                     />
                   </div>
-                  {cardId === 'money' && isPaid && (
-                    <div>
+                  {showInstallments && (
+                    <div className="col-span-1">
+                      <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Parcelas</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="72"
+                        className="rounded-xl h-11 text-sm bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-medium text-center"
+                        value={installments}
+                        onChange={e => setInstallments(e.target.value)}
+                        disabled={!!editingTransactionId}
+                      />
+                    </div>
+                  )}
+                  {showAccountSelector && (
+                    <div className="col-span-2 sm:col-span-1">
                       <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">
                         Conta <span className="text-destructive font-bold">*</span>
                       </Label>
@@ -536,20 +587,6 @@ export function TransactionModal() {
                           value: a.id,
                           label: a.name
                         }))}
-                      />
-                    </div>
-                  )}
-                  {cardId !== 'money' && showInstallments && (
-                    <div>
-                      <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Parcelas</Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        max="72"
-                        className="rounded-xl h-11 text-sm bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-medium text-center"
-                        value={installments}
-                        onChange={e => setInstallments(e.target.value)}
-                        disabled={!!editingTransactionId}
                       />
                     </div>
                   )}
@@ -586,18 +623,41 @@ export function TransactionModal() {
                 </div>
               )}
 
-              {type === 'despesa' && showInstallments && parseInt(installments, 10) > 1 && (
-                <div className="flex items-center justify-between pt-1 px-1">
-                  <span className="text-xs font-semibold text-foreground select-none">Primeira parcela em 30 dias</span>
-                  <button
-                    type="button"
-                    onClick={() => setFirstInstallmentIn30Days(!firstInstallmentIn30Days)}
-                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${firstInstallmentIn30Days ? 'bg-primary' : 'bg-muted-foreground/30'}`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${firstInstallmentIn30Days ? 'translate-x-4' : 'translate-x-0'}`}
-                    />
-                  </button>
+              {type === 'despesa' && showInstallments && numInstallments > 1 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between pt-1 px-1">
+                    <span className="text-xs font-semibold text-foreground select-none">Primeira parcela em 30 dias</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextVal = !firstInstallmentIn30Days;
+                        setFirstInstallmentIn30Days(nextVal);
+                        if (nextVal) {
+                          setPayFirstInstallmentToday(false);
+                        }
+                      }}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${firstInstallmentIn30Days ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${firstInstallmentIn30Days ? 'translate-x-4' : 'translate-x-0'}`}
+                      />
+                    </button>
+                  </div>
+
+                  {!firstInstallmentIn30Days && (
+                    <div className="flex items-center justify-between pt-1 px-1">
+                      <span className="text-xs font-semibold text-foreground select-none">Pagar 1ª parcela hoje (Entrada)</span>
+                      <button
+                        type="button"
+                        onClick={() => setPayFirstInstallmentToday(!payFirstInstallmentToday)}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${payFirstInstallmentToday ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${payFirstInstallmentToday ? 'translate-x-4' : 'translate-x-0'}`}
+                        />
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
