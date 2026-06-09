@@ -235,7 +235,7 @@ export function TransactionModal() {
     ? (customPaymentMethods.find(pm => `custom-${pm.id}` === cardId || `custom-${pm.name}` === cardId) || { name: cardId.replace('custom-', ''), allowInstallments: true })
     : null;
 
-  const showInstallments = (cardId !== 'money' && !selectedPaymentMethod) || (selectedPaymentMethod?.allowInstallments);
+  const showInstallments = type === 'receita' || (cardId !== 'money' && !selectedPaymentMethod) || (selectedPaymentMethod?.allowInstallments);
 
   const numInstallments = showInstallments ? Math.max(1, parseInt(installments, 10) || 1) : 1;
 
@@ -336,19 +336,21 @@ export function TransactionModal() {
 
       for (let i = 0; i < numInstallments; i++) {
         const txDate = new Date(dateObj);
-        const monthOffset = firstInstallmentIn30Days ? i + 1 : i;
+        const monthOffset = (type === 'despesa' && firstInstallmentIn30Days) ? i + 1 : i;
         txDate.setMonth(txDate.getMonth() + monthOffset);
 
-        const isThisPaid = (!firstInstallmentIn30Days && i === 0) ? payFirstInstallmentToday : false;
+        const isThisPaid = type === 'receita'
+          ? (i === 0 ? isPaid : false)
+          : ((!firstInstallmentIn30Days && i === 0) ? payFirstInstallmentToday : false);
 
         newTransactions.push({
           id: generateUUID(),
           description: `${description} (${i + 1}/${numInstallments})`,
           amount: installmentAmount,
           date: txDate,
-          type: 'despesa',
+          type: type,
           categoryId,
-          cardId: isCard ? cardId : undefined,
+          cardId: type === 'despesa' && isCard ? cardId : undefined,
           accountId: isThisPaid ? accountId : undefined,
           installments: numInstallments,
           currentInstallment: i + 1,
@@ -360,7 +362,14 @@ export function TransactionModal() {
 
       await api.transactions.bulkAdd(newTransactions);
 
-      if (!firstInstallmentIn30Days && payFirstInstallmentToday && accountId) {
+      if (type === 'receita' && isPaid && accountId) {
+        const acc = getAcc(accountId);
+        if (acc) {
+          await api.accounts.update(accountId, {
+            balance: acc.balance + installmentAmount
+          });
+        }
+      } else if (type === 'despesa' && !firstInstallmentIn30Days && payFirstInstallmentToday && accountId) {
         const acc = getAcc(accountId);
         if (acc) {
           await api.accounts.update(accountId, {
@@ -748,19 +757,35 @@ export function TransactionModal() {
                 </div>
               ) : (
                 showAccountSelector && (
-                  <div>
-                    <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">
-                      Conta <span className="text-destructive font-bold">*</span>
-                    </Label>
-                    <CustomSelect
-                      value={accountId}
-                      onValueChange={setAccountId}
-                      placeholder="Selecione..."
-                      options={accounts.map(a => ({
-                        value: a.id,
-                        label: `${a.name} • ${formatCurrency(a.balance)}`
-                      }))}
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className={showInstallments ? "col-span-1" : "col-span-2"}>
+                      <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">
+                        Conta <span className="text-destructive font-bold">*</span>
+                      </Label>
+                      <CustomSelect
+                        value={accountId}
+                        onValueChange={setAccountId}
+                        placeholder="Selecione..."
+                        options={accounts.map(a => ({
+                          value: a.id,
+                          label: `${a.name} • ${formatCurrency(a.balance)}`
+                        }))}
+                      />
+                    </div>
+                    {showInstallments && (
+                      <div className="col-span-1">
+                        <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Parcelas</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="72"
+                          className="rounded-xl h-10 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-medium text-center"
+                          value={installments}
+                          onChange={e => setInstallments(e.target.value)}
+                          disabled={!!editingTransactionId}
+                        />
+                      </div>
+                    )}
                   </div>
                 )
               )}
