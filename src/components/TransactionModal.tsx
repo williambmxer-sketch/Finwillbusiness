@@ -49,16 +49,16 @@ function CustomSelect({
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full rounded-xl h-11 px-3.5 text-sm bg-muted/50 border border-transparent text-left flex items-center justify-between focus:ring-1 focus:ring-primary focus:bg-background transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full rounded-xl h-10 px-3.5 text-xs bg-muted/50 border border-transparent text-left flex items-center justify-between focus:ring-1 focus:ring-primary focus:bg-background transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        <span className={!selectedOption ? "text-muted-foreground" : "text-foreground font-medium"}>
+        <span className={`truncate text-left w-full pr-2 font-medium ${!selectedOption ? "text-muted-foreground" : "text-foreground"}`}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
-        <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0 ml-2" />
+        <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
       </button>
 
       {isOpen && (
-        <div className="absolute z-[250] mt-1 w-full max-h-60 overflow-y-auto rounded-xl bg-card border border-border shadow-xl py-1 outline-none animate-in fade-in-50 slide-in-from-top-1">
+        <div className="absolute z-[250] mt-1 w-full max-h-48 overflow-y-auto rounded-xl bg-card border border-border shadow-xl py-1 outline-none animate-in fade-in-50 slide-in-from-top-1">
           {options.length === 0 ? (
             <div className="px-3.5 py-2 text-xs text-muted-foreground text-center">Nenhuma opção disponível</div>
           ) : (
@@ -71,10 +71,10 @@ function CustomSelect({
                   onValueChange(opt.value);
                   setIsOpen(false);
                 }}
-                className={`w-full text-left px-3.5 py-2.5 text-sm hover:bg-muted transition-colors flex items-center justify-between ${opt.value === value ? 'bg-primary/5 text-primary font-semibold' : 'text-foreground font-medium'
+                className={`w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors flex items-center justify-between ${opt.value === value ? 'bg-primary/5 text-primary font-semibold' : 'text-foreground font-medium'
                   } ${opt.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                {opt.label}
+                <span className="truncate pr-2">{opt.label}</span>
               </button>
             ))
           )}
@@ -586,7 +586,7 @@ export function TransactionModal() {
                         placeholder="Selecione..."
                         options={accounts.map(a => ({
                           value: a.id,
-                          label: `${a.name} (Saldo: ${formatCurrency(a.balance)})`
+                          label: `${a.name} • ${formatCurrency(a.balance)}`
                         }))}
                       />
                     </div>
@@ -603,7 +603,7 @@ export function TransactionModal() {
                     placeholder="Selecione..."
                     options={accounts.map(a => ({
                       value: a.id,
-                      label: `${a.name} (Saldo: ${formatCurrency(a.balance)})`
+                      label: `${a.name} • ${formatCurrency(a.balance)}`
                     }))}
                   />
                 </div>
