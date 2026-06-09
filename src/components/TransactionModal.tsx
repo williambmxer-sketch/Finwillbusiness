@@ -496,10 +496,12 @@ export function TransactionModal() {
     }
   };
 
+
   const handleInstallmentAction = async (scope: 'only' | 'following' | 'all') => {
     if (!editingTransactionId) return;
     const oldTx = useDataStore.getState().transactions.find(t => t.id === editingTransactionId);
     if (!oldTx) return;
+
 
     const txAmount = parseFloat(amount);
     const dateObj = new Date(date + 'T12:00:00');
@@ -522,26 +524,54 @@ export function TransactionModal() {
         );
       }
 
+      // Base description without any installment suffix (e.g. "Carro" from "Carro (3/6)")
+      const baseDescription = description.replace(/\s*\(\d+\/\d+\)$/, '').trim();
+
+      // Delta de meses entre a nova data digitada e a data original da parcela sendo editada.
+      const anchorOriginalDate = new Date(oldTx.date);
+      const monthDelta =
+        (dateObj.getFullYear() - anchorOriginalDate.getFullYear()) * 12 +
+        (dateObj.getMonth() - anchorOriginalDate.getMonth());
+
       for (const t of targets) {
         const isThis = t.id === oldTx.id;
-        const newDescription = isThis 
-          ? description 
-          : `${description.replace(/\s\(\d+\/\d+\)$/, '')} (${t.currentInstallment}/${t.installments})`;
-          
+
+        // --- Data ---
+        let newDate: Date;
+        if (scope === 'only') {
+          newDate = dateObj;
+        } else if (isThis) {
+          newDate = dateObj;
+        } else {
+          const tOriginal = new Date(t.date);
+          newDate = new Date(tOriginal);
+          newDate.setMonth(tOriginal.getMonth() + monthDelta);
+          newDate.setDate(dateObj.getDate());
+          if (newDate.getMonth() !== (tOriginal.getMonth() + monthDelta + 12) % 12) {
+            newDate.setDate(0); 
+          }
+        }
+
+        // --- Descrição ---
+        const totalInstallments = t.installments ?? 1;
+        const newDescription = isThis
+          ? description
+          : totalInstallments > 1
+            ? `${baseDescription} (${t.currentInstallment}/${totalInstallments})`
+            : baseDescription;
+
         const newTx: Transaction = {
           ...t,
           description: newDescription,
           amount: txAmount,
+          date: newDate,
           categoryId,
           accountId: (type === 'despesa' && cardId !== 'money') || !isPaid || !accountId || accountId === 'none' ? undefined : accountId,
           cardId: type === 'despesa' && isCard ? cardId : undefined,
           isPaid: type === 'despesa' && cardId !== 'money' ? false : isPaid,
-          notes: isCustom ? `paymentMethod:${paymentMethodName}` : undefined,
+          notes: isCustom ? `paymentMethod:${paymentMethodName}` : (t.notes && !isCustom ? t.notes : undefined),
         };
 
-        if (isThis) {
-          newTx.date = dateObj;
-        }
 
         await api.transactions.update(t.id, newTx);
 

@@ -32,6 +32,8 @@ export function CardDetailsView() {
 
   const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [deletingTx, setDeletingTx] = useState<any | null>(null);
+  const [deleteInstallmentModalOpen, setDeleteInstallmentModalOpen] = useState(false);
 
   const cardCycles = React.useMemo(() => {
     if (!card) return [];
@@ -148,14 +150,39 @@ export function CardDetailsView() {
     // Keep categoryId, date and installments to make repetitive entry faster
   };
 
-  const handleDeleteTransaction = (id: string) => {
-    setConfirmModal({
-      title: 'Excluir Despesa',
-      description: 'Tem certeza que deseja excluir permanentemente esta despesa?',
-      onConfirm: async () => {
-        await api.transactions.delete(id);
-      }
-    });
+  const handleDeleteTransaction = (t: any) => {
+    if (t.parentId && t.installments && t.installments > 1) {
+      // Parcelado: perguntar escopo
+      setDeletingTx(t);
+      setDeleteInstallmentModalOpen(true);
+    } else {
+      setConfirmModal({
+        title: 'Excluir Despesa',
+        description: 'Tem certeza que deseja excluir permanentemente esta despesa?',
+        onConfirm: async () => {
+          await api.transactions.delete(t.id);
+        }
+      });
+    }
+  };
+
+  const handleDeleteInstallmentScope = async (scope: 'only' | 'following' | 'all') => {
+    if (!deletingTx) return;
+    let targets: any[] = [];
+    if (scope === 'only') {
+      targets = [deletingTx];
+    } else if (scope === 'following') {
+      targets = allTransactions.filter(
+        t => t.parentId === deletingTx.parentId && t.currentInstallment >= deletingTx.currentInstallment
+      );
+    } else {
+      targets = allTransactions.filter(t => t.parentId === deletingTx.parentId);
+    }
+    for (const t of targets) {
+      await api.transactions.delete(t.id);
+    }
+    setDeleteInstallmentModalOpen(false);
+    setDeletingTx(null);
   };
 
   if (!card) {
@@ -388,7 +415,7 @@ export function CardDetailsView() {
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => handleDeleteTransaction(t.id)}
+                      onClick={() => handleDeleteTransaction(t)}
                       className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                       title="Excluir"
                     >
@@ -401,6 +428,44 @@ export function CardDetailsView() {
           )}
         </div>
       </div>
+
+      {/* Modal de escopo de exclusão para parcelados */}
+      {deleteInstallmentModalOpen && deletingTx && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="bg-card w-full max-w-[280px] rounded-[20px] border border-border shadow-xl p-5 flex flex-col items-center text-center animate-in zoom-in-95 duration-150">
+            <h3 className="text-sm font-bold tracking-tight mb-2">Excluir Parcelamento</h3>
+            <p className="text-[11px] text-muted-foreground mb-4 leading-relaxed">
+              Esta é a parcela {deletingTx.currentInstallment}/{deletingTx.installments}. Como deseja excluir?
+            </p>
+            <div className="flex flex-col w-full gap-2 mb-4">
+              <button
+                onClick={() => handleDeleteInstallmentScope('only')}
+                className="w-full py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold rounded-lg transition-all"
+              >
+                Apenas esta parcela
+              </button>
+              <button
+                onClick={() => handleDeleteInstallmentScope('following')}
+                className="w-full py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold rounded-lg transition-all"
+              >
+                Esta e as próximas
+              </button>
+              <button
+                onClick={() => handleDeleteInstallmentScope('all')}
+                className="w-full py-2 bg-rose-100 hover:bg-rose-200 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 text-xs font-semibold rounded-lg transition-all"
+              >
+                Todas as parcelas
+              </button>
+            </div>
+            <button
+              onClick={() => { setDeleteInstallmentModalOpen(false); setDeletingTx(null); }}
+              className="text-xs text-muted-foreground hover:text-foreground font-medium underline"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
