@@ -270,7 +270,7 @@ export function TransactionModal() {
         const originalAmountPaidOnSameAcc = (oldTx && oldTx.isPaid && oldTx.accountId === accountId) ? oldTx.amount : 0;
         const netDeduction = txAmount - originalAmountPaidOnSameAcc;
         if (acc.balance < netDeduction) {
-          alert(`Saldo insuficiente na conta selecionada! Saldo disponível: R$ ${acc.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+          setError(`Saldo insuficiente na conta selecionada! Saldo disponível: R$ ${acc.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
           return;
         }
       }
@@ -281,7 +281,7 @@ export function TransactionModal() {
       const acc = accountsList.find(a => a.id === accountId);
       const firstInstallmentAmount = txAmount / numInstallments;
       if (acc && acc.balance < firstInstallmentAmount) {
-        alert(`Saldo insuficiente para pagar a entrada! Saldo disponível: R$ ${acc.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        setError(`Saldo insuficiente para pagar a entrada! Saldo disponível: R$ ${acc.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
         return;
       }
     }
@@ -298,7 +298,7 @@ export function TransactionModal() {
           .reduce((sum, t) => sum + t.amount, 0);
 
         if (currentUsage + txAmount > card.limit) {
-          alert(`Limite do cartão excedido! Limite disponível: R$ ${(card.limit - currentUsage).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+          setError(`Limite do cartão excedido! Limite disponível: R$ ${(card.limit - currentUsage).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
           return;
         }
       }
