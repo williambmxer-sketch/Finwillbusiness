@@ -72,11 +72,16 @@ export function CardDetailsView() {
       }
     });
 
-    return Array.from(cyclesMap.values()).sort((a,b) => {
+    const sortedCycles = Array.from(cyclesMap.values()).sort((a,b) => {
       const [yA, mA] = a.id.split('-').map(Number);
       const [yB, mB] = b.id.split('-').map(Number);
       return (yA - yB) || (mA - mB);
     }).reverse();
+
+    return [
+      { id: 'all', name: 'Todas as Faturas' },
+      ...sortedCycles
+    ];
   }, [card, transactions]);
 
   React.useEffect(() => {
@@ -84,11 +89,12 @@ export function CardDetailsView() {
        const now = new Date();
        const current = getCycleId(now, card.closingDay, card.dueDay);
        setSelectedCycleId(current.cycleId);
-    }
+     }
   }, [card, selectedCycleId]);
 
   const visibleTransactions = React.useMemo(() => {
     if (!card || !selectedCycleId) return [];
+    if (selectedCycleId === 'all') return transactions;
     return transactions.filter(t => {
       const { cycleId } = getCycleId(t.date, card.closingDay, card.dueDay);
       return cycleId === selectedCycleId;
@@ -324,7 +330,9 @@ export function CardDetailsView() {
              </SelectTrigger>
              <SelectContent className="rounded-xl">
                {cardCycles.map(c => (
-                 <SelectItem key={c.id} value={c.id} className="text-xs font-bold capitalize">Fatura {c.name}</SelectItem>
+                 <SelectItem key={c.id} value={c.id} className="text-xs font-bold capitalize">
+                   {c.id === 'all' ? c.name : `Fatura ${c.name}`}
+                 </SelectItem>
                ))}
              </SelectContent>
           </Select>

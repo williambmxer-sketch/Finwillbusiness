@@ -105,6 +105,7 @@ export function TransactionModal() {
   const [accountId, setAccountId] = useState('');
   const [cardId, setCardId] = useState('money');
   const [isPaid, setIsPaid] = useState(true);
+  const [installments, setInstallments] = useState('1');
   const [error, setError] = useState<string | null>(null);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -148,6 +149,7 @@ export function TransactionModal() {
           setAccountId(t.accountId || (accounts[0]?.id || ''));
           setCardId(t.cardId || 'money');
           setIsPaid(t.isPaid);
+          setInstallments((t.installments || 1).toString());
           setHasInitialized(true);
         }
     } else {
@@ -165,6 +167,7 @@ export function TransactionModal() {
       }
 
       setIsPaid(false);
+      setInstallments('1');
       setHasInitialized(true);
     }
   }, [editingTransactionId, isTransactionModalOpen, accounts, defaultPaymentMethod, hasInitialized]);
@@ -274,14 +277,43 @@ export function TransactionModal() {
         }
       }
     } else {
-      await api.transactions.add(tx);
-      // Auto-update account balance if paid using an account
-      if (tx.accountId && tx.isPaid) {
-        const acc = getAcc(tx.accountId);
-        if (acc) {
-          await api.accounts.update(tx.accountId, {
-            balance: acc.balance + (tx.type === 'receita' ? tx.amount : -tx.amount)
+      const numInstallments = cardId !== 'money' ? Math.max(1, parseInt(installments, 10) || 1) : 1;
+
+      if (numInstallments > 1) {
+        const parentId = generateUUID();
+        const installmentAmount = txAmount / numInstallments;
+        const newTransactions: Transaction[] = [];
+
+        for (let i = 0; i < numInstallments; i++) {
+          const txDate = new Date(dateObj);
+          txDate.setMonth(txDate.getMonth() + i);
+
+          newTransactions.push({
+            id: generateUUID(),
+            description: `${description} (${i + 1}/${numInstallments})`,
+            amount: installmentAmount,
+            date: txDate,
+            type: 'despesa',
+            categoryId,
+            cardId: cardId,
+            installments: numInstallments,
+            currentInstallment: i + 1,
+            parentId,
+            isPaid: false,
           });
+        }
+
+        await api.transactions.bulkAdd(newTransactions);
+      } else {
+        await api.transactions.add(tx);
+        // Auto-update account balance if paid using an account
+        if (tx.accountId && tx.isPaid) {
+          const acc = getAcc(tx.accountId);
+          if (acc) {
+            await api.accounts.update(tx.accountId, {
+              balance: acc.balance + (tx.type === 'receita' ? tx.amount : -tx.amount)
+            });
+          }
         }
       }
     }
@@ -399,7 +431,7 @@ export function TransactionModal() {
               </div>
 
               {type === 'despesa' ? (
-                <div className={`grid ${cardId === 'money' ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Pagamento</Label>
                     <CustomSelect 
@@ -416,7 +448,7 @@ export function TransactionModal() {
                       ]}
                     />
                   </div>
-                  {cardId === 'money' && (
+                  {cardId === 'money' ? (
                     <div>
                       <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">
                         Conta {isPaid && <span className="text-destructive font-bold">*</span>}
@@ -429,6 +461,19 @@ export function TransactionModal() {
                           value: a.id,
                           label: a.name
                         }))}
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Parcelas</Label>
+                      <Input 
+                        type="number" 
+                        min="1" 
+                        max="72"
+                        className="rounded-xl h-11 text-sm bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-medium text-center"
+                        value={installments}
+                        onChange={e => setInstallments(e.target.value)}
+                        disabled={!!editingTransactionId}
                       />
                     </div>
                   )}
