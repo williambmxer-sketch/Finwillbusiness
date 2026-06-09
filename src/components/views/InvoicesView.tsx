@@ -59,6 +59,7 @@ export function InvoicesView() {
 
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [payAccountId, setPayAccountId] = useState('');
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   useEffect(() => {
     if (cards.length > 0 && !selectedCardId) {
@@ -200,6 +201,7 @@ export function InvoicesView() {
 
       setPayModalOpen(false);
       setSelectedInvoice(null);
+      setDetailsOpen(false);
     };
 
     const now = new Date();
@@ -327,6 +329,7 @@ export function InvoicesView() {
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedInvoice(inv);
+                            setDetailsOpen(true);
                           }}
                           className="px-4 bg-primary/10 text-primary hover:bg-primary/20 rounded-lg flex items-center justify-center transition-colors"
                           title="Visualizar Histórico"
@@ -343,6 +346,7 @@ export function InvoicesView() {
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedInvoice(inv);
+                            setDetailsOpen(true);
                           }}
                           className="px-4 py-2.5 bg-primary/10 text-primary hover:bg-primary/20 rounded-lg flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest transition-colors"
                           title="Visualizar Histórico"
@@ -361,13 +365,16 @@ export function InvoicesView() {
 
       {/* Invoice Details Modal */}
       <AnimatePresence>
-        {selectedInvoice && (
+        {selectedInvoice && detailsOpen && (
           <>
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setSelectedInvoice(null)}
+              onClick={() => {
+                setSelectedInvoice(null);
+                setDetailsOpen(false);
+              }}
               className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
             />
             <motion.div
@@ -382,7 +389,10 @@ export function InvoicesView() {
                   <h2 className="text-base font-bold capitalize">Fatura - {selectedInvoice.month}</h2>
                   <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">Vencimento: {selectedInvoice.dueDate.toLocaleDateString('pt-BR')}</p>
                 </div>
-                <button onClick={() => setSelectedInvoice(null)} className="p-1.5 rounded-full bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                <button onClick={() => {
+                  setSelectedInvoice(null);
+                  setDetailsOpen(false);
+                }} className="p-1.5 rounded-full bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -460,7 +470,12 @@ export function InvoicesView() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setPayModalOpen(false)}
+              onClick={() => {
+                setPayModalOpen(false);
+                if (!detailsOpen) {
+                  setSelectedInvoice(null);
+                }
+              }}
               className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[150]"
             />
             <motion.div
@@ -471,7 +486,12 @@ export function InvoicesView() {
             >
               <div className="flex justify-between items-center">
                 <h3 className="font-bold text-sm">Selecione a Conta para Pagamento</h3>
-                <button onClick={() => setPayModalOpen(false)} className="p-1 rounded-full bg-muted text-muted-foreground">
+                <button onClick={() => {
+                  setPayModalOpen(false);
+                  if (!detailsOpen) {
+                    setSelectedInvoice(null);
+                  }
+                }} className="p-1 rounded-full bg-muted text-muted-foreground">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -500,7 +520,12 @@ export function InvoicesView() {
 
               <div className="flex gap-2.5 mt-2">
                 <button 
-                  onClick={() => setPayModalOpen(false)}
+                  onClick={() => {
+                    setPayModalOpen(false);
+                    if (!detailsOpen) {
+                      setSelectedInvoice(null);
+                    }
+                  }}
                   className="flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest text-muted-foreground bg-muted hover:bg-muted/80 transition-colors"
                 >
                   Cancelar
