@@ -52,10 +52,51 @@ export function DashboardView() {
   const accounts = useDataStore(state => state.accounts);
   const cards = useDataStore(state => state.cards);
   const allTransactions = useDataStore(state => state.transactions);
-  const transactions = useMemo(() => 
-    [...allTransactions].sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 5), 
-    [allTransactions]
-  );
+  
+  const transactions = useMemo(() => {
+    const grouped = new Map<string, any>();
+    const ungrouped: any[] = [];
+
+    // Sort allTransactions by date descending so we process newer ones first
+    const sortedAll = [...allTransactions].sort((a, b) => b.date.getTime() - a.date.getTime());
+
+    sortedAll.forEach(t => {
+      if (t.parentId && t.installments && t.installments > 1) {
+        if (!grouped.has(t.parentId)) {
+          const cleanDesc = t.description.replace(/\s\(\d+\/\d+\)$/, '');
+          grouped.set(t.parentId, {
+            id: t.parentId,
+            description: cleanDesc,
+            amount: 0,
+            date: t.date,
+            type: t.type,
+            isPaid: true,
+            installments: t.installments,
+            notes: t.notes,
+            cardId: t.cardId,
+            isGroupedInstallments: true,
+            totalPaid: 0,
+            installmentCount: t.installments
+          });
+        }
+        const groupObj = grouped.get(t.parentId);
+        groupObj.amount += t.amount;
+        if (t.isPaid) {
+          groupObj.totalPaid += 1;
+        } else {
+          groupObj.isPaid = false;
+        }
+        if (t.date < groupObj.date) {
+          groupObj.date = t.date;
+        }
+      } else {
+        ungrouped.push({ ...t });
+      }
+    });
+
+    const combined = [...ungrouped, ...Array.from(grouped.values())];
+    return combined.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 5);
+  }, [allTransactions]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -283,7 +324,19 @@ export function DashboardView() {
                       {t.type === 'receita' ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                     </div>
                     <div>
-                      <div className="font-semibold text-xs tracking-tight mb-0.5">{t.description}</div>
+                      <div className="font-semibold text-xs tracking-tight mb-0.5 flex items-center gap-1.5 flex-wrap">
+                        {t.description}
+                        {t.isGroupedInstallments && (
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                            {t.installmentCount}x
+                          </span>
+                        )}
+                        {t.notes && t.notes.startsWith('paymentMethod:') && (
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                            {t.notes.replace('paymentMethod:', '')}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[10px] text-muted-foreground font-medium">
                         {t.date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
                       </div>
@@ -294,7 +347,11 @@ export function DashboardView() {
                      {t.type === 'receita' ? '+' : '-'}{formatCurrency(t.amount)}
                    </div>
                    {t.type === 'despesa' && (
-                     t.cardId && t.cardId !== 'money' ? (
+                     t.isGroupedInstallments ? (
+                       <div className={`text-[8px] font-bold uppercase tracking-widest mt-0.5 ${t.isPaid ? 'text-emerald-600 dark:text-emerald-500' : 'text-amber-500'}`}>
+                         {t.totalPaid}/{t.installmentCount} Pago
+                       </div>
+                     ) : t.cardId && t.cardId !== 'money' ? (
                        <div className={`text-[8px] font-bold uppercase tracking-widest mt-0.5 ${t.isPaid ? 'text-emerald-600 dark:text-emerald-500' : 'text-amber-500'}`}>
                          {t.isPaid ? 'Pago' : 'Na Fatura'}
                        </div>

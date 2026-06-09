@@ -50,10 +50,10 @@ export default function App() {
     if (session) {
       useDataStore.getState().fetchData();
       const cleanup = useDataStore.getState().setupSubscriptions();
-      
+
       // Corrigir a transação do almoço que ficou com isPaid=true devido ao bug anterior
       supabase.from('transacoes')
-        .update({ esta_pago: false, data_pagamento: null } as any)
+        .update({ esta_pago: false, data_pagamento: null })
         .eq('id', 'ece992ac-a2a1-4f46-8ccd-65274cbd512d')
         .then(() => {
           useDataStore.getState().fetchData();
@@ -110,7 +110,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-background text-foreground overflow-hidden">
-      
+
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden touch-pan-y relative mt-2">
         <AnimatePresence mode="wait">
@@ -130,7 +130,7 @@ export default function App() {
       {/* Floating Action Button (FAB) */}
       {currentView !== 'invoices' && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-lg z-50 pointer-events-none flex justify-end px-4">
-          <button 
+          <button
             onClick={() => {
               if (currentView === 'cardDetails' && activeContextCardId) {
                 setDefaultPaymentMethod(`card-${activeContextCardId}`);
@@ -170,14 +170,14 @@ export default function App() {
 
 function NavItem({ icon: Icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick: () => void }) {
   return (
-    <button 
+    <button
       onClick={onClick}
       className={`flex flex-col items-center justify-center gap-0.5 w-12 transition-colors ${active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
     >
       <div className="relative">
         <Icon className="h-5 w-5" />
         {active && (
-          <motion.div 
+          <motion.div
             layoutId="nav-indicator"
             className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full"
           />

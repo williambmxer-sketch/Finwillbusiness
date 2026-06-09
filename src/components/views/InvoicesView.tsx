@@ -3,8 +3,9 @@ import { useDataStore } from '../../store/useDataStore';
 import { api } from '../../services/api';
 import { Transaction, Card } from '../../db/db';
 import { formatCurrency } from '../../utils/formatters';
-import { Receipt, ChevronRight, X, ArrowDown, ChevronDown } from 'lucide-react';
+import { Receipt, ChevronRight, X, ArrowDown, ChevronDown, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 import { useAppStore } from '../../store/useAppStore';
 
@@ -51,7 +52,10 @@ export function InvoicesView() {
   const allTransactions = useDataStore(state => state.transactions);
   const cards = useDataStore(state => state.cards);
   const accounts = useDataStore(state => state.accounts);
+  const categories = useDataStore(state => state.categories);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [selectedCycle, setSelectedCycle] = useState<string>('all');
+  const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
 
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [payAccountId, setPayAccountId] = useState('');
@@ -61,6 +65,19 @@ export function InvoicesView() {
       setSelectedCardId(cards[0].id);
     }
   }, [cards, selectedCardId]);
+
+  const currentCycleId = useMemo(() => {
+    if (!selectedCardId) return '';
+    const card = cards.find(c => c.id === selectedCardId);
+    if (!card) return '';
+    return getCycleId(new Date(), card.closingDay, card.dueDay).cycleId;
+  }, [selectedCardId, cards]);
+
+  useEffect(() => {
+    if (currentCycleId) {
+      setSelectedCycle(currentCycleId);
+    }
+  }, [currentCycleId]);
 
   useEffect(() => {
     setActiveContextCardId(selectedCardId);
@@ -137,6 +154,28 @@ export function InvoicesView() {
     return Array.from(invoiceMap.values()).sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime());
   }, [transactions, cards, selectedCardId, dbInvoices]);
 
+  const cycles = useMemo(() => {
+    const rawCycles = Array.from(new Set(computedInvoices.map(inv => inv.yearMonth))) as string[];
+    return rawCycles.sort((a, b) => {
+      const [aYear, aMonth] = a.split('-').map(Number);
+      const [bYear, bMonth] = b.split('-').map(Number);
+      if (aYear !== bYear) return bYear - aYear;
+      return bMonth - aMonth;
+    });
+  }, [computedInvoices]);
+
+  const formatCycleName = (cycleId: string) => {
+    if (!cycleId || cycleId === 'all') return '';
+    const [y, m] = cycleId.split('-');
+    const date = new Date(parseInt(y), parseInt(m) - 1, 1);
+    return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  };
+
+  const filteredInvoices = useMemo(() => {
+    if (selectedCycle === 'all') return computedInvoices;
+    return computedInvoices.filter(inv => inv.yearMonth === selectedCycle);
+  }, [computedInvoices, selectedCycle]);
+
   const [selectedInvoice, setSelectedInvoice] = useState<ComputedInvoice | null>(null);
 
   const handlePayInvoice = async () => {
@@ -146,14 +185,12 @@ export function InvoicesView() {
     if (!card) return;
 
     const executePayInvoice = async () => {
-      // 1. Mark all transactions as paid
       if (selectedInvoice.transactions.length > 0) {
         await Promise.all(selectedInvoice.transactions.map(t => 
           api.transactions.update(t.id, { isPaid: true })
         ));
       }
       
-      // 2. Deduct amount from selected bank account
       const acc = accounts.find(a => a.id === payAccountId);
       if (acc) {
         await api.accounts.update(payAccountId, {
@@ -192,7 +229,7 @@ export function InvoicesView() {
       </header>
 
       {/* Card Selector (Compact) */}
-      <div className="px-4 mb-4">
+      <div className="px-4 mb-3">
         <div className="flex w-full bg-muted p-1 rounded-xl overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {cards.map((c) => (
             <button 
@@ -207,41 +244,118 @@ export function InvoicesView() {
         </div>
       </div>
 
+      {/* Month Selector */}
+      <div className="px-4 mb-4">
+        <Select value={selectedCycle} onValueChange={setSelectedCycle}>
+          <SelectTrigger className="w-full bg-muted/30 border-border/50 rounded-xl h-10 text-xs font-bold uppercase tracking-wider text-muted-foreground focus:ring-primary shadow-sm hover:bg-muted/50 transition-colors">
+            <SelectValue placeholder="Filtrar por mês...">
+              {selectedCycle === 'all' ? '✨ TODAS AS FATURAS' : formatCycleName(selectedCycle)}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent className="rounded-xl z-[200]" side="bottom" sideOffset={4} alignItemWithTrigger={false}>
+            <SelectItem value="all" className="text-sm font-medium">✨ TODAS AS FATURAS</SelectItem>
+            {cycles.map(c => (
+              <SelectItem key={c} value={c} className="text-sm font-medium capitalize">
+                {formatCycleName(c)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="flex-1 px-4">
         <div className="flex flex-col gap-2.5">
-          {computedInvoices.map((inv, i) => (
-            <motion.div 
-              key={inv.id}
-              onClick={() => setSelectedInvoice(inv)}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className={`p-3 rounded-[11px] border shadow-sm flex items-center justify-between cursor-pointer ${
-                inv.status === 'open' 
-                  ? 'bg-primary/5 border-primary/20 hover:bg-primary/10 transition-colors' 
-                  : 'bg-card hover:bg-muted/50 transition-colors'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-[11px] ${inv.status === 'open' ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                   <Receipt className="h-4 w-4" />
-                </div>
-                <div>
-                  <div className="font-semibold text-xs mb-0.5 capitalize">{inv.month}</div>
-                  <div className="text-[10px] text-muted-foreground font-medium">Venc. {inv.dueDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</div>
-                </div>
-              </div>
-              <div className="text-right flex items-center gap-2">
-                <div>
-                  <div className="text-xs font-bold tracking-tight">{formatCurrency(inv.amount)}</div>
-                  <div className={`text-[8px] uppercase tracking-widest font-bold mt-0.5 ${inv.status === 'open' ? 'text-primary' : 'text-emerald-600 dark:text-emerald-500'}`}>
-                    {inv.status === 'open' ? 'Aberta' : 'Paga'}
+          {filteredInvoices.map((inv, i) => {
+            const isExpanded = expandedInvoiceId === inv.id;
+            return (
+              <motion.div 
+                key={inv.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className={`flex flex-col bg-card shadow-sm rounded-[11px] border cursor-pointer hover:border-primary/50 transition-colors overflow-hidden ${
+                  isExpanded ? 'border-primary/50 ring-1 ring-primary/20' : ''
+                } ${
+                  inv.status === 'open' ? 'bg-primary/5 border-primary/20' : ''
+                }`}
+              >
+                <div 
+                  className="flex items-center justify-between p-3"
+                  onClick={() => setExpandedInvoiceId(isExpanded ? null : inv.id)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-[11px] ${inv.status === 'open' ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                       <Receipt className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-xs mb-0.5 capitalize">{inv.month}</div>
+                      <div className="text-[10px] text-muted-foreground font-medium">Venc. {inv.dueDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</div>
+                    </div>
+                  </div>
+                  <div className="text-right flex items-center gap-2">
+                    <div>
+                      <div className="text-xs font-bold tracking-tight">{formatCurrency(inv.amount)}</div>
+                      <div className={`text-[8px] uppercase tracking-widest font-bold mt-0.5 ${inv.status === 'open' ? 'text-primary' : 'text-emerald-600 dark:text-emerald-500'}`}>
+                        {inv.status === 'open' ? 'Aberta' : 'Paga'}
+                      </div>
+                    </div>
+                    <ChevronDown className={`h-4 w-4 text-muted-foreground opacity-50 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                   </div>
                 </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground opacity-50" />
-              </div>
-            </motion.div>
-          ))}
+
+                {isExpanded && (
+                  <motion.div 
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    className="border-t bg-muted/10 p-3 flex gap-2"
+                  >
+                    {inv.status === 'open' ? (
+                      <>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPayAccountId(accounts[0]?.id || '');
+                            setSelectedInvoice(inv);
+                            setPayModalOpen(true);
+                          }}
+                          disabled={inv.amount <= 0}
+                          className="flex-1 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest rounded-lg py-2.5 hover:bg-primary/90 transition-colors disabled:opacity-50"
+                        >
+                          Pagar Fatura
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedInvoice(inv);
+                          }}
+                          className="px-4 bg-primary/10 text-primary hover:bg-primary/20 rounded-lg flex items-center justify-center transition-colors"
+                          title="Visualizar Histórico"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex-1 text-emerald-600 dark:text-emerald-500 font-bold text-xs flex items-center pl-1">
+                          Fatura Paga
+                        </div>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedInvoice(inv);
+                          }}
+                          className="px-4 py-2.5 bg-primary/10 text-primary hover:bg-primary/20 rounded-lg flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest transition-colors"
+                          title="Visualizar Histórico"
+                        >
+                          <Eye className="w-4 h-4" /> Ver Histórico
+                        </button>
+                      </>
+                    )}
+                  </motion.div>
+                )}
+              </motion.div>
+            );
+          })}
         </div>
       </div>
 
@@ -261,49 +375,61 @@ export function InvoicesView() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-x-0 bottom-0 z-50 h-[85vh] bg-background border-t rounded-t-[20px] sm:border sm:rounded-[20px] shadow-2xl flex flex-col max-w-lg mx-auto w-full"
+              className="fixed inset-x-0 bottom-0 z-50 h-[80vh] bg-background border-t rounded-t-[28px] sm:border sm:rounded-[24px] shadow-2xl flex flex-col max-w-lg mx-auto w-full overflow-hidden"
             >
-              <div className="flex justify-between items-center p-4 border-b">
+              <div className="flex justify-between items-center p-5 border-b">
                 <div>
                   <h2 className="text-base font-bold capitalize">Fatura - {selectedInvoice.month}</h2>
-                  <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mt-0.5">Vencimento: {selectedInvoice.dueDate.toLocaleDateString('pt-BR')}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">Vencimento: {selectedInvoice.dueDate.toLocaleDateString('pt-BR')}</p>
                 </div>
                 <button onClick={() => setSelectedInvoice(null)} className="p-1.5 rounded-full bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="p-6 bg-muted/10 border-b flex flex-col items-center justify-center">
-                <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mb-1">Total da Fatura</div>
-                <div className="text-3xl font-bold tracking-tight">{formatCurrency(selectedInvoice.amount)}</div>
-                <div className={`mt-2 text-[9px] uppercase tracking-widest font-bold px-2 py-1 rounded-md ${selectedInvoice.status === 'open' ? 'bg-primary/10 text-primary' : 'bg-emerald-500/10 text-emerald-600'}`}>
+              <div className="p-6 bg-gradient-to-br from-primary/10 via-background to-card border-b flex flex-col items-center justify-center">
+                <div className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mb-1 select-none">Total da Fatura</div>
+                <div className="text-3xl font-extrabold tracking-tight">{formatCurrency(selectedInvoice.amount)}</div>
+                <div className={`mt-2.5 text-[9px] uppercase tracking-widest font-bold px-2.5 py-1 rounded-full select-none ${selectedInvoice.status === 'open' ? 'bg-primary/15 text-primary border border-primary/25' : 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/25'}`}>
                   {selectedInvoice.status === 'open' ? 'Fatura Aberta' : 'Fatura Paga'}
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
-                <div className="flex justify-between items-center mb-1">
-                  <h3 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Transações</h3>
+              <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-3.5">
+                <div className="flex justify-between items-center mb-0.5">
+                  <h3 className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Transações Realizadas</h3>
                 </div>
                 {selectedInvoice.transactions.length === 0 ? (
-                  <div className="text-center text-muted-foreground p-8 border border-dashed rounded-[11px] border-border/50 text-xs text-muted-foreground">Nenhuma transação nesta fatura.</div>
+                  <div className="text-center text-muted-foreground p-8 border border-dashed rounded-[16px] border-border/50 text-xs text-muted-foreground">Nenhuma transação nesta fatura.</div>
                 ) : (
-                  selectedInvoice.transactions.sort((a,b) => b.date.getTime() - a.date.getTime()).map(t => (
-                    <div key={t.id} className="flex justify-between items-center p-3 rounded-xl border shadow-sm bg-card">
-                      <div>
-                        <div className="font-semibold text-xs mb-0.5 tracking-tight">
-                          {t.description}
-                          <span className="ml-1 text-[9px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-medium">
-                            {t.currentInstallment || 1}/{t.installments || 1}
-                          </span>
+                  selectedInvoice.transactions.sort((a,b) => b.date.getTime() - a.date.getTime()).map(t => {
+                    const cat = categories.find(c => c.id === t.categoryId);
+                    return (
+                      <div key={t.id} className="flex justify-between items-center p-3 rounded-xl border border-border/60 shadow-sm bg-card hover:border-primary/20 transition-all">
+                        <div>
+                          <div className="font-semibold text-xs mb-0.5 tracking-tight flex items-center gap-1.5">
+                            {t.description}
+                            {t.installments && t.installments > 1 && (
+                              <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                                {t.currentInstallment}/{t.installments}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground font-medium">
+                            <span>{t.date.toLocaleDateString('pt-BR')}</span>
+                            <div className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                            <div className="flex items-center gap-1">
+                              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cat?.color || '#ccc' }} />
+                              <span>{cat?.name || 'Geral'}</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-[9px] text-muted-foreground">{t.date.toLocaleDateString('pt-BR')}</div>
+                        <div className="font-bold text-xs text-rose-600 dark:text-rose-500">
+                          -{formatCurrency(t.amount)}
+                        </div>
                       </div>
-                      <div className="font-bold text-xs">
-                        {t.type === 'despesa' ? `-${formatCurrency(t.amount)}` : `+${formatCurrency(t.amount)}`}
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
 

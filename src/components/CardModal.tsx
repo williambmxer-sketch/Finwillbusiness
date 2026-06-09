@@ -70,9 +70,8 @@ function CustomSelect({
                   onValueChange(opt.value);
                   setIsOpen(false);
                 }}
-                className={`w-full text-left px-3.5 py-2.5 text-sm hover:bg-muted transition-colors flex items-center justify-between ${
-                  opt.value === value ? 'bg-primary/5 text-primary font-semibold' : 'text-foreground font-medium'
-                } ${opt.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`w-full text-left px-3.5 py-2.5 text-sm hover:bg-muted transition-colors flex items-center justify-between ${opt.value === value ? 'bg-primary/5 text-primary font-semibold' : 'text-foreground font-medium'
+                  } ${opt.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {opt.label}
               </button>
@@ -112,14 +111,14 @@ export function CardModal() {
     if (editingCardId && isCardModalOpen) {
       const c = useDataStore.getState().cards.find(card => card.id === editingCardId);
       if (c) {
-          setName(c.name);
-          setBank(c.bank);
-          setLimit(c.limit.toString());
-          setClosingDay(c.closingDay.toString());
-          setDueDay(c.dueDay.toString());
-          setLastFour(c.lastFour);
-          setColor(c.color);
-        }
+        setName(c.name);
+        setBank(c.bank);
+        setLimit(c.limit.toString());
+        setClosingDay(c.closingDay.toString());
+        setDueDay(c.dueDay.toString());
+        setLastFour(c.lastFour);
+        setColor(c.color);
+      }
     } else {
       setName('');
       setBank('');
@@ -133,7 +132,7 @@ export function CardModal() {
 
   const handleSave = async () => {
     if (!name || !limit) return;
-    
+
     const card: Card = {
       id: editingCardId || generateUUID(),
       name,
@@ -151,7 +150,7 @@ export function CardModal() {
     } else {
       await api.cards.add(card);
     }
-    
+
     closeModal();
   };
 
@@ -173,7 +172,7 @@ export function CardModal() {
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-background/80 backdrop-blur-sm sm:backdrop-blur-md">
       <div className="w-full max-w-md bg-card border-t sm:border border-border sm:rounded-[20px] rounded-t-[24px] shadow-2xl flex flex-col max-h-[95dvh] sm:max-h-[90dvh] transition-all relative">
         <div className="sm:hidden absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-muted rounded-full" />
-        
+
         <div className="flex justify-between items-center p-5 pb-4 border-b">
           <h2 className="text-base font-bold tracking-tight">{editingCardId ? 'Editar Cartão' : 'Novo Cartão'}</h2>
           <button onClick={closeModal} className="p-1.5 rounded-full bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
@@ -187,8 +186,8 @@ export function CardModal() {
               <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-0.5">Limite do Cartão</span>
               <div className="flex items-baseline gap-1">
                 <span className="text-sm font-bold text-muted-foreground">R$</span>
-                <Input 
-                  type="text" 
+                <Input
+                  type="text"
                   inputMode="numeric"
                   placeholder="0,00"
                   className="w-[180px] p-0 text-center text-3xl font-extrabold h-9 bg-transparent border-none shadow-none focus-visible:ring-0"
@@ -202,8 +201,8 @@ export function CardModal() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Nome do Cartão</Label>
-                  <Input 
-                    placeholder="Ex: NuBank Black" 
+                  <Input
+                    placeholder="Ex: NuBank Black"
                     className="rounded-xl h-10 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none"
                     value={name}
                     onChange={e => setName(e.target.value)}
@@ -226,7 +225,7 @@ export function CardModal() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">4 Últimos Dígitos</Label>
-                  <Input 
+                  <Input
                     placeholder="1234"
                     maxLength={4}
                     className="rounded-xl h-10 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-mono tracking-widest"
@@ -237,8 +236,8 @@ export function CardModal() {
                 <div>
                   <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Cor</Label>
                   <div className="h-10 flex items-center bg-muted/50 border border-transparent shadow-none rounded-xl px-3 relative cursor-pointer">
-                     <input 
-                      type="color" 
+                    <input
+                      type="color"
                       value={color}
                       onChange={e => setColor(e.target.value)}
                       className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
@@ -252,7 +251,7 @@ export function CardModal() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Dia Fechamento</Label>
-                  <Input 
+                  <Input
                     type="number" min="1" max="31"
                     className="rounded-xl h-10 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-medium"
                     value={closingDay}
@@ -261,7 +260,7 @@ export function CardModal() {
                 </div>
                 <div>
                   <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Dia Vencimento</Label>
-                  <Input 
+                  <Input
                     type="number" min="1" max="31"
                     className="rounded-xl h-10 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-medium"
                     value={dueDay}
@@ -272,7 +271,7 @@ export function CardModal() {
             </div>
           </div>
         </div>
-        
+
         <div className="flex gap-3 p-4 border-t pb-8 sm:pb-4 bg-background">
           {editingCardId && (
             <button onClick={handleDelete} className="p-3 w-12 border border-destructive/20 text-destructive rounded-xl flex items-center justify-center hover:bg-destructive/10 transition-colors">

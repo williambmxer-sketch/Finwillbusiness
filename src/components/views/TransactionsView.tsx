@@ -172,7 +172,7 @@ export function TransactionsView() {
               {selectedCycle === 'all' ? '✨ TODO O PERÍODO' : formatCycleName(selectedCycle)}
             </SelectValue>
           </SelectTrigger>
-          <SelectContent className="rounded-xl z-[200]">
+          <SelectContent className="rounded-xl z-[200]" side="bottom" sideOffset={4} alignItemWithTrigger={false}>
             <SelectItem value="all" className="text-sm font-medium">✨ TODO O PERÍODO</SelectItem>
             {cycles.map(c => (
               <SelectItem key={c} value={c} className="text-sm font-medium capitalize">
@@ -192,7 +192,7 @@ export function TransactionsView() {
               {filterType === 'paid' && '✅ PAGAS'}
             </SelectValue>
           </SelectTrigger>
-          <SelectContent className="rounded-xl z-[200]">
+          <SelectContent className="rounded-xl z-[200]" side="bottom" sideOffset={4} alignItemWithTrigger={false}>
             <SelectItem value="all" className="text-sm font-medium">✨ TODAS AS TRANSAÇÕES</SelectItem>
             <SelectItem value="receita" className="text-sm font-medium text-emerald-600 dark:text-emerald-500">🟢 RECEITAS</SelectItem>
             <SelectItem value="despesa" className="text-sm font-medium text-rose-600 dark:text-rose-500">🔴 DESPESAS</SelectItem>
@@ -245,9 +245,14 @@ export function TransactionsView() {
                           </div>
                         )}
                         <div>
-                          <div className="font-semibold text-xs mb-0.5 tracking-tight">
+                          <div className="font-semibold text-xs mb-0.5 tracking-tight flex items-center gap-1.5 flex-wrap">
                             {t.description}
-                            {isInvoice && t.brand && <span className="ml-1.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{t.brand}</span>}
+                            {isInvoice && t.brand && <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{t.brand}</span>}
+                            {t.notes && t.notes.startsWith('paymentMethod:') && (
+                              <span className="text-[9px] font-bold uppercase tracking-widest text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                                {t.notes.replace('paymentMethod:', '')}
+                              </span>
+                            )}
                           </div>
                           <div className="text-[10px] text-muted-foreground flex flex-col gap-0.5 font-medium">
                             <span>{isInvoice ? 'Vencimento da Fatura' : 'Lançamento'}: {t.date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</span>
