@@ -7,6 +7,7 @@ import { Transaction, Category, Account, Card } from '../db/db';
 import { X, Save, Trash, ChevronDown } from 'lucide-react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { formatCurrency } from '../utils/formatters';
 
 interface DropdownOption {
   value: string;
@@ -585,7 +586,7 @@ export function TransactionModal() {
                         placeholder="Selecione..."
                         options={accounts.map(a => ({
                           value: a.id,
-                          label: a.name
+                          label: `${a.name} (Saldo: ${formatCurrency(a.balance)})`
                         }))}
                       />
                     </div>
@@ -602,7 +603,7 @@ export function TransactionModal() {
                     placeholder="Selecione..."
                     options={accounts.map(a => ({
                       value: a.id,
-                      label: a.name
+                      label: `${a.name} (Saldo: ${formatCurrency(a.balance)})`
                     }))}
                   />
                 </div>
