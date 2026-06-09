@@ -137,7 +137,7 @@ export function DashboardView() {
   });
 
   const totalIncomes = currentMonthTransactions
-    .filter(t => t.type === 'receita' && t.isPaid)
+    .filter(t => t.type === 'receita')
     .reduce((acc, t) => acc + t.amount, 0);
 
   const totalExpenses = currentMonthTransactions
