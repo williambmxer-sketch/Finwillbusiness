@@ -3,7 +3,7 @@ import { useDataStore } from '../../store/useDataStore';
 import { api } from '../../services/api';
 import { Transaction, Card } from '../../db/db';
 import { formatCurrency } from '../../utils/formatters';
-import { Receipt, ChevronRight, X, ArrowDown } from 'lucide-react';
+import { Receipt, ChevronRight, X, ArrowDown, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { useAppStore } from '../../store/useAppStore';
@@ -50,7 +50,11 @@ export function InvoicesView() {
   const { setCurrentView, setActiveContextCardId, setConfirmModal } = useAppStore();
   const allTransactions = useDataStore(state => state.transactions);
   const cards = useDataStore(state => state.cards);
+  const accounts = useDataStore(state => state.accounts);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+
+  const [payModalOpen, setPayModalOpen] = useState(false);
+  const [payAccountId, setPayAccountId] = useState('');
 
   useEffect(() => {
     if (cards.length > 0 && !selectedCardId) {
@@ -121,23 +125,43 @@ export function InvoicesView() {
         });
     }
 
+    // Determine status dynamically based on transactions in it
+    for (const [_, inv] of invoiceMap) {
+      if (inv.transactions.length > 0 && inv.transactions.every(t => t.isPaid)) {
+        inv.status = 'paid';
+      } else {
+        inv.status = 'open';
+      }
+    }
+
     return Array.from(invoiceMap.values()).sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime());
   }, [transactions, cards, selectedCardId, dbInvoices]);
 
   const [selectedInvoice, setSelectedInvoice] = useState<ComputedInvoice | null>(null);
 
   const handlePayInvoice = async () => {
-    if (!selectedInvoice || !selectedCardId || selectedInvoice.amount <= 0) return;
+    if (!selectedInvoice || !selectedCardId || selectedInvoice.amount <= 0 || !payAccountId) return;
     
     const card = cards.find(c => c.id === selectedCardId);
     if (!card) return;
 
     const executePayInvoice = async () => {
+      // 1. Mark all transactions as paid
       if (selectedInvoice.transactions.length > 0) {
         await Promise.all(selectedInvoice.transactions.map(t => 
           api.transactions.update(t.id, { isPaid: true })
         ));
       }
+      
+      // 2. Deduct amount from selected bank account
+      const acc = accounts.find(a => a.id === payAccountId);
+      if (acc) {
+        await api.accounts.update(payAccountId, {
+          balance: acc.balance - selectedInvoice.amount
+        });
+      }
+
+      setPayModalOpen(false);
       setSelectedInvoice(null);
     };
 
@@ -154,7 +178,7 @@ export function InvoicesView() {
     } else {
       setConfirmModal({
         title: 'Pagar Fatura',
-        description: `Confirma o pagamento da fatura de ${selectedInvoice.month}? Isso dará baixa em todas as despesas vinculadas a ela.`,
+        description: `Confirma o pagamento da fatura de ${selectedInvoice.month}? Isso dará baixa em todas as despesas vinculadas a ela e debitará do saldo da conta escolhida.`,
         onConfirm: executePayInvoice
       });
     }
@@ -286,7 +310,10 @@ export function InvoicesView() {
               {selectedInvoice.status === 'open' && (
                 <div className="p-4 border-t bg-background">
                    <button 
-                    onClick={handlePayInvoice}
+                    onClick={() => {
+                      setPayAccountId(accounts[0]?.id || '');
+                      setPayModalOpen(true);
+                    }}
                     disabled={selectedInvoice.amount <= 0}
                     className="w-full bg-primary text-primary-foreground text-sm font-bold rounded-xl h-11 flex items-center justify-center transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                    >
@@ -294,6 +321,72 @@ export function InvoicesView() {
                    </button>
                 </div>
               )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Seleção de Conta para Pagamento de Fatura */}
+      <AnimatePresence>
+        {payModalOpen && selectedInvoice && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPayModalOpen(false)}
+              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[150]"
+            />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="fixed inset-0 m-auto z-[160] h-fit max-w-sm w-[90%] bg-card border rounded-[24px] shadow-2xl p-6 flex flex-col gap-4"
+            >
+              <div className="flex justify-between items-center">
+                <h3 className="font-bold text-sm">Selecione a Conta para Pagamento</h3>
+                <button onClick={() => setPayModalOpen(false)} className="p-1 rounded-full bg-muted text-muted-foreground">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Selecione de qual conta bancária deseja debitar o valor de <strong className="text-foreground">{formatCurrency(selectedInvoice.amount)}</strong> para pagar a fatura do cartão.
+              </p>
+              
+              <div className="space-y-1">
+                <label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold ml-1">Conta de Origem</label>
+                <div className="relative">
+                  <select
+                    value={payAccountId}
+                    onChange={e => setPayAccountId(e.target.value)}
+                    className="w-full rounded-xl h-11 px-3 text-sm bg-muted/50 border border-transparent focus:ring-1 focus:ring-primary focus:bg-background outline-none font-medium appearance-none"
+                  >
+                    <option value="" disabled>Selecione a conta...</option>
+                    {accounts.map(acc => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.name} (Saldo: {formatCurrency(acc.balance)})
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                </div>
+              </div>
+
+              <div className="flex gap-2.5 mt-2">
+                <button 
+                  onClick={() => setPayModalOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest text-muted-foreground bg-muted hover:bg-muted/80 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handlePayInvoice}
+                  disabled={!payAccountId}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest text-primary-foreground bg-primary hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  Confirmar
+                </button>
+              </div>
             </motion.div>
           </>
         )}
