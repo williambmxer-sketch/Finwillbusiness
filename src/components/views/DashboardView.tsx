@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { useDataStore } from '../../store/useDataStore';
+import { getCycleId, getTransactionCycle } from '../../utils/cycleUtils';
 import { Card } from '../ui/card';
 import { motion } from 'motion/react';
 import { 
@@ -18,36 +19,7 @@ import { formatCurrency } from '../../utils/formatters';
 import { useAppStore } from '../../store/useAppStore';
 import { useAuthStore } from '../../store/useAuthStore';
 
-function getCycleId(dateVal: Date | string, closingDay: number = 10, dueDay: number = 17) {
-  const date = typeof dateVal === 'string' ? new Date(dateVal) : dateVal;
-  if (!date || isNaN(date.getTime())) {
-    return { cycleId: '', dueDate: new Date() };
-  }
-  let yr = date.getFullYear();
-  let mo = date.getMonth();
-  let currentMonthClosing = new Date(yr, mo, closingDay, 23, 59, 59);
-  
-  let cycleMonth = mo;
-  let cycleYear = yr;
 
-  if (date > currentMonthClosing) {
-    cycleMonth += 1;
-    if (cycleMonth > 11) { cycleMonth = 0; cycleYear++; }
-  }
-  
-  let dueMonth = cycleMonth;
-  let dueYear = cycleYear;
-  if (dueDay < closingDay) {
-    dueMonth += 1;
-    if (dueMonth > 11) { dueMonth = 0; dueYear++; }
-  }
-
-  let finalDueDate = new Date(dueYear, dueMonth, dueDay);
-  return {
-    cycleId: `${dueYear}-${dueMonth + 1}`,
-    dueDate: finalDueDate
-  };
-}
 
 export function DashboardView() {
   const { setCategoryModalOpen, setCurrentView } = useAppStore();
@@ -134,17 +106,18 @@ export function DashboardView() {
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
+  const currentCycleId = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
 
-  const currentMonthTransactions = allTransactions.filter(t => {
-    return t.date.getMonth() === currentMonth && t.date.getFullYear() === currentYear;
-  });
+  const currentMonthTransactions = allTransactions.filter(t =>
+    getTransactionCycle(t, cards) === currentCycleId
+  );
 
   const totalIncomes = currentMonthTransactions
     .filter(t => t.type === 'receita')
     .reduce((acc, t) => acc + t.amount, 0);
 
   const totalExpenses = currentMonthTransactions
-    .filter(t => t.type === 'despesa' && (t.isPaid || (t.cardId && t.cardId !== 'money') || (t.notes && t.notes.startsWith('paymentMethod:'))))
+    .filter(t => t.type === 'despesa')
     .reduce((acc, t) => acc + t.amount, 0);
 
   const chartData = useMemo(() => {
@@ -155,8 +128,9 @@ export function DashboardView() {
       const monthNumber = d.getMonth();
       const yearNumber = d.getFullYear();
       
+      const cycleId = `${yearNumber}-${String(monthNumber + 1).padStart(2, '0')}`;
       const monthExpenses = allTransactions
-        .filter(t => t.type === 'despesa' && t.date.getMonth() === monthNumber && t.date.getFullYear() === yearNumber && (t.isPaid || (t.cardId && t.cardId !== 'money') || (t.notes && t.notes.startsWith('paymentMethod:'))))
+        .filter(t => t.type === 'despesa' && getTransactionCycle(t, cards) === cycleId)
         .reduce((sum, t) => sum + t.amount, 0);
         
       data.push({

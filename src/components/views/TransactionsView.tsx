@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { api } from '../../services/api';
 import { useDataStore } from '../../store/useDataStore';
 import { formatCurrency } from '../../utils/formatters';
+import { getTransactionCycle } from '../../utils/cycleUtils';
 import { Plus, Filter, Search, TrendingUp, TrendingDown, Clock, Settings2, CheckCircle2, Pencil, CreditCard, ChevronDown, Check } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Input } from '../ui/input';
@@ -45,24 +46,7 @@ export function TransactionsView() {
     return [...allTransactions].sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [allTransactions]);
 
-  const getEffectiveCycle = (t: any) => {
-    const d = t.date;
-    let yr = d.getFullYear();
-    let mo = d.getMonth();
-
-    if (t.cardId && t.cardId !== 'money') {
-      const card = cards.find(c => c.id === t.cardId);
-      if (card) {
-        const closingDate = new Date(yr, mo, card.closingDay);
-        const txDateOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-        if (txDateOnly > closingDate) {
-          mo++;
-          if (mo > 11) { mo = 0; yr++; }
-        }
-      }
-    }
-    return `${yr}-${String(mo + 1).padStart(2, '0')}`;
-  };
+  const getEffectiveCycle = (t: any) => getTransactionCycle(t, cards);
 
   const cycles = Array.from<string>(new Set(transactions.map(t => getEffectiveCycle(t)))).sort().reverse();
   if (!cycles.includes(currentCycleId)) {
