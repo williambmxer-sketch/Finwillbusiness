@@ -469,12 +469,9 @@ export function TransactionModal() {
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-background/80 backdrop-blur-sm sm:backdrop-blur-md">
       <div className="w-full max-w-md bg-card border-t sm:border border-border sm:rounded-[20px] rounded-t-[24px] shadow-2xl flex flex-col max-h-[95dvh] sm:max-h-[90dvh] transition-all relative overflow-hidden">
-        {/* Accent Top Bar */}
-        <div className={`h-1.5 w-full absolute top-0 left-0 transition-colors duration-300 ${type === 'receita' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+        <div className="sm:hidden absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-muted rounded-full" />
 
-        <div className="sm:hidden absolute top-3.5 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-muted rounded-full" />
-
-        <div className="flex justify-between items-center p-5 pb-4 pt-6 border-b">
+        <div className="flex justify-between items-center p-5 pb-4 border-b">
           <h2 className="text-base font-bold tracking-tight">{editingTransactionId ? 'Editar Transação' : 'Nova Transação'}</h2>
           <button onClick={closeModal} className="p-1.5 rounded-full bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
             <X className="w-4 h-4" />
@@ -484,12 +481,12 @@ export function TransactionModal() {
         <div className="flex-1 p-5 flex flex-col gap-3 overflow-visible">
           <div className="flex bg-muted/50 p-1 rounded-[12px] shrink-0">
             <button
-              className={`flex-1 py-2 rounded-[10px] text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'despesa' ? 'bg-rose-600 dark:bg-rose-500 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'} disabled:opacity-30 disabled:cursor-not-allowed`}
+              className={`flex-1 py-2 rounded-[10px] text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'despesa' ? 'bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400' : 'text-muted-foreground hover:text-foreground'} disabled:opacity-30 disabled:cursor-not-allowed`}
               onClick={() => setType('despesa')}
               disabled={!!activeContextCardId && currentView === 'cardDetails'}
             >Despesa</button>
             <button
-              className={`flex-1 py-2 rounded-[10px] text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'receita' ? 'bg-emerald-600 dark:bg-emerald-500 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'} disabled:opacity-30 disabled:cursor-not-allowed`}
+              className={`flex-1 py-2 rounded-[10px] text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'receita' ? 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'text-muted-foreground hover:text-foreground'} disabled:opacity-30 disabled:cursor-not-allowed`}
               onClick={() => setType('receita')}
               disabled={!!activeContextCardId && currentView === 'cardDetails'}
             >Receita</button>
@@ -503,7 +500,7 @@ export function TransactionModal() {
                   type="text"
                   inputMode="numeric"
                   placeholder="0,00"
-                  className={`w-[180px] p-0 text-center text-3xl font-extrabold h-9 bg-transparent border-none shadow-none focus-visible:ring-0 transition-colors ${type === 'receita' ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`}
+                  className="w-[180px] p-0 text-center text-3xl font-extrabold h-9 bg-transparent border-none shadow-none focus-visible:ring-0"
                   value={displayAmount}
                   onChange={handleAmountChange}
                 />
@@ -631,7 +628,7 @@ export function TransactionModal() {
                   <button
                     type="button"
                     onClick={() => setIsPaid(!isPaid)}
-                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${isPaid ? (type === 'receita' ? 'bg-emerald-500' : 'bg-rose-500') : 'bg-muted-foreground/30'}`}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${isPaid ? 'bg-primary' : 'bg-muted-foreground/30'}`}
                   >
                     <span
                       className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${isPaid ? 'translate-x-4' : 'translate-x-0'}`}
@@ -693,14 +690,7 @@ export function TransactionModal() {
               <Trash className="w-5 h-5" />
             </button>
           )}
-          <button 
-            onClick={handleSave} 
-            className={`flex-1 text-white text-sm font-bold rounded-xl h-11 flex items-center justify-center gap-2 transition-all ${
-              type === 'receita' 
-                ? 'bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600' 
-                : 'bg-rose-600 hover:bg-rose-700 dark:bg-rose-500 dark:hover:bg-rose-600'
-            }`}
-          >
+          <button onClick={handleSave} className="flex-1 bg-primary text-primary-foreground text-sm font-bold rounded-xl h-11 flex items-center justify-center gap-2 hover:bg-primary/90 transition-all">
             Salvar
           </button>
         </div>
