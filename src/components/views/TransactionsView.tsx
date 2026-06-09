@@ -2,17 +2,21 @@ import React, { useState } from 'react';
 import { api } from '../../services/api';
 import { useDataStore } from '../../store/useDataStore';
 import { formatCurrency } from '../../utils/formatters';
-import { Plus, Filter, Search, TrendingUp, TrendingDown, Clock, Settings2, CheckCircle2, Pencil, CreditCard } from 'lucide-react';
+import { Plus, Filter, Search, TrendingUp, TrendingDown, Clock, Settings2, CheckCircle2, Pencil, CreditCard, ChevronDown, Check } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Input } from '../ui/input';
 import { useAppStore } from '../../store/useAppStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
-type FilterType = 'all' | 'receita' | 'despesa' | 'pending' | 'paid';
-
 export function TransactionsView() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<FilterType>('all');
+  const [filters, setFilters] = useState({
+    receita: true,
+    despesa: true,
+    pending: true,
+    paid: true
+  });
+  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   
   const now = new Date();
@@ -23,6 +27,19 @@ export function TransactionsView() {
   
   const allTransactions = useDataStore(state => state.transactions);
   const cards = useDataStore(state => state.cards);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setFilterDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
   
   const transactions = React.useMemo(() => {
     return [...allTransactions].sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -95,12 +112,46 @@ export function TransactionsView() {
   const filtered = transactions.filter(t => {
     if (selectedCycle !== 'all' && getEffectiveCycle(t) !== selectedCycle) return false;
     if (searchTerm && !t.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-    if (filterType === 'receita' && t.type !== 'receita') return false;
-    if (filterType === 'despesa' && t.type !== 'despesa') return false;
-    if (filterType === 'pending' && t.isPaid) return false;
-    if (filterType === 'paid' && !t.isPaid) return false;
+    
+    // Type filter
+    if (t.type === 'receita' && !filters.receita) return false;
+    if (t.type === 'despesa' && !filters.despesa) return false;
+    
+    // Status filter
+    if (t.isPaid && !filters.paid) return false;
+    if (!t.isPaid && !filters.pending) return false;
+    
     return true;
   });
+
+  const totals = React.useMemo(() => {
+    let receitas = 0;
+    let despesas = 0;
+    filtered.forEach(t => {
+      if (t.type === 'receita') {
+        receitas += t.amount;
+      } else {
+        despesas += t.amount;
+      }
+    });
+    return {
+      receitas,
+      despesas,
+      saldo: receitas - despesas
+    };
+  }, [filtered]);
+
+  const getFilterLabel = () => {
+    const active: string[] = [];
+    if (filters.receita) active.push('REC.');
+    if (filters.despesa) active.push('DESP.');
+    if (filters.pending) active.push('PEND.');
+    if (filters.paid) active.push('PAGAS');
+    
+    if (active.length === 4) return '✨ TODAS';
+    if (active.length === 0) return '❌ NENHUM';
+    return active.join(' + ');
+  };
 
   const displayItems = React.useMemo(() => {
     const items: any[] = [];
@@ -150,8 +201,12 @@ export function TransactionsView() {
       <header className="px-4 pb-3">
         <div className="flex justify-between items-end mb-4">
           <h1 className="text-2xl font-bold tracking-tight">Transações</h1>
-          <button onClick={() => setCategoryModalOpen(true)} className="text-primary flex items-center justify-center p-2 bg-primary/10 rounded-[11px]">
-            <Settings2 className="w-5 h-5" />
+          <button 
+            onClick={() => setCategoryModalOpen(true)} 
+            className="flex items-center justify-center h-8 w-8 rounded-lg border border-border/40 bg-muted/20 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all"
+            title="Categorias"
+          >
+            <Settings2 className="w-4 h-4" />
           </button>
         </div>
         <div className="relative">
@@ -163,11 +218,33 @@ export function TransactionsView() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        
+        {/* Totalizadores */}
+        <div className="grid grid-cols-3 gap-2 mt-3.5">
+          <div className="bg-card/40 border border-border/40 rounded-xl p-2.5 flex flex-col justify-between">
+            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Receitas</span>
+            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-500 mt-1 truncate">
+              {formatCurrency(totals.receitas)}
+            </span>
+          </div>
+          <div className="bg-card/40 border border-border/40 rounded-xl p-2.5 flex flex-col justify-between">
+            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Despesas</span>
+            <span className="text-xs font-bold text-rose-600 dark:text-rose-500 mt-1 truncate">
+              {formatCurrency(totals.despesas)}
+            </span>
+          </div>
+          <div className="bg-card/40 border border-border/40 rounded-xl p-2.5 flex flex-col justify-between">
+            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Saldo</span>
+            <span className={`text-xs font-bold mt-1 truncate ${totals.saldo >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`}>
+              {formatCurrency(totals.saldo)}
+            </span>
+          </div>
+        </div>
       </header>
 
       <div className="px-4 mb-3 flex gap-2">
         <Select value={selectedCycle} onValueChange={setSelectedCycle}>
-          <SelectTrigger className="w-1/2 bg-muted/30 border-border/50 rounded-[11px] h-10 text-xs font-bold uppercase tracking-wider text-foreground focus:ring-primary shadow-sm hover:bg-muted/50 transition-colors">
+          <SelectTrigger className="w-1/2 bg-muted/30 border-border/50 rounded-[11px] !h-10 text-xs font-bold uppercase tracking-wider text-foreground focus:ring-primary shadow-sm hover:bg-muted/50 transition-colors">
             <SelectValue placeholder="Mês">
               {selectedCycle === 'all' ? '✨ TODO O PERÍODO' : formatCycleName(selectedCycle)}
             </SelectValue>
@@ -182,24 +259,64 @@ export function TransactionsView() {
           </SelectContent>
         </Select>
 
-        <Select value={filterType} onValueChange={(value: FilterType) => setFilterType(value)}>
-          <SelectTrigger className="w-1/2 bg-muted/30 border-border/50 rounded-[11px] h-10 text-xs font-bold uppercase tracking-wider text-muted-foreground focus:ring-primary shadow-sm hover:bg-muted/50 transition-colors">
-            <SelectValue placeholder="Filtrar por...">
-              {filterType === 'all' && '✨ TODAS'}
-              {filterType === 'receita' && '🟢 RECEITAS'}
-              {filterType === 'despesa' && '🔴 DESPESAS'}
-              {filterType === 'pending' && '⏳ PENDENTES'}
-              {filterType === 'paid' && '✅ PAGAS'}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent className="rounded-xl z-[200]" side="bottom" sideOffset={4} alignItemWithTrigger={false}>
-            <SelectItem value="all" className="text-sm font-medium">✨ TODAS AS TRANSAÇÕES</SelectItem>
-            <SelectItem value="receita" className="text-sm font-medium text-emerald-600 dark:text-emerald-500">🟢 RECEITAS</SelectItem>
-            <SelectItem value="despesa" className="text-sm font-medium text-rose-600 dark:text-rose-500">🔴 DESPESAS</SelectItem>
-            <SelectItem value="pending" className="text-sm font-medium text-amber-600 dark:text-amber-500">⏳ PENDENTES</SelectItem>
-            <SelectItem value="paid" className="text-sm font-medium text-primary">✅ PAGAS</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="w-1/2 relative" ref={dropdownRef}>
+          <button
+            onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
+            className="w-full flex items-center justify-between gap-1.5 px-3 bg-muted/30 border border-border/50 rounded-[11px] h-10 text-xs font-bold uppercase tracking-wider text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-sm hover:bg-muted/50 transition-colors"
+          >
+            <span className="truncate">{getFilterLabel()}</span>
+            <ChevronDown className="size-4 shrink-0 opacity-50" />
+          </button>
+
+          {filterDropdownOpen && (
+            <div className="absolute right-0 top-full mt-1 w-full min-w-[200px] bg-popover text-popover-foreground border border-border rounded-xl shadow-md p-1.5 z-[250] animate-in fade-in-0 zoom-in-95 duration-100">
+              <div 
+                onClick={() => {
+                  const allActive = Object.values(filters).every(v => v);
+                  setFilters({
+                    receita: !allActive,
+                    despesa: !allActive,
+                    pending: !allActive,
+                    paid: !allActive
+                  });
+                }}
+                className="relative flex w-full cursor-default items-center justify-between rounded-md py-1.5 px-2.5 text-xs font-bold uppercase tracking-wider select-none hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                <span>✨ TODAS AS TRANSAÇÕES</span>
+                {Object.values(filters).every(v => v) && <Check className="size-3.5 text-primary" />}
+              </div>
+              <div className="h-px bg-border my-1" />
+              <div 
+                onClick={() => setFilters(prev => ({ ...prev, receita: !prev.receita }))}
+                className="relative flex w-full cursor-default items-center justify-between rounded-md py-1.5 px-2.5 text-xs font-bold uppercase tracking-wider select-none hover:bg-accent text-emerald-600 dark:text-emerald-500 hover:text-accent-foreground transition-colors"
+              >
+                <span>🟢 RECEITAS</span>
+                {filters.receita && <Check className="size-3.5 text-emerald-600 dark:text-emerald-500" />}
+              </div>
+              <div 
+                onClick={() => setFilters(prev => ({ ...prev, despesa: !prev.despesa }))}
+                className="relative flex w-full cursor-default items-center justify-between rounded-md py-1.5 px-2.5 text-xs font-bold uppercase tracking-wider select-none hover:bg-accent text-rose-600 dark:text-rose-500 hover:text-accent-foreground transition-colors"
+              >
+                <span>🔴 DESPESAS</span>
+                {filters.despesa && <Check className="size-3.5 text-rose-600 dark:text-rose-500" />}
+              </div>
+              <div 
+                onClick={() => setFilters(prev => ({ ...prev, pending: !prev.pending }))}
+                className="relative flex w-full cursor-default items-center justify-between rounded-md py-1.5 px-2.5 text-xs font-bold uppercase tracking-wider select-none hover:bg-accent text-amber-600 dark:text-amber-500 hover:text-accent-foreground transition-colors"
+              >
+                <span>⏳ PENDENTES</span>
+                {filters.pending && <Check className="size-3.5 text-amber-600 dark:text-amber-500" />}
+              </div>
+              <div 
+                onClick={() => setFilters(prev => ({ ...prev, paid: !prev.paid }))}
+                className="relative flex w-full cursor-default items-center justify-between rounded-md py-1.5 px-2.5 text-xs font-bold uppercase tracking-wider select-none hover:bg-accent text-primary hover:text-accent-foreground transition-colors"
+              >
+                <span>✅ PAGAS</span>
+                {filters.paid && <Check className="size-3.5 text-primary" />}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* List */}

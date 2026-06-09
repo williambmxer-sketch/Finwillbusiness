@@ -9,12 +9,14 @@ import {
   CreditCard,
   ChevronRight,
   Landmark,
-  Settings2
+  Settings2,
+  LogOut
 } from 'lucide-react';
 import { BarChart, Bar, ResponsiveContainer, Cell, XAxis, Tooltip, YAxis } from 'recharts';
 import { formatCurrency } from '../../utils/formatters';
 
 import { useAppStore } from '../../store/useAppStore';
+import { useAuthStore } from '../../store/useAuthStore';
 
 function getCycleId(dateVal: Date | string, closingDay: number = 10, dueDay: number = 17) {
   const date = typeof dateVal === 'string' ? new Date(dateVal) : dateVal;
@@ -49,6 +51,7 @@ function getCycleId(dateVal: Date | string, closingDay: number = 10, dueDay: num
 
 export function DashboardView() {
   const { setCategoryModalOpen, setCurrentView } = useAppStore();
+  const signOut = useAuthStore(state => state.signOut);
   const accounts = useDataStore(state => state.accounts);
   const cards = useDataStore(state => state.cards);
   const allTransactions = useDataStore(state => state.transactions);
@@ -171,14 +174,27 @@ export function DashboardView() {
           <h1 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-0.5">Saldo Total</h1>
           <div className="text-3xl font-bold tracking-tight">{formatCurrency(totalBalance)}</div>
         </div>
-        <div className="flex gap-2">
-           <button onClick={() => {
-             setCategoryModalOpen(true);
-           }} className="bg-primary/10 text-primary p-2.5 rounded-[11px] hover:bg-primary/20 transition-colors">
-             <Settings2 className="h-5 w-5" />
+        <div className="flex gap-1.5 mt-1">
+           <button 
+             onClick={signOut} 
+             className="flex items-center justify-center h-8 w-8 rounded-lg border border-border/40 bg-muted/20 text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 hover:border-rose-500/20 transition-all" 
+             title="Sair"
+           >
+             <LogOut className="h-4 w-4" />
            </button>
-           <button onClick={() => setCurrentView('accounts')} className="bg-primary/10 text-primary p-2.5 rounded-[11px] hover:bg-primary/20 transition-colors">
-             <Landmark className="h-5 w-5" />
+           <button 
+             onClick={() => setCategoryModalOpen(true)} 
+             className="flex items-center justify-center h-8 w-8 rounded-lg border border-border/40 bg-muted/20 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all"
+             title="Categorias"
+           >
+             <Settings2 className="h-4 w-4" />
+           </button>
+           <button 
+             onClick={() => setCurrentView('accounts')} 
+             className="flex items-center justify-center h-8 w-8 rounded-lg border border-border/40 bg-muted/20 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all"
+             title="Contas"
+           >
+             <Landmark className="h-4 w-4" />
            </button>
          </div>
       </header>

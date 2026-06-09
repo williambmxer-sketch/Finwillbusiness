@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import { motion } from 'motion/react';
-import { Wallet, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
+import { Wallet, Mail, Lock, ArrowRight, Loader2, User } from 'lucide-react';
 import { Input } from '../ui/input';
 
 export function AuthView() {
@@ -46,81 +46,81 @@ export function AuthView() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-background flex flex-col items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen w-full bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden">
       {/* Background Gradients */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 blur-[100px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/10 blur-[100px] rounded-full pointer-events-none" />
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/15 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-500/10 blur-[120px] rounded-full pointer-events-none" />
 
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-card/60 backdrop-blur-xl border border-border/50 rounded-[32px] p-8 shadow-2xl relative z-10"
+        className="w-full max-w-[340px] bg-card/65 backdrop-blur-xl border border-border/40 rounded-[24px] p-6 shadow-xl relative z-10"
       >
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 bg-primary/10 rounded-[20px] flex items-center justify-center mb-4">
-            <Wallet className="w-8 h-8 text-primary" />
+        <div className="flex flex-col items-center mb-6">
+          <div className="w-12 h-12 bg-primary/10 rounded-[14px] flex items-center justify-center mb-3">
+            <Wallet className="w-6 h-6 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">FinWill</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h1 className="text-xl font-bold tracking-tight">FinWill</h1>
+          <p className="text-xs text-muted-foreground mt-1 text-center">
             {isLogin ? 'Acesse suas finanças inteligentemente' : 'Crie sua conta e assuma o controle'}
           </p>
         </div>
 
         {error && (
-          <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs p-3 rounded-xl mb-6 text-center font-medium">
+          <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[11px] p-2.5 rounded-lg mb-4 text-center font-medium">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3">
           {!isLogin && (
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Nome Completo</label>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground ml-1">Nome Completo</label>
               <div className="relative">
                 <Input 
                   type="text" 
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  className="w-full h-12 bg-muted/50 border-transparent focus:ring-1 focus:ring-primary shadow-none rounded-[16px] pl-11"
+                  className="w-full h-10 bg-muted/40 border-transparent focus:ring-1 focus:ring-primary shadow-none rounded-xl pl-9 text-xs"
                   placeholder="Seu nome"
                   required={!isLogin}
                 />
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  <Wallet className="w-4 h-4" /> {/* Poderia ser um User icon */}
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60">
+                  <User className="w-4 h-4" />
                 </div>
               </div>
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">E-mail</label>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground ml-1">E-mail</label>
             <div className="relative">
               <Input 
                 type="email" 
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full h-12 bg-muted/50 border-transparent focus:ring-1 focus:ring-primary shadow-none rounded-[16px] pl-11"
+                className="w-full h-10 bg-muted/40 border-transparent focus:ring-1 focus:ring-primary shadow-none rounded-xl pl-9 text-xs"
                 placeholder="seu@email.com"
                 required
               />
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60">
                 <Mail className="w-4 h-4" />
               </div>
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Senha</label>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground ml-1">Senha</label>
             <div className="relative">
               <Input 
                 type="password" 
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="w-full h-12 bg-muted/50 border-transparent focus:ring-1 focus:ring-primary shadow-none rounded-[16px] pl-11"
+                className="w-full h-10 bg-muted/40 border-transparent focus:ring-1 focus:ring-primary shadow-none rounded-xl pl-9 text-xs"
                 placeholder="••••••••"
                 required
               />
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60">
                 <Lock className="w-4 h-4" />
               </div>
             </div>
@@ -129,24 +129,24 @@ export function AuthView() {
           <button 
             type="submit" 
             disabled={loading}
-            className="w-full h-14 bg-primary text-primary-foreground font-bold uppercase tracking-widest text-xs rounded-[20px] shadow-lg hover:shadow-xl hover:bg-primary/90 transition-all flex items-center justify-center gap-2 mt-8 disabled:opacity-50"
+            className="w-full h-11 bg-primary text-primary-foreground font-bold uppercase tracking-wider text-xs rounded-xl shadow-md hover:bg-primary/95 transition-all flex items-center justify-center gap-1.5 mt-5 disabled:opacity-50"
           >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
               <>
-                {isLogin ? 'Entrar no Sistema' : 'Criar Conta'}
-                <ArrowRight className="w-4 h-4" />
+                {isLogin ? 'Entrar' : 'Criar Conta'}
+                <ArrowRight className="w-3.5 h-3.5" />
               </>
             )}
           </button>
         </form>
 
-        <div className="mt-8 text-center">
+        <div className="mt-5 text-center">
           <button 
             type="button"
             onClick={() => setIsLogin(!isLogin)}
-            className="text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
+            className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors"
           >
-            {isLogin ? 'Não tem uma conta? Cadastre-se' : 'Já tem conta? Faça Login'}
+            {isLogin ? 'Não tem conta? Cadastre-se' : 'Já tem conta? Faça Login'}
           </button>
         </div>
       </motion.div>

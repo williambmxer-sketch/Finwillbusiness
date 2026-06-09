@@ -152,18 +152,24 @@ export function InvoicesView() {
       }
     }
 
-    return Array.from(invoiceMap.values()).sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime());
-  }, [transactions, cards, selectedCardId, dbInvoices]);
+    return Array.from(invoiceMap.values()).sort((a, b) => {
+      if (a.yearMonth === currentCycleId) return -1;
+      if (b.yearMonth === currentCycleId) return 1;
+      return a.dueDate.getTime() - b.dueDate.getTime();
+    });
+  }, [transactions, cards, selectedCardId, dbInvoices, currentCycleId]);
 
   const cycles = useMemo(() => {
     const rawCycles = Array.from(new Set(computedInvoices.map(inv => inv.yearMonth))) as string[];
     return rawCycles.sort((a, b) => {
+      if (a === currentCycleId) return -1;
+      if (b === currentCycleId) return 1;
       const [aYear, aMonth] = a.split('-').map(Number);
       const [bYear, bMonth] = b.split('-').map(Number);
-      if (aYear !== bYear) return bYear - aYear;
-      return bMonth - aMonth;
+      if (aYear !== bYear) return aYear - bYear;
+      return aMonth - bMonth;
     });
-  }, [computedInvoices]);
+  }, [computedInvoices, currentCycleId]);
 
   const formatCycleName = (cycleId: string) => {
     if (!cycleId || cycleId === 'all') return '';
