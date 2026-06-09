@@ -188,10 +188,10 @@ export function DashboardView() {
               const now = new Date();
               const { cycleId: currentCycle } = getCycleId(now, card.closingDay, card.dueDay);
 
-              // Fatura atual is the sum of transactions in the current cycle (matching invoices page)
+              // Fatura atual is the sum of unpaid transactions in the current cycle
               const currentInvoice = allTransactions
                 .filter(t => {
-                  if (t.type !== 'despesa' || t.cardId !== card.id) return false;
+                  if (t.type !== 'despesa' || t.cardId !== card.id || t.isPaid) return false;
                   const { cycleId } = getCycleId(t.date, card.closingDay, card.dueDay);
                   return cycleId === currentCycle;
                 })
