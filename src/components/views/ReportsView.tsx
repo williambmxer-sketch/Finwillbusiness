@@ -148,7 +148,7 @@ export function ReportsView() {
                 <ChevronLeft className="w-4 h-4" />
               </button>
             )}
-            <span className="text-[10px] font-bold uppercase tracking-widest min-w-[100px] text-center">
+            <span className="text-[10px] font-bold uppercase tracking-widest min-w-[170px] text-center px-1">
               {periodLabel}
             </span>
             {!isCustomMode && (
