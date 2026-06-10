@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useDataStore } from '../../store/useDataStore';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { formatCurrency } from '../../utils/formatters';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 
 const COLOR_RECEITA = '#10b981';
 const COLOR_DESPESA = '#dc2626';
@@ -16,17 +16,35 @@ export function ReportsView() {
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
 
+  const [isCustomMode, setIsCustomMode] = useState(false);
+  const [customStart, setCustomStart] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [customEnd, setCustomEnd] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
+  const [showCalendarMenu, setShowCalendarMenu] = useState(false);
+
   const handlePrevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
   const handleNextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
 
-  const periodLabel = currentMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  let periodLabel = '';
+  if (isCustomMode) {
+    const s = new Date(customStart + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+    const e = new Date(customEnd + 'T23:59:59').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' });
+    periodLabel = `${s} – ${e}`;
+  } else {
+    periodLabel = currentMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  }
 
   // Helpers to get start and end dates
-  const start = currentMonth;
-  const end = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0, 23, 59, 59);
+  const start = isCustomMode ? new Date(customStart + 'T00:00:00') : currentMonth;
+  const end = isCustomMode ? new Date(customEnd + 'T23:59:59') : new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0, 23, 59, 59);
 
-  const prevStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
-  const prevEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 0, 23, 59, 59);
+  const prevStart = isCustomMode ? new Date(start.getTime() - (end.getTime() - start.getTime())) : new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+  const prevEnd = isCustomMode ? new Date(start.getTime() - 1) : new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 0, 23, 59, 59);
 
   // Transactions within selected range
   const filtered = useMemo(
@@ -108,22 +126,85 @@ export function ReportsView() {
     <div className="flex flex-col h-full bg-background relative pt-6 px-4 max-w-lg mx-auto w-full pb-16">
       
       {/* Header and Fast Navigation */}
-      <header className="flex items-center justify-between pb-4">
+      <header className="flex items-center justify-between pb-4 relative">
         <div>
           <h1 className="text-xl font-bold tracking-tight mb-0.5">Visão</h1>
           <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Saúde Financeira</p>
         </div>
         
-        <div className="flex items-center bg-card border border-border rounded-xl p-1 shadow-sm">
-          <button onClick={handlePrevMonth} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <span className="text-[10px] font-bold uppercase tracking-widest min-w-[100px] text-center">
-            {periodLabel}
-          </span>
-          <button onClick={handleNextMonth} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
-            <ChevronRight className="w-4 h-4" />
-          </button>
+        <div className="flex flex-col items-end">
+          <div className="flex items-center bg-card border border-border rounded-xl p-1 shadow-sm">
+            {!isCustomMode && (
+              <button onClick={handlePrevMonth} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            )}
+            <span className="text-[10px] font-bold uppercase tracking-widest min-w-[100px] text-center">
+              {periodLabel}
+            </span>
+            {!isCustomMode && (
+              <button onClick={handleNextMonth} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
+            <div className="w-[1px] h-4 bg-border mx-1" />
+            <button onClick={() => setShowCalendarMenu(!showCalendarMenu)} className={`p-1.5 rounded-lg transition-colors ${showCalendarMenu || isCustomMode ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
+              <CalendarDays className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Popover for custom date */}
+          {showCalendarMenu && (
+            <div className="absolute top-full right-0 mt-2 w-72 bg-card border border-border shadow-xl rounded-xl p-3 z-50 animate-in fade-in slide-in-from-top-2">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Período Customizado</span>
+                {isCustomMode && (
+                  <button onClick={() => { setIsCustomMode(false); setShowCalendarMenu(false); }} className="text-[9px] font-bold uppercase text-primary hover:underline">
+                    Resetar
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <div>
+                  <label className="text-[9px] font-bold uppercase text-muted-foreground mb-1 block">De</label>
+                  <input
+                    type="date"
+                    value={customStart}
+                    onChange={e => setCustomStart(e.target.value)}
+                    className="w-full bg-muted/50 border border-transparent focus:border-primary/50 focus:bg-background rounded-lg text-xs h-8 px-2 outline-none uppercase font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold uppercase text-muted-foreground mb-1 block">Até</label>
+                  <input
+                    type="date"
+                    value={customEnd}
+                    onChange={e => setCustomEnd(e.target.value)}
+                    className="w-full bg-muted/50 border border-transparent focus:border-primary/50 focus:bg-background rounded-lg text-xs h-8 px-2 outline-none uppercase font-medium"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {[
+                  { label: 'Este ano', fn: () => { const d = new Date(); setCustomStart(`${d.getFullYear()}-01-01`); setCustomEnd(`${d.getFullYear()}-12-31`); } },
+                  { label: 'Últimos 30 dias', fn: () => { const d = new Date(); const p = new Date(d); p.setDate(p.getDate() - 30); setCustomStart(p.toISOString().split('T')[0]); setCustomEnd(d.toISOString().split('T')[0]); } },
+                  { label: 'Últimos 6 meses', fn: () => { const d = new Date(); const p = new Date(d); p.setMonth(p.getMonth() - 6); setCustomStart(p.toISOString().split('T')[0]); setCustomEnd(d.toISOString().split('T')[0]); } },
+                ].map((shortcut) => (
+                  <button key={shortcut.label} onClick={shortcut.fn} className="text-[9px] font-bold uppercase tracking-wider bg-muted hover:bg-muted/80 text-muted-foreground px-2 py-1 rounded-md transition-colors">
+                    {shortcut.label}
+                  </button>
+                ))}
+              </div>
+
+              <button 
+                onClick={() => { setIsCustomMode(true); setShowCalendarMenu(false); }}
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-[10px] font-bold uppercase tracking-wider h-8 rounded-lg transition-colors"
+              >
+                Aplicar
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -132,7 +213,7 @@ export function ReportsView() {
         <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col">
           <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Receitas</div>
           <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(currentTotals.receitas)}</div>
-          {prevTotals.receitas > 0 && (
+          {prevTotals.receitas > 0 && !isCustomMode && (
             <div className={`text-[8px] font-bold uppercase tracking-widest mt-1.5 ${diffReceitas >= 0 ? 'text-emerald-500/80' : 'text-rose-500/80'}`}>
               {diffReceitas >= 0 ? '▲' : '▼'} {Math.abs(diffReceitas).toFixed(0)}% ref. mês ant.
             </div>
@@ -141,7 +222,7 @@ export function ReportsView() {
         <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col">
           <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Despesas</div>
           <div className="text-sm font-bold text-rose-600 dark:text-rose-400">{formatCurrency(currentTotals.despesas)}</div>
-          {prevTotals.despesas > 0 && (
+          {prevTotals.despesas > 0 && !isCustomMode && (
             <div className={`text-[8px] font-bold uppercase tracking-widest mt-1.5 ${diffDespesas <= 0 ? 'text-emerald-500/80' : 'text-rose-500/80'}`}>
               {diffDespesas > 0 ? '▲' : '▼'} {Math.abs(diffDespesas).toFixed(0)}% ref. mês ant.
             </div>
@@ -150,7 +231,7 @@ export function ReportsView() {
         
         <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col col-span-2">
           <div className="flex justify-between items-center mb-1">
-            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Balanço do Mês</div>
+            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Balanço do Período</div>
             <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Poupança</div>
           </div>
           <div className="flex justify-between items-end">
@@ -273,7 +354,7 @@ export function ReportsView() {
 
         {expenseCategories.length === 0 && incomeCategories.length === 0 && (
           <div className="text-center text-muted-foreground p-10 border border-dashed rounded-[16px] border-border/50 text-xs">
-            Nenhum dado no mês de {periodLabel}
+            Nenhum dado no mês selecionado
           </div>
         )}
       </div>
