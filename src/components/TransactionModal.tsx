@@ -774,6 +774,13 @@ export function TransactionModal() {
                   onChange={handleAmountChange}
                 />
               </div>
+              {type !== 'transferencia' && showInstallments && numInstallments > 1 && !editingTransactionId && (
+                <div className="text-[12px] font-bold text-foreground mt-1 animate-in fade-in slide-in-from-top-1">
+                  {installmentMode === 'divide' 
+                    ? `${numInstallments}x de ${formatCurrency(amount / numInstallments)}` 
+                    : `${numInstallments}x de ${formatCurrency(amount)} (Total: ${formatCurrency(amount * numInstallments)})`}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -990,15 +997,6 @@ export function TransactionModal() {
                       </div>
                     )}
                   </div>
-                  {numInstallments > 1 && !editingTransactionId && (
-                    <div className="text-center mt-0.5 mb-0.5 animate-in fade-in slide-in-from-top-1">
-                      <span className="text-[10px] font-semibold text-muted-foreground/80 bg-background/50 px-3 py-1 rounded-full border border-border/50">
-                        {installmentMode === 'divide' 
-                          ? `${numInstallments}x de ${formatCurrency(amount / numInstallments)}` 
-                          : `${numInstallments}x de ${formatCurrency(amount)} (Total: ${formatCurrency(amount * numInstallments)})`}
-                      </span>
-                    </div>
-                  )}
                 </div>
               )}
 
