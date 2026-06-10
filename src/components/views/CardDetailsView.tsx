@@ -4,7 +4,7 @@ import { api } from '../../services/api';
 import { Transaction } from '../../db/db';
 import { formatCurrency } from '../../utils/formatters';
 import { getCycleId } from '../../utils/cycleUtils';
-import { ChevronLeft, CreditCard, ShoppingBag, Clock, TrendingDown, Pencil, Trash2, Search, Plus, ChevronDown } from 'lucide-react';
+import { ChevronLeft, CreditCard, ShoppingBag, Clock, TrendingDown, Pencil, Trash2, Search, Plus, ChevronDown, Filter, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAppStore } from '../../store/useAppStore';
 import { Input } from '../ui/input';
@@ -34,6 +34,8 @@ export function CardDetailsView() {
   const [searchTerm, setSearchTerm] = useState('');
   const [deletingTx, setDeletingTx] = useState<any | null>(null);
   const [deleteInstallmentModalOpen, setDeleteInstallmentModalOpen] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const cardCycles = React.useMemo(() => {
     if (!card) return [];
@@ -72,11 +74,18 @@ export function CardDetailsView() {
       const { cycleId } = getCycleId(t.date, card.closingDay, card.dueDay);
       if (cycleId !== selectedCycleId) return false;
       if (searchTerm.trim()) {
-        return t.description.toLowerCase().includes(searchTerm.toLowerCase());
+        if (!t.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+      }
+      if (selectedCategories.length > 0) {
+        if (!selectedCategories.includes(t.categoryId)) return false;
       }
       return true;
     });
-  }, [transactions, card, selectedCycleId, searchTerm]);
+  }, [transactions, card, selectedCycleId, searchTerm, selectedCategories]);
+
+  const visibleTotal = React.useMemo(() => {
+    return visibleTransactions.reduce((acc, t) => acc + t.amount, 0);
+  }, [visibleTransactions]);
 
   // Quick Add Form State
   const [isQuickAddExpanded, setIsQuickAddExpanded] = useState(false);
@@ -399,18 +408,70 @@ export function CardDetailsView() {
       {/* Transactions List */}
       <div className="flex-1 px-4 mt-2">
         <div className="flex justify-between items-center mb-3">
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Histórico de Compras</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Histórico</h2>
+            {visibleTotal > 0 && (
+              <span className="text-[10px] font-bold text-foreground bg-muted/50 px-1.5 py-0.5 rounded-md">
+                R$ {visibleTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            )}
+          </div>
 
-          <Select value={selectedCycleId || ""} onValueChange={setSelectedCycleId}>
-            <SelectTrigger className="w-[135px] h-8 text-[10px] uppercase font-bold tracking-wider bg-muted border-none shadow-none rounded-lg">
-              <SelectValue placeholder="Fatura..." />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl">
-              {cardCycles.map(c => (
-                <SelectItem key={c.id} value={c.id} className="text-xs font-bold capitalize">Fatura {c.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-1">
+            <Select value={selectedCycleId || ""} onValueChange={setSelectedCycleId}>
+              <SelectTrigger className="w-[110px] h-8 text-[10px] uppercase font-bold tracking-wider bg-muted border-none shadow-none rounded-lg px-2">
+                <SelectValue placeholder="Fatura..." />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                {cardCycles.map(c => (
+                  <SelectItem key={c.id} value={c.id} className="text-xs font-bold capitalize">Fatura {c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div className="relative">
+              <button 
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className={`p-1.5 rounded-lg h-8 w-8 flex items-center justify-center transition-colors ${selectedCategories.length > 0 ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+              >
+                <Filter className="w-4 h-4" />
+              </button>
+
+              {isFilterOpen && (
+                <div className="absolute right-0 top-full mt-1 w-48 bg-card border shadow-xl rounded-xl p-2 z-[200] max-h-64 overflow-y-auto">
+                  <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-2">Categorias</div>
+                  {categories.filter(c => c.type === 'despesa').map(cat => {
+                    const isSelected = selectedCategories.includes(cat.id);
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => {
+                          setSelectedCategories(prev => 
+                            isSelected ? prev.filter(id => id !== cat.id) : [...prev, cat.id]
+                          );
+                        }}
+                        className="w-full flex items-center justify-between px-2 py-1.5 hover:bg-muted/50 rounded-lg transition-colors text-xs font-medium text-left"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color || '#ccc' }} />
+                          <span className="truncate">{cat.name}</span>
+                        </div>
+                        {isSelected && <Check className="w-3 h-3 text-primary" />}
+                      </button>
+                    )
+                  })}
+                  {selectedCategories.length > 0 && (
+                    <button 
+                      onClick={() => setSelectedCategories([])}
+                      className="w-full mt-2 pt-2 border-t text-[9px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground text-center"
+                    >
+                      Limpar Filtros
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Search */}
