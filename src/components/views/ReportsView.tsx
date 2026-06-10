@@ -77,10 +77,7 @@ export function ReportsView() {
   const calcTotals = (txs: any[]) => {
     const receitas = txs.filter(t => t.type === 'receita').reduce((s, t) => s + t.amount, 0);
     const despesas = txs
-      .filter(t =>
-        t.type === 'despesa' &&
-        (t.isPaid || (t.cardId && t.cardId !== 'money') || (t.notes && t.notes.startsWith('paymentMethod:')))
-      )
+      .filter(t => t.type === 'despesa')
       .reduce((s, t) => s + t.amount, 0);
     return { receitas, despesas, balanco: receitas - despesas };
   };
@@ -102,11 +99,7 @@ export function ReportsView() {
   // Categories
   const getCategories = (type: 'receita' | 'despesa') => {
     const map = new Map<string, number>();
-    const txs = filtered.filter(t => {
-      if (t.type !== type) return false;
-      if (type === 'despesa' && !(t.isPaid || (t.cardId && t.cardId !== 'money') || (t.notes && t.notes.startsWith('paymentMethod:')))) return false;
-      return true;
-    });
+    const txs = filtered.filter(t => t.type === type);
 
     txs.forEach(t => map.set(t.categoryId, (map.get(t.categoryId) || 0) + t.amount));
     const total = txs.reduce((s, t) => s + t.amount, 0);
