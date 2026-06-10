@@ -732,7 +732,7 @@ export function TransactionModal() {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-background/80 backdrop-blur-sm sm:backdrop-blur-md">
-      <div className="w-full max-w-md bg-card border-t sm:border border-border sm:rounded-[20px] rounded-[24px] shadow-2xl flex flex-col max-h-[95dvh] sm:max-h-[90dvh] transition-all relative">
+      <div className="w-full max-w-md bg-card border-t sm:border border-border sm:rounded-[20px] rounded-[24px] shadow-2xl flex flex-col h-[85dvh] sm:h-[640px] relative">
         <div className="sm:hidden absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-muted rounded-full" />
 
         <div className="flex justify-between items-center p-5 pb-4 border-b">
@@ -742,7 +742,7 @@ export function TransactionModal() {
           </button>
         </div>
 
-        <div className="flex-1 p-4 flex flex-col gap-2 overflow-y-auto h-[500px]">
+        <div className="flex-1 p-4 flex flex-col gap-2 overflow-y-auto">
           <div className="flex bg-muted/50 p-1 rounded-[12px] shrink-0">
             <button
               className={`flex-1 py-2 rounded-[10px] text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'despesa' ? 'bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400' : 'text-muted-foreground hover:text-foreground'} disabled:opacity-30 disabled:cursor-not-allowed`}
