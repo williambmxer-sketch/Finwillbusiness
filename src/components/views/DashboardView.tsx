@@ -113,11 +113,11 @@ export function DashboardView() {
   );
 
   const totalIncomes = currentMonthTransactions
-    .filter(t => t.type === 'receita')
+    .filter(t => t.type === 'receita' && !t.notes?.startsWith('transferencia:'))
     .reduce((acc, t) => acc + t.amount, 0);
 
   const totalExpenses = currentMonthTransactions
-    .filter(t => t.type === 'despesa')
+    .filter(t => t.type === 'despesa' && !t.notes?.startsWith('transferencia:'))
     .reduce((acc, t) => acc + t.amount, 0);
 
   const chartData = useMemo(() => {
@@ -131,7 +131,7 @@ export function DashboardView() {
       
       const cycleId = `${yearNumber}-${String(monthNumber + 1).padStart(2, '0')}`;
       const monthExpenses = allTransactions
-        .filter(t => t.type === 'despesa' && getTransactionCycle(t, cards) === cycleId)
+        .filter(t => t.type === 'despesa' && !t.notes?.startsWith('transferencia:') && getTransactionCycle(t, cards) === cycleId)
         .reduce((sum, t) => sum + t.amount, 0);
         
       data.push({

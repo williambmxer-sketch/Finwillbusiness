@@ -114,6 +114,7 @@ export function TransactionsView() {
     let receitas = 0;
     let despesas = 0;
     filtered.forEach(t => {
+      if (t.notes?.startsWith('transferencia:')) return;
       if (t.type === 'receita') {
         receitas += t.amount;
       } else {

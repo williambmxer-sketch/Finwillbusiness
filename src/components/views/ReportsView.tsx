@@ -75,9 +75,9 @@ export function ReportsView() {
 
   // Calculate totals
   const calcTotals = (txs: any[]) => {
-    const receitas = txs.filter(t => t.type === 'receita').reduce((s, t) => s + t.amount, 0);
+    const receitas = txs.filter(t => t.type === 'receita' && !t.notes?.startsWith('transferencia:')).reduce((s, t) => s + t.amount, 0);
     const despesas = txs
-      .filter(t => t.type === 'despesa')
+      .filter(t => t.type === 'despesa' && !t.notes?.startsWith('transferencia:'))
       .reduce((s, t) => s + t.amount, 0);
     return { receitas, despesas, balanco: receitas - despesas };
   };
@@ -99,7 +99,7 @@ export function ReportsView() {
   // Categories
   const getCategories = (type: 'receita' | 'despesa') => {
     const map = new Map<string, number>();
-    const txs = filtered.filter(t => t.type === type);
+    const txs = filtered.filter(t => t.type === type && !t.notes?.startsWith('transferencia:'));
 
     txs.forEach(t => map.set(t.categoryId, (map.get(t.categoryId) || 0) + t.amount));
     const total = txs.reduce((s, t) => s + t.amount, 0);

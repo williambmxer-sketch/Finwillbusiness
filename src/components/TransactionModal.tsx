@@ -103,12 +103,13 @@ export function TransactionModal() {
   const accounts = useDataStore(state => state.accounts);
   const cards = useDataStore(state => state.cards);
 
-  const [type, setType] = useState<'receita' | 'despesa'>('despesa');
+  const [type, setType] = useState<'receita' | 'despesa' | 'transferencia'>('despesa');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [categoryId, setCategoryId] = useState('');
   const [accountId, setAccountId] = useState('');
+  const [toAccountId, setToAccountId] = useState('');
   const [cardId, setCardId] = useState('money');
   const [isPaid, setIsPaid] = useState(false);
   const [installments, setInstallments] = useState('1');
@@ -224,6 +225,7 @@ export function TransactionModal() {
       setDate(new Date().toISOString().split('T')[0]);
       setCategoryId('');
       setAccountId('');
+      setToAccountId('');
 
       if (defaultPaymentMethod?.startsWith('card-')) {
         setCardId(defaultPaymentMethod.replace('card-', ''));
@@ -258,9 +260,16 @@ export function TransactionModal() {
       return;
     }
 
-    if (!categoryId || categoryId === 'none' || categoryId === '') {
-      setError('Por favor, selecione uma categoria.');
-      return;
+    if (type === 'transferencia') {
+      if (!accountId || !toAccountId || accountId === toAccountId) {
+        setError('Por favor, selecione contas de origem e destino válidas e diferentes.');
+        return;
+      }
+    } else {
+      if (!categoryId || categoryId === 'none' || categoryId === '') {
+        setError('Por favor, selecione uma categoria.');
+        return;
+      }
     }
 
     if (type === 'receita' && isPaid && (!accountId || accountId === 'none' || accountId === '')) {
@@ -334,6 +343,63 @@ export function TransactionModal() {
     // Convert date string with local timezone offset
     const dateObj = new Date(date + 'T12:00:00');
     const getAcc = (id: string) => useDataStore.getState().accounts.find(a => a.id === id);
+
+    // --- TRANSFER LOGIC ---
+    if (type === 'transferencia') {
+      let transferCategory = categories.find(c => c.name.toLowerCase() === 'transferência' || c.name.toLowerCase() === 'transferencia');
+      if (!transferCategory) {
+        const newCat = {
+          id: generateUUID(),
+          name: 'Transferência',
+          color: '#3b82f6', // blue-500
+          icon: 'arrow-right-left',
+          type: 'despesa' as const,
+          showInCards: false,
+          showInAccounts: false
+        };
+        await api.categories.add(newCat);
+        transferCategory = newCat;
+      }
+
+      const transferGroupId = generateUUID();
+      const originTx: Transaction = {
+        id: generateUUID(),
+        description: description || `Transferência para ${accounts.find(a => a.id === toAccountId)?.name}`,
+        amount: txAmount,
+        date: dateObj,
+        type: 'despesa',
+        categoryId: transferCategory.id,
+        accountId: accountId,
+        isPaid: true,
+        paymentDate: dateObj,
+        notes: `transferencia:${transferGroupId}`,
+        parentId: transferGroupId
+      };
+      const destTx: Transaction = {
+        id: generateUUID(),
+        description: description || `Transferência de ${accounts.find(a => a.id === accountId)?.name}`,
+        amount: txAmount,
+        date: dateObj,
+        type: 'receita',
+        categoryId: transferCategory.id,
+        accountId: toAccountId,
+        isPaid: true,
+        paymentDate: dateObj,
+        notes: `transferencia:${transferGroupId}`,
+        parentId: transferGroupId
+      };
+
+      await api.transactions.bulkAdd([originTx, destTx]);
+      
+      const originAcc = getAcc(accountId);
+      const destAcc = getAcc(toAccountId);
+      if (originAcc) await api.accounts.update(accountId, { balance: originAcc.balance - txAmount });
+      if (destAcc) await api.accounts.update(toAccountId, { balance: destAcc.balance + txAmount });
+      
+      closeModal();
+      return;
+    }
+    // --- END TRANSFER LOGIC ---
 
     if (numInstallments > 1 && !editingTransactionId) {
       const parentId = generateUUID();
@@ -660,6 +726,7 @@ export function TransactionModal() {
 
   const showAccountSelector = 
     (type === 'receita') ||
+    (type === 'transferencia') ||
     (type === 'despesa' && cardId === 'money' && isPaid) ||
     (type === 'despesa' && showInstallments && numInstallments > 1 && !firstInstallmentIn30Days && payFirstInstallmentToday);
 
@@ -687,6 +754,11 @@ export function TransactionModal() {
               onClick={() => setType('receita')}
               disabled={!!activeContextCardId && currentView === 'cardDetails'}
             >Receita</button>
+            <button
+              className={`flex-1 py-2 rounded-[10px] text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'transferencia' ? 'bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400' : 'text-muted-foreground hover:text-foreground'} disabled:opacity-30 disabled:cursor-not-allowed`}
+              onClick={() => setType('transferencia')}
+              disabled={!!activeContextCardId && currentView === 'cardDetails'}
+            >Transf.</button>
           </div>
 
           <div className="space-y-3">
@@ -725,73 +797,128 @@ export function TransactionModal() {
                     onChange={e => setDate(e.target.value)}
                   />
                 </div>
-                <div>
-                  <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Categoria</Label>
-                  <CustomSelect
-                    value={categoryId}
-                    onValueChange={setCategoryId}
-                    placeholder="Selecione..."
-                    options={categories.filter(c => {
-                      const ct = String(c.type || '').toLowerCase();
-                      const t = String(type || '').toLowerCase();
-                      const isTypeMatch = ct === t ||
-                        (t === 'despesa' && (ct === 'expense' || ct === 'despesa' || ct === 'desp')) ||
-                        (t === 'receita' && (ct === 'income' || ct === 'receita' || ct === 'rec'));
-                      
-                      if (!isTypeMatch) return false;
-
-                      if (t === 'despesa') {
-                        const isCardMethod = cardId && cardId !== 'money' && !cardId.startsWith('custom-');
-                        if (isCardMethod && c.showInCards === false) return false;
-                        if (!isCardMethod && c.showInAccounts === false) return false;
-                      }
-
-                      return true;
-                    }).map(c => ({
-                      value: c.id,
-                      label: c.name
-                    }))}
-                  />
-                </div>
-              </div>
-
-              {type === 'despesa' ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-1">
-                    <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Pagamento</Label>
+                {type !== 'transferencia' && (
+                  <div>
+                    <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Categoria</Label>
                     <CustomSelect
-                      value={cardId}
-                      onValueChange={setCardId}
+                      value={categoryId}
+                      onValueChange={setCategoryId}
                       placeholder="Selecione..."
-                      disabled={!!activeContextCardId && currentView === 'cardDetails'}
-                      options={[
-                        { value: 'money', label: 'PIX' },
-                        ...cards.map(c => ({
-                          value: c.id,
-                          label: c.name
-                        })),
-                        ...customPaymentMethods.map(pm => ({
-                          value: `custom-${pm.id}`,
-                          label: pm.name
-                        }))
-                      ]}
+                      options={categories.filter(c => {
+                        const ct = String(c.type || '').toLowerCase();
+                        const t = String(type || '').toLowerCase();
+                        const isTypeMatch = ct === t ||
+                          (t === 'despesa' && (ct === 'expense' || ct === 'despesa' || ct === 'desp')) ||
+                          (t === 'receita' && (ct === 'income' || ct === 'receita' || ct === 'rec'));
+                        
+                        if (!isTypeMatch) return false;
+
+                        if (t === 'despesa') {
+                          const isCardMethod = cardId && cardId !== 'money' && !cardId.startsWith('custom-');
+                          if (isCardMethod && c.showInCards === false) return false;
+                          if (!isCardMethod && c.showInAccounts === false) return false;
+                        }
+
+                        return true;
+                      }).map(c => ({
+                        value: c.id,
+                        label: c.name
+                      }))}
                     />
                   </div>
-                  {showInstallments && (
-                    <div className="col-span-1">
-                      <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Parcelas</Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        max="72"
-                        className="rounded-xl h-10 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-medium text-center"
-                        value={installments}
-                        onChange={e => setInstallments(e.target.value)}
-                        disabled={!!editingTransactionId}
+                )}
+              </div>
+
+              {type === 'transferencia' ? (
+                <div className="grid grid-cols-2 gap-3 p-3 bg-muted/30 rounded-xl border border-border">
+                  <div>
+                    <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Conta de Origem</Label>
+                    <CustomSelect
+                      value={accountId}
+                      onValueChange={setAccountId}
+                      placeholder="De..."
+                      options={accounts.map(c => ({
+                        value: c.id,
+                        label: c.name
+                      }))}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Conta de Destino</Label>
+                    <CustomSelect
+                      value={toAccountId}
+                      onValueChange={setToAccountId}
+                      placeholder="Para..."
+                      options={accounts.map(c => ({
+                        value: c.id,
+                        label: c.name,
+                        disabled: c.id === accountId
+                      }))}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="p-3 bg-muted/30 rounded-xl border border-border space-y-3">
+                    <div>
+                      <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Forma de Pagamento</Label>
+                      <CustomSelect
+                        value={cardId}
+                        onValueChange={val => {
+                          setCardId(val);
+                          if (val !== 'money' && !val.startsWith('custom-')) {
+                            setIsPaid(true); 
+                          }
+                        }}
+                        disabled={!!activeContextCardId && currentView === 'cardDetails'}
+                        options={[
+                          { value: 'money', label: '💳 Dinheiro / Conta Bancária' },
+                          ...cards.map(c => ({
+                            value: c.id,
+                            label: `🛒 Cartão ${c.name}`
+                          })),
+                          ...(customPaymentMethods.length > 0 ? [{ value: 'custom-sep', label: '──────────', disabled: true }] : []),
+                          ...customPaymentMethods.map(pm => ({
+                            value: `custom-${pm.id}`,
+                            label: `⚡ ${pm.name}`
+                          }))
+                        ]}
                       />
                     </div>
-                  )}
-                  {showInstallments && numInstallments > 1 && !editingTransactionId && (
+
+                    {showAccountSelector && (
+                      <div className="animate-in fade-in slide-in-from-top-1">
+                        <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Conta Bancária</Label>
+                        <CustomSelect
+                          value={accountId}
+                          onValueChange={setAccountId}
+                          placeholder="Selecione a conta..."
+                          options={accounts.map(c => ({
+                            value: c.id,
+                            label: c.name
+                          }))}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {type !== 'transferencia' && showInstallments && (
+                <div className="grid grid-cols-2 gap-3 p-3 bg-muted/30 rounded-xl border border-border">
+                  <div className="col-span-1">
+                    <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Parcelas</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="72"
+                      className="rounded-xl h-10 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-medium text-center"
+                      value={installments}
+                      onChange={e => setInstallments(e.target.value)}
+                      disabled={!!editingTransactionId}
+                    />
+                  </div>
+                  {numInstallments > 1 && !editingTransactionId && (
                     <div className="col-span-2">
                       <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Modo</Label>
                       <div className="flex bg-muted/50 p-1 rounded-[10px]">
@@ -818,107 +945,13 @@ export function TransactionModal() {
                           Repetir
                         </button>
                       </div>
-                      {amount && parseFloat(amount) > 0 && (
-                        <p className="text-[10px] text-muted-foreground mt-1 ml-1">
-                          {installmentMode === 'divide'
-                            ? `${numInstallments}x de ${(parseFloat(amount) / numInstallments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} — total ${parseFloat(amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
-                            : `${numInstallments}x de ${parseFloat(amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} — total ${(parseFloat(amount) * numInstallments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
-                          }
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  {showAccountSelector && (
-                    <div className="col-span-2">
-                      <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">
-                        Conta <span className="text-destructive font-bold">*</span>
-                      </Label>
-                      <CustomSelect
-                        value={accountId}
-                        onValueChange={setAccountId}
-                        placeholder="Selecione..."
-                        options={accounts.map(a => ({
-                          value: a.id,
-                          label: `${a.name} • ${formatCurrency(a.balance)}`
-                        }))}
-                      />
                     </div>
                   )}
                 </div>
-              ) : (
-                showAccountSelector && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className={showInstallments ? "col-span-1" : "col-span-2"}>
-                      <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">
-                        Conta <span className="text-destructive font-bold">*</span>
-                      </Label>
-                      <CustomSelect
-                        value={accountId}
-                        onValueChange={setAccountId}
-                        placeholder="Selecione..."
-                        options={accounts.map(a => ({
-                          value: a.id,
-                          label: `${a.name} • ${formatCurrency(a.balance)}`
-                        }))}
-                      />
-                    </div>
-                    {showInstallments && (
-                      <div className="col-span-1">
-                        <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Parcelas</Label>
-                        <Input
-                          type="number"
-                          min="1"
-                          max="72"
-                          className="rounded-xl h-10 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-medium text-center"
-                          value={installments}
-                          onChange={e => setInstallments(e.target.value)}
-                          disabled={!!editingTransactionId}
-                        />
-                      </div>
-                    )}
-                    {showInstallments && numInstallments > 1 && !editingTransactionId && (
-                      <div className="col-span-2">
-                        <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Modo</Label>
-                        <div className="flex bg-muted/50 p-1 rounded-[10px]">
-                          <button
-                            type="button"
-                            onClick={() => setInstallmentMode('divide')}
-                            className={`flex-1 py-1.5 rounded-[8px] text-[10px] font-bold uppercase tracking-widest transition-all ${
-                              installmentMode === 'divide'
-                                ? 'bg-background text-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
-                            }`}
-                          >
-                            Dividir
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setInstallmentMode('repeat')}
-                            className={`flex-1 py-1.5 rounded-[8px] text-[10px] font-bold uppercase tracking-widest transition-all ${
-                              installmentMode === 'repeat'
-                                ? 'bg-background text-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
-                            }`}
-                          >
-                            Repetir
-                          </button>
-                        </div>
-                        {amount && parseFloat(amount) > 0 && (
-                          <p className="text-[10px] text-muted-foreground mt-1 ml-1">
-                            {installmentMode === 'divide'
-                              ? `${numInstallments}x de ${(parseFloat(amount) / numInstallments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} — total ${parseFloat(amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
-                              : `${numInstallments}x de ${parseFloat(amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} — total ${(parseFloat(amount) * numInstallments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
-                            }
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )
               )}
 
-              {((type === 'despesa' && cardId === 'money') || type === 'receita') && (
-                <div className="flex items-center justify-between pt-1 px-1">
+              {type !== 'transferencia' && cardId === 'money' && (
+                <div className="flex items-center justify-between p-3 bg-muted/30 rounded-xl border border-border">
                   <span className="text-xs font-semibold text-foreground select-none">
                     {type === 'receita' ? 'Confirmar Recebimento' : 'Confirmar Pagamento'}
                   </span>
