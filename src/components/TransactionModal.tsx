@@ -742,7 +742,7 @@ export function TransactionModal() {
           </button>
         </div>
 
-        <div className="flex-1 p-4 flex flex-col gap-2 overflow-y-auto h-[480px]">
+        <div className="flex-1 p-4 flex flex-col gap-2 overflow-y-auto h-[500px]">
           <div className="flex bg-muted/50 p-1 rounded-[12px] shrink-0">
             <button
               className={`flex-1 py-2 rounded-[10px] text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'despesa' ? 'bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400' : 'text-muted-foreground hover:text-foreground'} disabled:opacity-30 disabled:cursor-not-allowed`}
