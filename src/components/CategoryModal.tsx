@@ -28,6 +28,8 @@ export function CategoryModal() {
   const [name, setName] = useState('');
   const [type, setType] = useState<'receita'|'despesa'>('despesa');
   const [color, setColor] = useState('#3b82f6');
+  const [showInCards, setShowInCards] = useState(true);
+  const [showInAccounts, setShowInAccounts] = useState(true);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Custom Payment Methods state
@@ -59,6 +61,8 @@ export function CategoryModal() {
     setName(c.name);
     setType(c.type);
     setColor(c.color);
+    setShowInCards(c.showInCards ?? true);
+    setShowInAccounts(c.showInAccounts ?? true);
   };
 
   const handleCancelEdit = () => {
@@ -66,6 +70,8 @@ export function CategoryModal() {
     setName('');
     setType('despesa');
     setColor('#3b82f6');
+    setShowInCards(true);
+    setShowInAccounts(true);
   };
 
   const handleSave = async () => {
@@ -79,6 +85,8 @@ export function CategoryModal() {
         type: editingId ? (existing?.type ?? type) : type,
         color,
         icon: existing?.icon || 'Tag',
+        showInCards,
+        showInAccounts,
       };
       if (editingId) {
         await api.categories.update(cat.id, cat);
@@ -214,6 +222,31 @@ export function CategoryModal() {
                     </button>
                   )}
                 </div>
+
+                {type === 'despesa' && (
+                  <div className="flex gap-4 mt-3">
+                    <div className="flex items-center justify-between flex-1 bg-muted/30 px-3 py-2 rounded-xl">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none">Mostrar em Cartões</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowInCards(!showInCards)}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${showInCards ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                      >
+                        <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${showInCards ? 'translate-x-4' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between flex-1 bg-muted/30 px-3 py-2 rounded-xl">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none">Mostrar em Contas</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowInAccounts(!showInAccounts)}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${showInAccounts ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                      >
+                        <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${showInAccounts ? 'translate-x-4' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* List */}

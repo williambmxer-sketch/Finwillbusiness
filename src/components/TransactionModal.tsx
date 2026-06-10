@@ -734,9 +734,19 @@ export function TransactionModal() {
                     options={categories.filter(c => {
                       const ct = String(c.type || '').toLowerCase();
                       const t = String(type || '').toLowerCase();
-                      return ct === t ||
+                      const isTypeMatch = ct === t ||
                         (t === 'despesa' && (ct === 'expense' || ct === 'despesa' || ct === 'desp')) ||
                         (t === 'receita' && (ct === 'income' || ct === 'receita' || ct === 'rec'));
+                      
+                      if (!isTypeMatch) return false;
+
+                      if (t === 'despesa') {
+                        const isCardMethod = cardId && cardId !== 'money' && !cardId.startsWith('custom-');
+                        if (isCardMethod && c.showInCards === false) return false;
+                        if (!isCardMethod && c.showInAccounts === false) return false;
+                      }
+
+                      return true;
                     }).map(c => ({
                       value: c.id,
                       label: c.name

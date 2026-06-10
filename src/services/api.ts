@@ -13,12 +13,16 @@ export const mappers = {
       icon: row.icone,
       color: row.cor,
       type: row.tipo,
+      showInCards: row.mostrar_em_cartoes ?? true,
+      showInAccounts: row.mostrar_em_contas ?? true,
     }),
     toDb: (obj: Partial<Category>) => ({
       nome: obj.name,
       icone: obj.icon,
       cor: obj.color,
       tipo: obj.type,
+      mostrar_em_cartoes: obj.showInCards ?? true,
+      mostrar_em_contas: obj.showInAccounts ?? true,
     })
   },
   account: {

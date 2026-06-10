@@ -358,7 +358,7 @@ export function CardDetailsView() {
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent className="rounded-xl z-[200]">
-                          {categories.filter(c => c.type === 'despesa').map(c => (
+                          {categories.filter(c => c.type === 'despesa' && c.showInCards !== false).map(c => (
                             <SelectItem key={c.id} value={c.id} className="text-xs font-medium">{c.name}</SelectItem>
                           ))}
                         </SelectContent>
@@ -438,37 +438,40 @@ export function CardDetailsView() {
               </button>
 
               {isFilterOpen && (
-                <div className="absolute right-0 top-full mt-1 w-48 bg-card border shadow-xl rounded-xl p-2 z-[200] max-h-64 overflow-y-auto">
-                  <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-2">Categorias</div>
-                  {categories.filter(c => c.type === 'despesa').map(cat => {
-                    const isSelected = selectedCategories.includes(cat.id);
-                    return (
-                      <button
-                        key={cat.id}
-                        onClick={() => {
-                          setSelectedCategories(prev => 
-                            isSelected ? prev.filter(id => id !== cat.id) : [...prev, cat.id]
-                          );
-                        }}
-                        className="w-full flex items-center justify-between px-2 py-1.5 hover:bg-muted/50 rounded-lg transition-colors text-xs font-medium text-left"
+                <>
+                  <div className="fixed inset-0 z-[190]" onClick={() => setIsFilterOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-card border shadow-xl rounded-xl p-2 z-[200] max-h-64 overflow-y-auto">
+                    <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-2">Categorias</div>
+                    {categories.filter(c => c.type === 'despesa' && c.showInCards !== false).map(cat => {
+                      const isSelected = selectedCategories.includes(cat.id);
+                      return (
+                        <button
+                          key={cat.id}
+                          onClick={() => {
+                            setSelectedCategories(prev => 
+                              isSelected ? prev.filter(id => id !== cat.id) : [...prev, cat.id]
+                            );
+                          }}
+                          className="w-full flex items-center justify-between px-2 py-1.5 hover:bg-muted/50 rounded-lg transition-colors text-xs font-medium text-left relative z-10"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color || '#ccc' }} />
+                            <span className="truncate">{cat.name}</span>
+                          </div>
+                          {isSelected && <Check className="w-3 h-3 text-primary" />}
+                        </button>
+                      )
+                    })}
+                    {selectedCategories.length > 0 && (
+                      <button 
+                        onClick={() => setSelectedCategories([])}
+                        className="w-full mt-2 pt-2 border-t text-[9px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground text-center relative z-10"
                       >
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color || '#ccc' }} />
-                          <span className="truncate">{cat.name}</span>
-                        </div>
-                        {isSelected && <Check className="w-3 h-3 text-primary" />}
+                        Limpar Filtros
                       </button>
-                    )
-                  })}
-                  {selectedCategories.length > 0 && (
-                    <button 
-                      onClick={() => setSelectedCategories([])}
-                      className="w-full mt-2 pt-2 border-t text-[9px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground text-center"
-                    >
-                      Limpar Filtros
-                    </button>
-                  )}
-                </div>
+                    )}
+                  </div>
+                </>
               )}
             </div>
           </div>

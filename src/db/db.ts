@@ -27,6 +27,8 @@ export interface Category {
   icon: string;
   color: string;
   type: 'receita' | 'despesa';
+  showInCards?: boolean;
+  showInAccounts?: boolean;
 }
 
 export interface Transaction {
