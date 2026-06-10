@@ -225,16 +225,18 @@ export function CategoryModal() {
                   <div className="flex gap-2">
                     <Input
                       placeholder="Nome da categoria..."
-                      className="rounded-[12px] h-11 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary shadow-none flex-1"
+                      className="rounded-[12px] h-9 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary shadow-none flex-1"
                       value={name}
                       onChange={e => setName(e.target.value)}
                     />
-                    <button onClick={handleSave} className="px-4 bg-primary text-primary-foreground font-bold text-[10px] h-11 rounded-[12px] hover:bg-primary/90 transition-all uppercase tracking-wider">
+                    <button onClick={handleSave} className="px-3 bg-primary text-primary-foreground font-bold text-[10px] h-9 rounded-[12px] hover:bg-primary/90 transition-all uppercase tracking-wider">
                       {editingId ? 'Salvar' : 'Add'}
                     </button>
-                    <button onClick={handleCancelEdit} className="px-3 bg-muted text-foreground font-bold text-[10px] h-11 rounded-[12px] hover:bg-muted/80 transition-colors uppercase tracking-wider">
-                      <X className="w-4 h-4" />
-                    </button>
+                    {editingId && (
+                      <button onClick={handleCancelEdit} className="px-2.5 bg-muted text-foreground font-bold text-[10px] h-9 rounded-[12px] hover:bg-muted/80 transition-colors uppercase tracking-wider">
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
 
                   {type === 'despesa' && (
@@ -367,15 +369,15 @@ export function CategoryModal() {
                 <div className="flex gap-2">
                   <Input 
                     placeholder="Nome da forma de pagamento... Ex: Crediário" 
-                    className="rounded-[12px] h-11 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary shadow-none flex-1"
+                    className="rounded-[12px] h-9 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary shadow-none flex-1"
                     value={pmName}
                     onChange={e => setPmName(e.target.value)}
                   />
-                  <button onClick={handleSavePaymentMethod} className="px-4 bg-primary text-primary-foreground font-bold text-[10px] h-11 rounded-[12px] hover:bg-primary/90 transition-all uppercase tracking-wider">
+                  <button onClick={handleSavePaymentMethod} className="px-3 bg-primary text-primary-foreground font-bold text-[10px] h-9 rounded-[12px] hover:bg-primary/90 transition-all uppercase tracking-wider">
                     {editingPmId ? 'Salvar' : 'Add'}
                   </button>
                   {editingPmId && (
-                    <button onClick={handleCancelEditPaymentMethod} className="px-3 bg-muted text-foreground font-bold text-[10px] h-11 rounded-[12px] hover:bg-muted/80 transition-colors uppercase tracking-wider">
+                    <button onClick={handleCancelEditPaymentMethod} className="px-2.5 bg-muted text-foreground font-bold text-[10px] h-9 rounded-[12px] hover:bg-muted/80 transition-colors uppercase tracking-wider">
                       <X className="w-4 h-4" />
                     </button>
                   )}
