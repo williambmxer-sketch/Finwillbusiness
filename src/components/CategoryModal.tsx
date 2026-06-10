@@ -232,11 +232,9 @@ export function CategoryModal() {
                     <button onClick={handleSave} className="px-3 bg-primary text-primary-foreground font-bold text-[10px] h-9 rounded-[12px] hover:bg-primary/90 transition-all uppercase tracking-wider">
                       {editingId ? 'Salvar' : 'Add'}
                     </button>
-                    {editingId && (
-                      <button onClick={handleCancelEdit} className="px-2.5 bg-muted text-foreground font-bold text-[10px] h-9 rounded-[12px] hover:bg-muted/80 transition-colors uppercase tracking-wider">
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
+                    <button onClick={handleCancelEdit} className="px-2.5 bg-muted text-foreground font-bold text-[10px] h-9 rounded-[12px] hover:bg-muted/80 transition-colors uppercase tracking-wider">
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
 
                   {type === 'despesa' && (
