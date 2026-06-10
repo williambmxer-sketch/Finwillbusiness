@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useDataStore } from '../../store/useDataStore';
+import { getCycleId } from '../../utils/cycleUtils';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { formatCurrency } from '../../utils/formatters';
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
@@ -10,6 +11,7 @@ const COLOR_DESPESA = '#dc2626';
 export function ReportsView() {
   const allTransactions = useDataStore(state => state.transactions);
   const allCategories = useDataStore(state => state.categories);
+  const cards = useDataStore(state => state.cards);
 
   const [currentMonth, setCurrentMonth] = useState(() => {
     const d = new Date();
@@ -46,15 +48,29 @@ export function ReportsView() {
   const prevStart = isCustomMode ? new Date(start.getTime() - (end.getTime() - start.getTime())) : new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
   const prevEnd = isCustomMode ? new Date(start.getTime() - 1) : new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 0, 23, 59, 59);
 
+  // Helper to get effective date (due date for credit cards)
+  const getEffectiveDate = (t: any) => {
+    if (!t.cardId || t.cardId === 'money') return t.date;
+    const card = cards.find((c: any) => c.id === t.cardId);
+    if (!card) return t.date;
+    return getCycleId(t.date, card.closingDay, card.dueDay).dueDate;
+  };
+
   // Transactions within selected range
   const filtered = useMemo(
-    () => allTransactions.filter(t => t.date >= start && t.date <= end),
-    [allTransactions, start, end]
+    () => allTransactions.filter(t => {
+      const d = getEffectiveDate(t);
+      return d >= start && d <= end;
+    }),
+    [allTransactions, start, end, cards]
   );
 
   const prevFiltered = useMemo(
-    () => allTransactions.filter(t => t.date >= prevStart && t.date <= prevEnd),
-    [allTransactions, prevStart, prevEnd]
+    () => allTransactions.filter(t => {
+      const d = getEffectiveDate(t);
+      return d >= prevStart && d <= prevEnd;
+    }),
+    [allTransactions, prevStart, prevEnd, cards]
   );
 
   // Calculate totals
