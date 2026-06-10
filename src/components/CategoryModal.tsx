@@ -32,7 +32,6 @@ export function CategoryModal() {
   // Custom Payment Methods state
   const [isAddingPaymentMethod, setIsAddingPaymentMethod] = useState(false);
   const [pmName, setPmName] = useState('');
-  const [pmAllowInstallments, setPmAllowInstallments] = useState(true);
   const [pmDebitFromAccount, setPmDebitFromAccount] = useState(true);
   const [editingPmId, setEditingPmId] = useState<string | null>(null);
   const [confirmDeletePmId, setConfirmDeletePmId] = useState<string | null>(null);
@@ -94,7 +93,6 @@ export function CategoryModal() {
     try {
       const payload: Partial<CustomPaymentMethod> = {
         name: pmName.trim(),
-        allowInstallments: pmAllowInstallments,
         debitFromAccount: pmDebitFromAccount
       };
 
@@ -105,7 +103,6 @@ export function CategoryModal() {
       }
 
       setPmName('');
-      setPmAllowInstallments(true);
       setPmDebitFromAccount(true);
       setIsAddingPaymentMethod(false);
       setEditingPmId(null);
@@ -117,7 +114,6 @@ export function CategoryModal() {
   const handleEditPaymentMethod = (pm: CustomPaymentMethod) => {
     setEditingPmId(pm.id);
     setPmName(pm.name);
-    setPmAllowInstallments(pm.allowInstallments);
     setPmDebitFromAccount(pm.debitFromAccount ?? true);
     setIsAddingPaymentMethod(true);
   };
@@ -125,7 +121,6 @@ export function CategoryModal() {
   const handleCancelEditPaymentMethod = () => {
     setEditingPmId(null);
     setPmName('');
-    setPmAllowInstallments(true);
     setPmDebitFromAccount(true);
     setIsAddingPaymentMethod(false);
   };
@@ -379,17 +374,7 @@ export function CategoryModal() {
                       <X className="w-4 h-4" />
                     </button>
                   </div>
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none">Permitir Parcelamento</span>
-                    <button
-                      type="button"
-                      onClick={() => setPmAllowInstallments(!pmAllowInstallments)}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${pmAllowInstallments ? 'bg-primary' : 'bg-muted-foreground/30'}`}
-                    >
-                      <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${pmAllowInstallments ? 'translate-x-4' : 'translate-x-0'}`} />
-                    </button>
-                  </div>
+                <div className="space-y-4 pt-2 border-t">
                   <div className="flex items-center justify-between px-1">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none">Debitar da conta (Exige Saldo)</span>
                     <button
@@ -416,7 +401,6 @@ export function CategoryModal() {
                           <div>
                             <div className="font-semibold leading-none mb-0.5">{pm.name}</div>
                             <div className="text-[8px] text-muted-foreground uppercase font-bold tracking-wider flex flex-wrap gap-1 items-center mt-1">
-                              {pm.allowInstallments && <span className="bg-primary/10 text-primary px-1 py-0.5 rounded">Parcelável</span>}
                               {pm.debitFromAccount && <span className="bg-orange-500/10 text-orange-600 px-1 py-0.5 rounded">Debita Conta</span>}
                             </div>
                           </div>

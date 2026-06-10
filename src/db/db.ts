@@ -61,7 +61,6 @@ export interface Invoice {
 export interface CustomPaymentMethod {
   id: string;
   name: string;
-  allowInstallments: boolean;
   debitFromAccount: boolean;
 }
 

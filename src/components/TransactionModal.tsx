@@ -226,10 +226,10 @@ export function TransactionModal() {
   }, [editingTransactionId, isTransactionModalOpen, accounts, defaultPaymentMethod, hasInitialized]);
 
   const selectedPaymentMethod = cardId.startsWith('custom-')
-    ? (customPaymentMethods.find(pm => `custom-${pm.id}` === cardId || `custom-${pm.name}` === cardId) || { name: cardId.replace('custom-', ''), allowInstallments: true, debitFromAccount: true })
+    ? (customPaymentMethods.find(pm => `custom-${pm.id}` === cardId || `custom-${pm.name}` === cardId) || { name: cardId.replace('custom-', ''), debitFromAccount: true })
     : null;
 
-  const showInstallments = type === 'receita' || (!selectedPaymentMethod) || (selectedPaymentMethod?.allowInstallments);
+  const showInstallments = type === 'receita' || type === 'despesa';
 
   const numInstallments = showInstallments ? Math.max(1, parseInt(installments, 10) || 1) : 1;
 

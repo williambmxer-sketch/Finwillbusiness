@@ -102,12 +102,10 @@ export const mappers = {
     toApp: (row: any): CustomPaymentMethod => ({
       id: row.id,
       name: row.nome,
-      allowInstallments: row.permitir_parcelamento,
       debitFromAccount: row.debitar_conta,
     }),
     toDb: (obj: Partial<CustomPaymentMethod>) => ({
       nome: obj.name,
-      permitir_parcelamento: obj.allowInstallments,
       debitar_conta: obj.debitFromAccount,
     })
   }
