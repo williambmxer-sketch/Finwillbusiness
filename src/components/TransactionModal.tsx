@@ -49,7 +49,7 @@ function CustomSelect({
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full rounded-xl h-10 px-3.5 text-xs bg-muted/50 border border-transparent text-left flex items-center justify-between focus:ring-1 focus:ring-primary focus:bg-background transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full rounded-xl h-8 px-3 text-[11px] bg-muted/50 border border-transparent text-left flex items-center justify-between focus:ring-1 focus:ring-primary focus:bg-background transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <span className={`truncate text-left w-full pr-2 font-medium ${!selectedOption ? "text-muted-foreground" : "text-foreground"}`}>
           {selectedOption ? selectedOption.label : placeholder}
@@ -60,7 +60,7 @@ function CustomSelect({
       {isOpen && (
         <div className="absolute z-[250] mt-1 w-full max-h-48 overflow-y-auto rounded-xl bg-card border border-border shadow-xl py-1 outline-none animate-in fade-in-50 slide-in-from-top-1">
           {options.length === 0 ? (
-            <div className="px-3.5 py-2 text-xs text-muted-foreground text-center">Nenhuma opção disponível</div>
+            <div className="px-3 py-1.5 text-[11px] text-muted-foreground text-center">Nenhuma opção disponível</div>
           ) : (
             options.map(opt => (
               <button
@@ -71,7 +71,7 @@ function CustomSelect({
                   onValueChange(opt.value);
                   setIsOpen(false);
                 }}
-                className={`w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors flex items-center justify-between ${opt.value === value ? 'bg-primary/5 text-primary font-semibold' : 'text-foreground font-medium'
+                className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-muted transition-colors flex items-center justify-between ${opt.value === value ? 'bg-primary/5 text-primary font-semibold' : 'text-foreground font-medium'
                   } ${opt.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <span className="truncate pr-2">{opt.label}</span>
@@ -742,7 +742,7 @@ export function TransactionModal() {
           </button>
         </div>
 
-        <div className="flex-1 p-5 flex flex-col gap-3 overflow-visible">
+        <div className="flex-1 p-5 flex flex-col gap-3 overflow-y-auto min-h-[460px] max-h-[460px]">
           <div className="flex bg-muted/50 p-1 rounded-[12px] shrink-0">
             <button
               className={`flex-1 py-2 rounded-[10px] text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'despesa' ? 'bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400' : 'text-muted-foreground hover:text-foreground'} disabled:opacity-30 disabled:cursor-not-allowed`}
@@ -781,7 +781,7 @@ export function TransactionModal() {
                 <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Descrição</Label>
                 <Input
                   placeholder="Ex: Almoço"
-                  className="rounded-xl h-10 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none"
+                  className="rounded-xl h-8 text-[11px] bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none"
                   value={description}
                   onChange={e => setDescription(e.target.value)}
                 />
@@ -792,7 +792,7 @@ export function TransactionModal() {
                   <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Data</Label>
                   <Input
                     type="date"
-                    className="rounded-xl h-10 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none uppercase font-medium"
+                    className="rounded-xl h-8 text-[11px] bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none uppercase font-medium"
                     value={date}
                     onChange={e => setDate(e.target.value)}
                   />
@@ -912,7 +912,7 @@ export function TransactionModal() {
                       type="number"
                       min="1"
                       max="72"
-                      className="rounded-xl h-10 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-medium text-center"
+                      className="rounded-xl h-8 text-[11px] bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-medium text-center"
                       value={installments}
                       onChange={e => setInstallments(e.target.value)}
                       disabled={!!editingTransactionId}
