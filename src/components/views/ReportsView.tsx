@@ -290,7 +290,7 @@ export function ReportsView() {
               </div>
               
               <div className="flex-1 pl-4 flex flex-col gap-2 overflow-y-auto max-h-32 pr-1">
-                {expenseCategories.slice(0, 4).map((cat, i) => (
+                {expenseCategories.map((cat, i) => (
                   <div key={i} className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 truncate">
                       <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
@@ -299,11 +299,6 @@ export function ReportsView() {
                     <span className="font-bold text-[10px] text-muted-foreground ml-2">{cat.percentage.toFixed(0)}%</span>
                   </div>
                 ))}
-                {expenseCategories.length > 4 && (
-                  <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest text-right mt-1">
-                    + {expenseCategories.length - 4} categorias
-                  </div>
-                )}
               </div>
             </div>
           </section>
