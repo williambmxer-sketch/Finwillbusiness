@@ -128,7 +128,7 @@ export default function App() {
       </div>
 
       {/* Floating Action Button (FAB) */}
-      {currentView !== 'invoices' && (
+      {currentView !== 'invoices' && currentView !== 'cardDetails' && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-lg z-50 pointer-events-none flex justify-end px-4">
           <button
             onClick={() => {

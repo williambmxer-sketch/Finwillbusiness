@@ -17,12 +17,14 @@ export function ConfirmPaymentModal() {
   const [date, setDate] = useState('');
   const [accountId, setAccountId] = useState('');
   const [cardId, setCardId] = useState('');
+  const [amount, setAmount] = useState<number | ''>('');
 
   useEffect(() => {
     if (transaction) {
       setDate(new Date().toISOString().split('T')[0]); // Default to today
       setAccountId(transaction.accountId || '');
       setCardId(transaction.cardId || 'money');
+      setAmount(transaction.amount);
     }
   }, [transaction]);
 
@@ -31,11 +33,18 @@ export function ConfirmPaymentModal() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (cardId === 'money' && !accountId) {
+      alert('Por favor, selecione uma conta.');
+      return;
+    }
+
     // Create local Date from input, setting to noon to avoid timezone shift issues
     const realPaymentDate = new Date(date + 'T12:00:00');
+    const finalAmount = amount === '' ? transaction.amount : Number(amount);
 
     const isPaidValue = cardId === 'money' ? true : false;
     await api.transactions.update(transaction.id, {
+      amount: finalAmount,
       paymentDate: isPaidValue ? realPaymentDate : undefined,
       accountId: cardId === 'money' ? (accountId || undefined) : undefined,
       cardId: cardId !== 'money' ? cardId : undefined,
@@ -46,7 +55,7 @@ export function ConfirmPaymentModal() {
       const acc = useDataStore.getState().accounts.find(a => a.id === accountId);
       if (acc) {
         await api.accounts.update(accountId, {
-          balance: acc.balance + (transaction.type === 'receita' ? transaction.amount : -transaction.amount)
+          balance: acc.balance + (transaction.type === 'receita' ? finalAmount : -finalAmount)
         });
       }
     }
@@ -72,7 +81,7 @@ export function ConfirmPaymentModal() {
               <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
-              <h2 className="text-xl font-bold tracking-tight">Confirmar Pagamento</h2>
+              <h2 className="text-xl font-bold tracking-tight">Confirmar {transaction.type === 'receita' ? 'Recebimento' : 'Pagamento'}</h2>
             </div>
             <p className="text-sm text-muted-foreground mb-6">
               Confirme os dados para dar baixa na transação <strong className="text-foreground">{transaction.description}</strong>.
@@ -80,7 +89,23 @@ export function ConfirmPaymentModal() {
 
             <div className="bg-muted/10 rounded-[24px] p-5 space-y-4 border border-border/30">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Data do Pagamento</label>
+                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Valor</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">R$</span>
+                  <Input 
+                    type="number" 
+                    step="0.01"
+                    min="0"
+                    className="w-full h-10 pl-9 bg-muted/50 border-transparent focus:bg-background focus:ring-1 focus:ring-primary transition-colors shadow-none rounded-[12px] font-medium"
+                    value={amount}
+                    onChange={e => setAmount(e.target.value ? Number(e.target.value) : '')}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Data do {transaction.type === 'receita' ? 'Recebimento' : 'Pagamento'}</label>
                 <Input 
                   type="date" 
                   className="w-full h-10 bg-muted/50 border-transparent focus:bg-background focus:ring-1 focus:ring-primary transition-colors shadow-none rounded-[12px] uppercase"
@@ -91,7 +116,7 @@ export function ConfirmPaymentModal() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Forma de Pagamento</label>
+                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Forma de {transaction.type === 'receita' ? 'Recebimento' : 'Pagamento'}</label>
                 <Select value={cardId} onValueChange={setCardId}>
                   <SelectTrigger className="w-full h-10 bg-muted/50 border-transparent focus:ring-1 focus:ring-primary shadow-none rounded-[12px] font-medium">
                     <SelectValue placeholder="Selecione...">
@@ -109,7 +134,7 @@ export function ConfirmPaymentModal() {
 
               {cardId === 'money' && (
                 <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Conta a sair o dinheiro</label>
+                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Conta de {transaction.type === 'receita' ? 'Entrada' : 'Saída'}</label>
                   <Select value={accountId} onValueChange={setAccountId} required>
                     <SelectTrigger className="w-full h-10 bg-muted/50 border-transparent focus:ring-1 focus:ring-primary shadow-none rounded-[12px] font-medium">
                       <SelectValue placeholder="Selecione a conta...">
@@ -147,3 +172,4 @@ export function ConfirmPaymentModal() {
     </div>
   );
 }
+

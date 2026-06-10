@@ -123,7 +123,8 @@ export function DashboardView() {
   const chartData = useMemo(() => {
     const data = [];
     const date = new Date();
-    for (let i = 5; i >= 0; i--) {
+    // 4 months back, current month, 4 months forward (total 9 columns)
+    for (let i = 4; i >= -4; i--) {
       const d = new Date(date.getFullYear(), date.getMonth() - i, 1);
       const monthNumber = d.getMonth();
       const yearNumber = d.getFullYear();
@@ -134,12 +135,13 @@ export function DashboardView() {
         .reduce((sum, t) => sum + t.amount, 0);
         
       data.push({
-        name: d.toLocaleDateString('pt-BR', { month: 'short' }),
-        val: monthExpenses
+        name: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''), // Clean up period from abbreviation if any
+        val: monthExpenses,
+        isCurrentMonth: i === 0
       });
     }
     return data;
-  }, [allTransactions]);
+  }, [allTransactions, cards]);
 
   return (
     <div className="flex flex-col gap-4 p-4 pt-8 max-w-lg mx-auto w-full">
@@ -273,7 +275,13 @@ export function DashboardView() {
            <ResponsiveContainer width="100%" height="100%">
              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))', textTransform: 'capitalize' }} dy={10} />
-               <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(val) => `R$ ${val}`} />
+               <YAxis 
+                 axisLine={false} 
+                 tickLine={false} 
+                 tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} 
+                 tickFormatter={(val) => val >= 1000 ? `R$ ${val / 1000}k` : `R$ ${val}`} 
+                 width={45}
+               />
                <Tooltip 
                  cursor={{ fill: 'transparent' }} 
                  contentStyle={{ borderRadius: '11px', border: '1px solid hsl(var(--border))', fontSize: '12px', fontWeight: 600, boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
@@ -282,7 +290,7 @@ export function DashboardView() {
                />
                <Bar dataKey="val" radius={[6, 6, 0, 0]}>
                  {chartData.map((entry, index) => (
-                   <Cell key={`cell-${index}`} fill={index === chartData.length - 1 ? 'hsl(var(--primary))' : 'hsl(var(--primary))'} className={index === chartData.length - 1 ? "opacity-100" : "opacity-40 hover:opacity-80 transition-opacity"} />
+                   <Cell key={`cell-${index}`} fill={'hsl(var(--primary))'} className={entry.isCurrentMonth ? "opacity-100" : "opacity-40 hover:opacity-80 transition-opacity"} />
                  ))}
                </Bar>
              </BarChart>

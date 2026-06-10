@@ -4,8 +4,8 @@ import { api } from '../../services/api';
 import { Transaction } from '../../db/db';
 import { formatCurrency } from '../../utils/formatters';
 import { getCycleId } from '../../utils/cycleUtils';
-import { ChevronLeft, CreditCard, ShoppingBag, Clock, TrendingDown, Pencil, Trash2, Search } from 'lucide-react';
-import { motion } from 'motion/react';
+import { ChevronLeft, CreditCard, ShoppingBag, Clock, TrendingDown, Pencil, Trash2, Search, Plus, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useAppStore } from '../../store/useAppStore';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -79,11 +79,13 @@ export function CardDetailsView() {
   }, [transactions, card, selectedCycleId, searchTerm]);
 
   // Quick Add Form State
+  const [isQuickAddExpanded, setIsQuickAddExpanded] = useState(false);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [installments, setInstallments] = useState('1');
+  const [installmentMode, setInstallmentMode] = useState<'divide' | 'repeat'>('divide');
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
@@ -103,18 +105,21 @@ export function CardDetailsView() {
 
     const numInstallments = Math.max(1, parseInt(installments, 10) || 1);
     const totalAmount = parseFloat(amount);
+    
+    const installmentAmount = installmentMode === 'divide' ? totalAmount / numInstallments : totalAmount;
+    const totalDeduction = installmentMode === 'divide' ? totalAmount : totalAmount * numInstallments;
 
-    // Check limit
-    const currentUsage = allTransactions
-      .filter(t => t.cardId === card.id && t.type === 'despesa' && !t.isPaid)
-      .reduce((sum, t) => sum + t.amount, 0);
+    if (true) {
+      // Check limit
+      const currentUsage = allTransactions
+        .filter(t => t.cardId === card.id && t.type === 'despesa' && !t.isPaid)
+        .reduce((sum, t) => sum + t.amount, 0);
 
-    if (currentUsage + totalAmount > card.limit) {
-      alert(`Limite do cartão excedido! Limite disponível: R$ ${(card.limit - currentUsage).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
-      return;
+      if (currentUsage + totalDeduction > card.limit) {
+        alert(`Limite do cartão excedido! Limite disponível: R$ ${(card.limit - currentUsage).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        return;
+      }
     }
-
-    const installmentAmount = totalAmount / numInstallments;
 
     // Create local Date from input, setting to noon to avoid timezone shift issues
     const startDate = new Date(date + 'T12:00:00');
@@ -147,7 +152,7 @@ export function CardDetailsView() {
     // Reset fields for the next rapid entry
     setAmount('');
     setDescription('');
-    // Keep categoryId, date and installments to make repetitive entry faster
+    setIsQuickAddExpanded(false);
   };
 
   const handleDeleteTransaction = (t: any) => {
@@ -248,77 +253,147 @@ export function CardDetailsView() {
         </div>
       </header>
 
-      {/* Quick Add Form */}
+      {/* Quick Add Form - Expandable */}
       <div className="px-4 mb-4">
-        <form onSubmit={handleQuickSubmit} className="bg-card border shadow-sm rounded-[11px] p-4 flex flex-col gap-3">
-          <div className="flex items-center gap-2 mb-1">
-            <ShoppingBag className="w-4 h-4 text-primary" />
-            <span className="text-xs font-bold uppercase tracking-widest text-foreground">Lançamento Rápido</span>
-          </div>
-
-          <div className="flex gap-2">
-            <div className="flex-1 relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground uppercase tracking-widest">R$</span>
-              <Input
-                type="text"
-                inputMode="numeric"
-                placeholder="0,00"
-                className="w-full h-10 text-sm font-bold bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary pl-8"
-                value={displayAmount}
-                onChange={handleAmountChange}
-                required
-              />
+        <div className="bg-card border shadow-sm rounded-[16px] overflow-hidden">
+          <button 
+            onClick={() => setIsQuickAddExpanded(!isQuickAddExpanded)}
+            className="w-full p-3 flex items-center justify-between bg-muted/10 hover:bg-muted/20 transition-colors"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 bg-primary/10 text-primary rounded-lg">
+                <Plus className="w-4 h-4" />
+              </div>
+              <span className="font-bold text-sm tracking-tight">Nova Transação</span>
             </div>
-            <div className="relative w-24">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Em</span>
-              <Input
-                type="number"
-                min="1"
-                max="72"
-                className="w-full h-10 text-sm bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary text-center pl-8 pr-6"
-                value={installments}
-                onChange={e => setInstallments(e.target.value)}
-                title="Parcelas"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">X</span>
-            </div>
-          </div>
+            <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${isQuickAddExpanded ? 'rotate-180' : ''}`} />
+          </button>
+          
+          <AnimatePresence>
+            {isQuickAddExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="border-t"
+              >
+                <form onSubmit={handleQuickSubmit} className="p-3 flex flex-col gap-2">
+                  {/* Valor */}
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-lg font-bold text-muted-foreground">R$</span>
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="0,00"
+                        className="w-36 h-10 text-3xl font-extrabold bg-transparent border-none focus-visible:ring-0 text-center p-0 shadow-none"
+                        value={displayAmount}
+                        onChange={handleAmountChange}
+                        required
+                      />
+                    </div>
+                    {parseInt(installments, 10) > 1 && amount && parseFloat(amount) > 0 && (
+                      <div className="text-[9px] font-medium text-rose-500/90 -mt-1 uppercase tracking-widest">
+                        {installmentMode === 'divide' 
+                          ? `${parseInt(installments, 10)}x de R$ ${(parseFloat(amount) / parseInt(installments, 10)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : `${parseInt(installments, 10)}x de R$ ${parseFloat(amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                      </div>
+                    )}
+                  </div>
 
-          <Input
-            placeholder="Descrição (ex: iFood, Uber)..."
-            className="w-full h-10 text-sm bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary"
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            required
-          />
+                  {/* Descrição */}
+                  <div className="space-y-0.5">
+                    <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Descrição</label>
+                    <Input
+                      placeholder="Ex: Almoço..."
+                      className="w-full h-8 text-xs bg-muted/30 border-transparent focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary rounded-md"
+                      value={description}
+                      onChange={e => setDescription(e.target.value)}
+                      required
+                    />
+                  </div>
 
-          <div className="flex gap-2">
-            <Input
-              type="date"
-              className="w-[140px] h-10 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary uppercase"
-              value={date}
-              onChange={e => setDate(e.target.value)}
-              required
-            />
+                  {/* Grid Data / Parcelas */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-0.5">
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Data</label>
+                      <Input
+                        type="date"
+                        className="w-full h-8 text-xs bg-muted/30 border-transparent focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary uppercase rounded-md"
+                        value={date}
+                        onChange={e => setDate(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-0.5">
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Parcelas</label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="72"
+                        className="w-full h-8 text-xs bg-muted/30 border-transparent focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary text-center rounded-md font-bold"
+                        value={installments}
+                        onChange={e => setInstallments(e.target.value)}
+                      />
+                    </div>
+                  </div>
 
-            <Select value={categoryId || "none"} onValueChange={setCategoryId} required>
-              <SelectTrigger className="flex-1 h-10 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary">
-                <SelectValue placeholder="Categoria...">
-                  {categoryId === "none" ? "Categoria..." : categories?.find(c => c.id === categoryId)?.name || "Categoria..."}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent className="rounded-xl z-[200]">
-                {categories.filter(c => c.type === 'despesa').map(c => (
-                  <SelectItem key={c.id} value={c.id} className="text-xs font-medium">{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  {/* Categoria e Modo Parcelamento */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-0.5">
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Categoria</label>
+                      <Select value={categoryId || "none"} onValueChange={setCategoryId} required>
+                        <SelectTrigger className="w-full h-8 text-xs bg-muted/30 border-transparent focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary rounded-md">
+                          <SelectValue placeholder="Selecione...">
+                            {categoryId === "none" ? "Selecione..." : categories?.find(c => c.id === categoryId)?.name || "Selecione..."}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl z-[200]">
+                          {categories.filter(c => c.type === 'despesa').map(c => (
+                            <SelectItem key={c.id} value={c.id} className="text-xs font-medium">{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {parseInt(installments, 10) > 1 && (
+                      <div className="space-y-0.5">
+                        <label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold ml-1">Modo</label>
+                        <div className="flex bg-muted/50 p-0.5 rounded-md h-8 items-center">
+                          <button
+                            type="button"
+                            onClick={() => setInstallmentMode('divide')}
+                            className={`flex-1 h-full rounded text-[9px] font-bold uppercase tracking-widest transition-all ${
+                              installmentMode === 'divide'
+                                ? 'bg-background text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            Dividir
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setInstallmentMode('repeat')}
+                            className={`flex-1 h-full rounded text-[9px] font-bold uppercase tracking-widest transition-all ${
+                              installmentMode === 'repeat'
+                                ? 'bg-background text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            Repetir
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
-            <button type="submit" className="px-4 bg-primary text-primary-foreground font-bold text-[10px] uppercase tracking-widest rounded-lg hover:bg-primary/90 transition-colors">
-              Add
-            </button>
-          </div>
-        </form>
+                  <button type="submit" className="w-full h-9 mt-1 bg-primary text-primary-foreground font-bold text-[10px] uppercase tracking-widest rounded-md hover:bg-primary/90 transition-colors shadow-sm">
+                    Salvar
+                  </button>
+                </form>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Transactions List */}
