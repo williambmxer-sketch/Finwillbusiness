@@ -859,48 +859,71 @@ export function TransactionModal() {
                 </div>
               ) : (
                 <>
-                  <div className="p-3 bg-muted/30 rounded-xl border border-border space-y-3">
-                    <div>
-                      <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Forma de Pagamento</Label>
-                      <CustomSelect
-                        value={cardId}
-                        onValueChange={val => {
-                          setCardId(val);
-                          if (val !== 'money' && !val.startsWith('custom-')) {
-                            setIsPaid(true); 
-                          }
-                        }}
-                        disabled={!!activeContextCardId && currentView === 'cardDetails'}
-                        options={[
-                          { value: 'money', label: '💳 Dinheiro / Conta Bancária' },
-                          ...cards.map(c => ({
-                            value: c.id,
-                            label: `🛒 Cartão ${c.name}`
-                          })),
-                          ...(customPaymentMethods.length > 0 ? [{ value: 'custom-sep', label: '──────────', disabled: true }] : []),
-                          ...customPaymentMethods.map(pm => ({
-                            value: `custom-${pm.id}`,
-                            label: `⚡ ${pm.name}`
-                          }))
-                        ]}
+                  <div className="flex items-center justify-between p-3 bg-muted/30 rounded-xl border border-border">
+                    <span className="text-xs font-semibold text-foreground select-none">
+                      {type === 'receita' ? 'Confirmar Recebimento' : 'Confirmar Pagamento'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = !isPaid;
+                        setIsPaid(next);
+                        if (!next) setCardId('money');
+                      }}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${isPaid ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${isPaid ? 'translate-x-4' : 'translate-x-0'}`}
                       />
-                    </div>
-
-                    {showAccountSelector && (
-                      <div className="animate-in fade-in slide-in-from-top-1">
-                        <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Conta Bancária</Label>
-                        <CustomSelect
-                          value={accountId}
-                          onValueChange={setAccountId}
-                          placeholder="Selecione a conta..."
-                          options={accounts.map(c => ({
-                            value: c.id,
-                            label: c.name
-                          }))}
-                        />
-                      </div>
-                    )}
+                    </button>
                   </div>
+
+                  {(type === 'receita' || isPaid) && (
+                    <div className="p-3 bg-muted/30 rounded-xl border border-border space-y-3 animate-in fade-in slide-in-from-top-1">
+                      {type === 'despesa' && (
+                        <div>
+                          <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Forma de Pagamento</Label>
+                          <CustomSelect
+                            value={cardId}
+                            onValueChange={val => {
+                              setCardId(val);
+                              if (val !== 'money' && !val.startsWith('custom-')) {
+                                setIsPaid(true); 
+                              }
+                            }}
+                            disabled={!!activeContextCardId && currentView === 'cardDetails'}
+                            options={[
+                              { value: 'money', label: '💳 Dinheiro / Conta Bancária' },
+                              ...cards.map(c => ({
+                                value: c.id,
+                                label: `🛒 Cartão ${c.name}`
+                              })),
+                              ...(customPaymentMethods.length > 0 ? [{ value: 'custom-sep', label: '──────────', disabled: true }] : []),
+                              ...customPaymentMethods.map(pm => ({
+                                value: `custom-${pm.id}`,
+                                label: `⚡ ${pm.name}`
+                              }))
+                            ]}
+                          />
+                        </div>
+                      )}
+
+                      {showAccountSelector && (
+                        <div>
+                          <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Conta Bancária</Label>
+                          <CustomSelect
+                            value={accountId}
+                            onValueChange={setAccountId}
+                            placeholder="Selecione a conta..."
+                            options={accounts.map(c => ({
+                              value: c.id,
+                              label: c.name
+                            }))}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
 
@@ -950,22 +973,7 @@ export function TransactionModal() {
                 </div>
               )}
 
-              {type !== 'transferencia' && cardId === 'money' && (
-                <div className="flex items-center justify-between p-3 bg-muted/30 rounded-xl border border-border">
-                  <span className="text-xs font-semibold text-foreground select-none">
-                    {type === 'receita' ? 'Confirmar Recebimento' : 'Confirmar Pagamento'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setIsPaid(!isPaid)}
-                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${isPaid ? 'bg-primary' : 'bg-muted-foreground/30'}`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${isPaid ? 'translate-x-4' : 'translate-x-0'}`}
-                    />
-                  </button>
-                </div>
-              )}
+
 
               {type === 'despesa' && showInstallments && numInstallments > 1 && (
                 <div className="space-y-3">
