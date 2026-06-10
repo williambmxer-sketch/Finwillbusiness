@@ -102,6 +102,7 @@ export function TransactionModal() {
   const categories = useDataStore(state => state.categories);
   const accounts = useDataStore(state => state.accounts);
   const cards = useDataStore(state => state.cards);
+  const customPaymentMethods = useDataStore(state => state.customPaymentMethods);
 
   const [type, setType] = useState<'receita' | 'despesa' | 'transferencia'>('despesa');
   const [amount, setAmount] = useState('');
@@ -110,10 +111,9 @@ export function TransactionModal() {
   const [categoryId, setCategoryId] = useState('');
   const [accountId, setAccountId] = useState('');
   const [toAccountId, setToAccountId] = useState('');
-  const [cardId, setCardId] = useState('money');
+  const [cardId, setCardId] = useState('');
   const [isPaid, setIsPaid] = useState(false);
   const [installments, setInstallments] = useState('1');
-  const [customPaymentMethods, setCustomPaymentMethods] = useState<CustomPaymentMethod[]>([]);
   const [firstInstallmentIn30Days, setFirstInstallmentIn30Days] = useState(false);
   const [payFirstInstallmentToday, setPayFirstInstallmentToday] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
@@ -147,19 +147,7 @@ export function TransactionModal() {
   }, [type, editingTransactionId, hasInitialized]);
 
   useEffect(() => {
-    if (isTransactionModalOpen) {
-      const stored = localStorage.getItem('custom_payment_methods');
-      if (stored) {
-        setCustomPaymentMethods(JSON.parse(stored));
-      } else {
-        const initial = [
-          { id: '1', name: 'Crediário', allowInstallments: true },
-          { id: '2', name: 'Boleto Parcelado', allowInstallments: true }
-        ];
-        setCustomPaymentMethods(initial);
-        localStorage.setItem('custom_payment_methods', JSON.stringify(initial));
-      }
-    }
+    // any logic on open can go here
   }, [isTransactionModalOpen]);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -197,14 +185,12 @@ export function TransactionModal() {
         setCategoryId(t.categoryId);
         setAccountId(t.accountId || (accounts[0]?.id || ''));
         
-        let pmId = 'money';
+        let pmId = '';
         if (t.cardId) {
           pmId = t.cardId;
         } else if (t.notes && t.notes.startsWith('paymentMethod:')) {
           const pmNameFromNotes = t.notes.replace('paymentMethod:', '');
-          const stored = localStorage.getItem('custom_payment_methods');
-          const pms: CustomPaymentMethod[] = stored ? JSON.parse(stored) : [];
-          const found = pms.find(p => p.name === pmNameFromNotes);
+          const found = customPaymentMethods.find(p => p.name === pmNameFromNotes);
           if (found) {
             pmId = `custom-${found.id}`;
           } else {
@@ -230,7 +216,7 @@ export function TransactionModal() {
       if (defaultPaymentMethod?.startsWith('card-')) {
         setCardId(defaultPaymentMethod.replace('card-', ''));
       } else {
-        setCardId('money');
+        setCardId('');
       }
 
       setIsPaid(false);
@@ -240,10 +226,10 @@ export function TransactionModal() {
   }, [editingTransactionId, isTransactionModalOpen, accounts, defaultPaymentMethod, hasInitialized]);
 
   const selectedPaymentMethod = cardId.startsWith('custom-')
-    ? (customPaymentMethods.find(pm => `custom-${pm.id}` === cardId || `custom-${pm.name}` === cardId) || { name: cardId.replace('custom-', ''), allowInstallments: true })
+    ? (customPaymentMethods.find(pm => `custom-${pm.id}` === cardId || `custom-${pm.name}` === cardId) || { name: cardId.replace('custom-', ''), allowInstallments: true, debitFromAccount: true })
     : null;
 
-  const showInstallments = type === 'receita' || (cardId !== 'money' && !selectedPaymentMethod) || (selectedPaymentMethod?.allowInstallments);
+  const showInstallments = type === 'receita' || (!selectedPaymentMethod) || (selectedPaymentMethod?.allowInstallments);
 
   const numInstallments = showInstallments ? Math.max(1, parseInt(installments, 10) || 1) : 1;
 
@@ -265,7 +251,12 @@ export function TransactionModal() {
         setError('Por favor, selecione contas de origem e destino válidas e diferentes.');
         return;
       }
-    } else {
+    }
+    if (type === 'despesa') {
+      if (isPaid && (!cardId || cardId === '')) {
+        setError('Por favor, selecione uma Forma de Pagamento.');
+        return;
+      }
       if (!categoryId || categoryId === 'none' || categoryId === '') {
         setError('Por favor, selecione uma categoria.');
         return;
@@ -279,7 +270,9 @@ export function TransactionModal() {
 
     const txAmount = parseFloat(amount);
 
-    if (type === 'despesa' && cardId === 'money' && isPaid && (!accountId || accountId === 'none' || accountId === '')) {
+    const requiresAccount = type === 'despesa' && isPaid && selectedPaymentMethod && selectedPaymentMethod.debitFromAccount;
+
+    if (requiresAccount && (!accountId || accountId === 'none' || accountId === '')) {
       setError('Selecione a conta bancária para confirmar o pagamento.');
       return;
     }
@@ -289,7 +282,7 @@ export function TransactionModal() {
       return;
     }
 
-    if (type === 'despesa' && isPaid && accountId && cardId === 'money') {
+    if (requiresAccount && accountId) {
       const accountsList = useDataStore.getState().accounts;
       const acc = accountsList.find(a => a.id === accountId);
       if (acc) {
@@ -314,7 +307,7 @@ export function TransactionModal() {
     }
 
     const isCustom = cardId.startsWith('custom-');
-    const isCard = cardId !== 'money' && !isCustom;
+    const isCard = !isCustom;
     const paymentMethodName = isCustom ? (selectedPaymentMethod?.name || cardId.replace('custom-', '')) : undefined;
 
     if (isCard) {
@@ -461,9 +454,9 @@ export function TransactionModal() {
         date: dateObj,
         type,
         categoryId,
-        accountId: (type === 'despesa' && cardId !== 'money') || !isPaid || !accountId || accountId === 'none' ? undefined : accountId,
+        accountId: requiresAccount || type === 'receita' ? accountId : undefined,
         cardId: type === 'despesa' && isCard ? cardId : undefined,
-        isPaid: type === 'despesa' && cardId !== 'money' ? false : isPaid,
+        isPaid: isPaid,
         notes: isCustom ? `paymentMethod:${paymentMethodName}` : undefined,
       };
 
@@ -573,8 +566,9 @@ export function TransactionModal() {
     const txAmount = parseFloat(amount);
     const dateObj = new Date(date + 'T12:00:00');
     const isCustom = cardId.startsWith('custom-');
-    const isCard = cardId !== 'money' && !isCustom;
+    const isCard = !isCustom;
     const paymentMethodName = isCustom ? (selectedPaymentMethod?.name || cardId.replace('custom-', '')) : undefined;
+    const requiresAccount = type === 'despesa' && isPaid && selectedPaymentMethod && selectedPaymentMethod.debitFromAccount;
     const getAcc = (id: string) => useDataStore.getState().accounts.find(a => a.id === id);
 
     if (installmentActionType === 'edit') {
@@ -633,9 +627,9 @@ export function TransactionModal() {
           amount: txAmount,
           date: newDate,
           categoryId,
-          accountId: (type === 'despesa' && cardId !== 'money') || !isPaid || !accountId || accountId === 'none' ? undefined : accountId,
+          accountId: requiresAccount || type === 'receita' ? accountId : undefined,
           cardId: type === 'despesa' && isCard ? cardId : undefined,
-          isPaid: type === 'despesa' && cardId !== 'money' ? false : isPaid,
+          isPaid: isPaid,
           notes: isCustom ? `paymentMethod:${paymentMethodName}` : (t.notes && !isCustom ? t.notes : undefined),
         };
 
@@ -727,7 +721,7 @@ export function TransactionModal() {
   const showAccountSelector = 
     (type === 'receita') ||
     (type === 'transferencia') ||
-    (type === 'despesa' && cardId === 'money' && isPaid) ||
+    (type === 'despesa' && isPaid && selectedPaymentMethod && selectedPaymentMethod.debitFromAccount) ||
     (type === 'despesa' && showInstallments && numInstallments > 1 && !firstInstallmentIn30Days && payFirstInstallmentToday);
 
   return (
@@ -821,7 +815,7 @@ export function TransactionModal() {
                         if (!isTypeMatch) return false;
 
                         if (t === 'despesa') {
-                          const isCardMethod = cardId && cardId !== 'money' && !cardId.startsWith('custom-');
+                          const isCardMethod = cardId && !cardId.startsWith('custom-');
                           if (isCardMethod && c.showInCards === false) return false;
                           if (!isCardMethod && c.showInAccounts === false) return false;
                         }
@@ -884,69 +878,66 @@ export function TransactionModal() {
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center justify-between p-2.5 bg-muted/30 rounded-xl border border-border">
-                    <span className="text-xs font-semibold text-foreground select-none">
-                      {type === 'receita' ? 'Confirmar Recebimento' : 'Confirmar Pagamento'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const next = !isPaid;
-                        setIsPaid(next);
-                        if (!next) setCardId('money');
-                      }}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${isPaid ? 'bg-primary' : 'bg-muted-foreground/30'}`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${isPaid ? 'translate-x-4' : 'translate-x-0'}`}
-                      />
-                    </button>
-                  </div>
-
-                  {(type === 'receita' || isPaid) && (
+                  {type === 'despesa' && isPaid && (
                     <div className="p-2.5 bg-muted/30 rounded-xl border border-border space-y-2 animate-in fade-in slide-in-from-top-1">
-                      {type === 'despesa' && (
-                        <div>
-                          <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Forma de Pagamento</Label>
-                          <CustomSelect
-                            value={cardId}
-                            onValueChange={val => {
-                              setCardId(val);
-                              if (val !== 'money' && !val.startsWith('custom-')) {
-                                setIsPaid(true); 
-                              }
-                            }}
-                            disabled={!!activeContextCardId && currentView === 'cardDetails'}
-                            options={[
-                              { value: 'money', label: '💳 Dinheiro / Conta Bancária' },
-                              ...cards.map(c => ({
-                                value: c.id,
-                                label: `🛒 Cartão ${c.name}`
-                              })),
-                              ...(customPaymentMethods.length > 0 ? [{ value: 'custom-sep', label: '──────────', disabled: true }] : []),
-                              ...customPaymentMethods.map(pm => ({
-                                value: `custom-${pm.id}`,
-                                label: `⚡ ${pm.name}`
-                              }))
-                            ]}
-                          />
-                        </div>
-                      )}
+                      <div>
+                        <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Forma de Pagamento</Label>
+                        <CustomSelect
+                          value={cardId}
+                          onValueChange={val => {
+                            setCardId(val);
+                            if (!val.startsWith('custom-')) {
+                              setIsPaid(false); 
+                            }
+                          }}
+                          disabled={!!activeContextCardId && currentView === 'cardDetails'}
+                          options={
+                            type === 'receita' || isPaid 
+                            ? [
+                                ...cards.map(c => ({ value: c.id, label: `🛒 Cartão ${c.name}` })),
+                                ...customPaymentMethods.map(pm => ({
+                                  value: `custom-${pm.id}`,
+                                  label: `⚡ ${pm.name}`
+                                }))
+                              ]
+                            : []
+                          }
+                        />
+                      </div>
+                    </div>
+                  )}
 
-                      {showAccountSelector && (
-                        <div>
-                          <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Conta Bancária</Label>
-                          <CustomSelect
-                            value={accountId}
-                            onValueChange={setAccountId}
-                            placeholder="Selecione a conta..."
-                            options={accounts.map(c => ({
-                              value: c.id,
-                              label: c.name
-                            }))}
-                          />
-                        </div>
-                      )}
+                  {(type === 'receita' || type === 'despesa') && (
+                    <div className="flex items-center justify-between p-2.5 bg-muted/30 rounded-xl border border-border">
+                      <span className="text-xs font-semibold text-foreground select-none">
+                        {type === 'receita' ? 'Confirmar Recebimento' : 'Confirmar Pagamento'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsPaid(!isPaid)}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${isPaid ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${isPaid ? 'translate-x-4' : 'translate-x-0'}`}
+                        />
+                      </button>
+                    </div>
+                  )}
+
+                  {showAccountSelector && (
+                    <div className="p-2.5 bg-muted/30 rounded-xl border border-border space-y-2 animate-in fade-in slide-in-from-top-1">
+                      <div>
+                        <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Conta Bancária</Label>
+                        <CustomSelect
+                          value={accountId}
+                          onValueChange={setAccountId}
+                          placeholder="Selecione a conta..."
+                          options={accounts.map(c => ({
+                            value: c.id,
+                            label: c.name
+                          }))}
+                        />
+                      </div>
                     </div>
                   )}
                 </>

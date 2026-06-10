@@ -12,19 +12,24 @@ O usuário precisava cadastrar formas de pagamento neutras (como "Crediário", "
 ## 2. Decisões Arquiteturais
 
 ### A. Armazenamento e Cadastro
-- **Formas de Pagamento Customizadas**: São persistidas no `localStorage` sob a chave `custom_payment_methods`. Cada uma tem:
-  - `id`: UUID.
-  - `name`: Nome (ex: "Crediário").
-  - `allowInstallments`: Switch booleano que define se o formulário de transação deve solicitar o número de parcelas para este método.
-- **Vínculo com Transações**: Para não violar as tabelas relacionais do Supabase (`transacoes`), vinculamos as formas de pagamento personalizadas utilizando o campo `notes` (observações) no formato: `paymentMethod:NomeDaForma`. O campo `cardId` permanece `undefined` (já que não é um cartão físico cadastrado) e `accountId` permanece `undefined` enquanto a transação estiver pendente.
-  - **Soma de Despesas**: As compras por formas personalizadas (mesmo pendentes) são contabilizadas como despesas contraídas no Dashboard e Relatórios, utilizando a checagem do prefixo `paymentMethod:` nas observações.
+- **Formas de Pagamento Customizadas**: Foram **MIGRADAS** do `localStorage` para a nuvem via Supabase (na tabela `formas_pagamento`). O sistema não usa mais armazenamento local, garantindo integridade e sincronização entre dispositivos. O estado global no aplicativo gerencia essas opções através do `useDataStore`, buscando dados via API. Cada forma possui:
+  - `id`: UUID gerenciado pelo Supabase.
+  - `name`: Nome (ex: "Pix", "Dinheiro em Espécie").
+  - `allowInstallments`: Define se permite parcelamento.
+  - `debitFromAccount`: Define se a forma de pagamento deve debitar o saldo de uma Conta Bancária (Ex: Pix debita, Dinheiro em Espécie não).
+
+- **Vínculo com Transações**: Para não violar as tabelas relacionais do Supabase (`transacoes`), vinculamos as formas de pagamento personalizadas utilizando o campo `notes` (observações) no formato: `paymentMethod:NomeDaForma` e a chave estrangeira `cardId` é alimentada com o `id` da forma customizada (usando o prefixo `custom-id`).
 
 ### B. Ciclo de Vida e Baixa
-- **Lançamento e Carência**: Ao lançar a despesa parcelada (`installments > 1`), o sistema exibe a opção **"Primeira parcela em 30 dias"**.
-  - Se ativada (comportamento padrão para crediários/boletos), as parcelas são salvas com vencimentos a partir de `D+30` (próximo mês).
-  - Se desativada (comportamento padrão para cartões de crédito ou compras com entrada), as parcelas iniciam no mês atual (`D+0`).
-  - O valor bruto é dividido igualmente e gerado no banco via `bulkAdd` com `isPaid = false`.
-- **Baixa**: Cada parcela aparece individualmente no extrato como "Pendente". Ao clicar em "Confirmar Pagamento", o usuário seleciona a conta bancária real de débito e a transação passa a ter `isPaid = true` e `accountId` preenchido, abatendo o saldo bancário.
+- **Lançamento Flexível e Enxuto**: 
+  - Ao lançar uma despesa como **Pendente** (quando "Confirmar Pagamento" estiver desmarcado), o modal de criação **OCULTA** a escolha de Forma de Pagamento. A despesa fica registrada de maneira genérica até o momento do pagamento.
+  - Ao ativar "Confirmar Pagamento", o campo de "Forma de Pagamento" aparece, listando os cartões de crédito físicos e as formas customizadas vindas do Supabase.
+- **Carência no Parcelamento**: Ao lançar a despesa parcelada (`installments > 1`), o sistema exibe a opção **"Primeira parcela em 30 dias"**.
+  - Se ativada, as parcelas são salvas com vencimentos a partir de `D+30`.
+  - Se desativada, as parcelas iniciam no mês atual (`D+0`).
+- **Baixa Dinâmica**: 
+  - Cada parcela aparece individualmente no extrato como "Pendente".
+  - Ao clicar em "Confirmar Pagamento" (Dar Baixa), o sistema lê a propriedade `debitFromAccount` da Forma de Pagamento escolhida. Se estiver ativada, ele exige a Conta de Saída e abate o saldo; se desativada, ele efetiva a baixa sem abater de nenhuma conta (útil para "Dinheiro em Espécie").
 
 ### C. Alerta de Saldo
 - Implementada validação no salvamento/edição de despesas pagas: se o valor a ser debitado ultrapassar o saldo atual da conta bancária de origem, a operação é bloqueada e um alerta é exibido.

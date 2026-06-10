@@ -2,20 +2,16 @@ import { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { api } from '../services/api';
 import { useDataStore } from '../store/useDataStore';
-import { Category } from '../db/db';
+import { Category, CustomPaymentMethod } from '../db/db';
 import { generateUUID } from '../lib/utils';
 import { X, Trash, AlertCircle } from 'lucide-react';
 import { Input } from './ui/input';
 
-interface CustomPaymentMethod {
-  id: string;
-  name: string;
-  allowInstallments: boolean;
-}
 
 export function CategoryModal() {
   const { isCategoryModalOpen, setCategoryModalOpen } = useAppStore();
   const categories = useDataStore(state => state.categories);
+  const paymentMethods = useDataStore(state => state.customPaymentMethods);
   const transactions = useDataStore(state => state.transactions);
 
   // Set of category IDs that are actually used in at least one transaction
@@ -34,27 +30,12 @@ export function CategoryModal() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Custom Payment Methods state
-  const [paymentMethods, setPaymentMethods] = useState<CustomPaymentMethod[]>([]);
+  const [isAddingPaymentMethod, setIsAddingPaymentMethod] = useState(false);
   const [pmName, setPmName] = useState('');
   const [pmAllowInstallments, setPmAllowInstallments] = useState(true);
+  const [pmDebitFromAccount, setPmDebitFromAccount] = useState(true);
   const [editingPmId, setEditingPmId] = useState<string | null>(null);
   const [confirmDeletePmId, setConfirmDeletePmId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (isCategoryModalOpen) {
-      const stored = localStorage.getItem('custom_payment_methods');
-      if (stored) {
-        setPaymentMethods(JSON.parse(stored));
-      } else {
-        const initial = [
-          { id: '1', name: 'Crediário', allowInstallments: true },
-          { id: '2', name: 'Boleto Parcelado', allowInstallments: true }
-        ];
-        setPaymentMethods(initial);
-        localStorage.setItem('custom_payment_methods', JSON.stringify(initial));
-      }
-    }
-  }, [isCategoryModalOpen]);
 
   const handleEdit = (c: Category) => {
     setConfirmDeleteId(null);
@@ -108,47 +89,55 @@ export function CategoryModal() {
     if (editingId === id) handleCancelEdit();
   };
 
-  const handleSavePaymentMethod = () => {
+  const handleSavePaymentMethod = async () => {
     if (!pmName.trim()) return;
-    let updated: CustomPaymentMethod[];
-    if (editingPmId) {
-      updated = paymentMethods.map(pm => pm.id === editingPmId ? { ...pm, name: pmName.trim(), allowInstallments: pmAllowInstallments } : pm);
-      setEditingPmId(null);
-    } else {
-      const newPm: CustomPaymentMethod = {
-        id: generateUUID(),
+    try {
+      const payload: Partial<CustomPaymentMethod> = {
         name: pmName.trim(),
-        allowInstallments: pmAllowInstallments
+        allowInstallments: pmAllowInstallments,
+        debitFromAccount: pmDebitFromAccount
       };
-      updated = [...paymentMethods, newPm];
+
+      if (editingPmId) {
+        await api.paymentMethods.update(editingPmId, payload);
+      } else {
+        await api.paymentMethods.add(payload as Omit<CustomPaymentMethod, 'id'>);
+      }
+
+      setPmName('');
+      setPmAllowInstallments(true);
+      setPmDebitFromAccount(true);
+      setIsAddingPaymentMethod(false);
+      setEditingPmId(null);
+    } catch (error) {
+      console.error('Erro ao salvar forma de pagamento:', error);
     }
-    setPaymentMethods(updated);
-    localStorage.setItem('custom_payment_methods', JSON.stringify(updated));
-    setPmName('');
-    setPmAllowInstallments(true);
-    // Dispatch db_mutation to update transaction modal dropdown
-    window.dispatchEvent(new Event('db_mutation'));
   };
 
   const handleEditPaymentMethod = (pm: CustomPaymentMethod) => {
     setEditingPmId(pm.id);
     setPmName(pm.name);
     setPmAllowInstallments(pm.allowInstallments);
+    setPmDebitFromAccount(pm.debitFromAccount ?? true);
+    setIsAddingPaymentMethod(true);
   };
 
   const handleCancelEditPaymentMethod = () => {
     setEditingPmId(null);
     setPmName('');
     setPmAllowInstallments(true);
+    setPmDebitFromAccount(true);
+    setIsAddingPaymentMethod(false);
   };
 
-  const handleDeletePaymentMethod = (id: string) => {
-    const updated = paymentMethods.filter(pm => pm.id !== id);
-    setPaymentMethods(updated);
-    localStorage.setItem('custom_payment_methods', JSON.stringify(updated));
-    setConfirmDeletePmId(null);
-    if (editingPmId === id) handleCancelEditPaymentMethod();
-    window.dispatchEvent(new Event('db_mutation'));
+  const handleDeletePaymentMethod = async (id: string) => {
+    try {
+      await api.paymentMethods.delete(id);
+      setConfirmDeletePmId(null);
+      if (editingPmId === id) handleCancelEditPaymentMethod();
+    } catch (error) {
+      console.error('Erro ao deletar forma de pagamento:', error);
+    }
   };
 
   if (!isCategoryModalOpen) return null;
@@ -362,37 +351,58 @@ export function CategoryModal() {
             </>
           ) : (
             <>
-              {/* Form custom payment methods */}
-              <div className="p-4 bg-muted/10 border-b space-y-3">
-                <div className="flex gap-2">
-                  <Input 
-                    placeholder="Nome da forma de pagamento... Ex: Crediário" 
-                    className="rounded-[12px] h-9 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary shadow-none flex-1"
-                    value={pmName}
-                    onChange={e => setPmName(e.target.value)}
-                  />
-                  <button onClick={handleSavePaymentMethod} className="px-3 bg-primary text-primary-foreground font-bold text-[10px] h-9 rounded-[12px] hover:bg-primary/90 transition-all uppercase tracking-wider">
-                    {editingPmId ? 'Salvar' : 'Add'}
+              {!isAddingPaymentMethod && (
+                <div className="p-3 border-b">
+                  <button 
+                    onClick={() => setIsAddingPaymentMethod(true)}
+                    className="w-full py-2.5 rounded-xl bg-primary/10 text-primary text-xs font-bold uppercase tracking-widest hover:bg-primary/20 transition-colors border border-primary/20 border-dashed"
+                  >
+                    + Nova Forma de Pagamento
                   </button>
-                  {editingPmId && (
+                </div>
+              )}
+
+              {/* Form custom payment methods */}
+              {isAddingPaymentMethod && (
+                <div className="p-4 bg-muted/10 border-b space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="Nome da forma de pagamento... Ex: Crediário" 
+                      className="rounded-[12px] h-9 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary shadow-none flex-1"
+                      value={pmName}
+                      onChange={e => setPmName(e.target.value)}
+                    />
+                    <button onClick={handleSavePaymentMethod} className="px-3 bg-primary text-primary-foreground font-bold text-[10px] h-9 rounded-[12px] hover:bg-primary/90 transition-all uppercase tracking-wider">
+                      {editingPmId ? 'Salvar' : 'Add'}
+                    </button>
                     <button onClick={handleCancelEditPaymentMethod} className="px-2.5 bg-muted text-foreground font-bold text-[10px] h-9 rounded-[12px] hover:bg-muted/80 transition-colors uppercase tracking-wider">
                       <X className="w-4 h-4" />
                     </button>
-                  )}
+                  </div>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none">Permitir Parcelamento</span>
+                    <button
+                      type="button"
+                      onClick={() => setPmAllowInstallments(!pmAllowInstallments)}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${pmAllowInstallments ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                    >
+                      <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${pmAllowInstallments ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none">Debitar da conta (Exige Saldo)</span>
+                    <button
+                      type="button"
+                      onClick={() => setPmDebitFromAccount(!pmDebitFromAccount)}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${pmDebitFromAccount ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                    >
+                      <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${pmDebitFromAccount ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between px-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none">Permitir Parcelamento</span>
-                  <button
-                    type="button"
-                    onClick={() => setPmAllowInstallments(!pmAllowInstallments)}
-                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${pmAllowInstallments ? 'bg-primary' : 'bg-muted-foreground/30'}`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${pmAllowInstallments ? 'translate-x-4' : 'translate-x-0'}`}
-                    />
-                  </button>
                 </div>
-              </div>
+              )}
 
               {/* List custom payment methods */}
               <div className="flex-1 overflow-y-auto p-2 space-y-1.5 pb-8 sm:pb-2">
@@ -405,8 +415,9 @@ export function CategoryModal() {
                           <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                           <div>
                             <div className="font-semibold leading-none mb-0.5">{pm.name}</div>
-                            <div className="text-[8px] text-muted-foreground uppercase font-bold tracking-wider leading-none">
-                              {pm.allowInstallments ? 'Permite parcelas' : 'À vista'}
+                            <div className="text-[8px] text-muted-foreground uppercase font-bold tracking-wider flex flex-wrap gap-1 items-center mt-1">
+                              {pm.allowInstallments && <span className="bg-primary/10 text-primary px-1 py-0.5 rounded">Parcelável</span>}
+                              {pm.debitFromAccount && <span className="bg-orange-500/10 text-orange-600 px-1 py-0.5 rounded">Debita Conta</span>}
                             </div>
                           </div>
                         </div>

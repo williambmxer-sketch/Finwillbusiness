@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Account, Card, Category, Transaction } from '../db/db';
+import { Account, Card, Category, Transaction, CustomPaymentMethod } from '../db/db';
 import { api } from '../services/api';
 import { supabase } from '../lib/supabase';
 
@@ -8,6 +8,7 @@ interface DataState {
   accounts: Account[];
   cards: Card[];
   transactions: Transaction[];
+  customPaymentMethods: CustomPaymentMethod[];
   isLoading: boolean;
   error: string | null;
   fetchData: () => Promise<void>;
@@ -19,21 +20,23 @@ export const useDataStore = create<DataState>((set, get) => ({
   accounts: [],
   cards: [],
   transactions: [],
+  customPaymentMethods: [],
   isLoading: true,
   error: null,
 
   fetchData: async () => {
     try {
       set({ isLoading: true, error: null });
-      const [categories, accounts, cards, transactions] = await Promise.all([
+      const [categories, accounts, cards, transactions, customPaymentMethods] = await Promise.all([
         api.categories.list(),
         api.accounts.list(),
         api.cards.list(),
-        api.transactions.list()
+        api.transactions.list(),
+        api.paymentMethods.list()
       ]);
       console.log('[DEBUG fetchData] categories:', JSON.stringify(categories));
       console.log('[DEBUG fetchData] categories.length:', categories.length);
-      set({ categories, accounts, cards, transactions, isLoading: false });
+      set({ categories, accounts, cards, transactions, customPaymentMethods, isLoading: false });
     } catch (err: any) {
       set({ error: err.message, isLoading: false });
     }

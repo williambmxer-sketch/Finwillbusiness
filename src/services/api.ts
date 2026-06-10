@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { Account, Card, Category, Transaction, Invoice } from '../db/db';
+import { Account, Card, Category, Transaction, Invoice, CustomPaymentMethod } from '../db/db';
 
 /**
  * MAPPERS: Translate Supabase PT-BR to Frontend EN-US and vice versa
@@ -96,6 +96,19 @@ export const mappers = {
       esta_pago: obj.isPaid,
       data_pagamento: obj.paymentDate?.toISOString() || null,
       observacoes: obj.notes || null,
+    })
+  },
+  paymentMethod: {
+    toApp: (row: any): CustomPaymentMethod => ({
+      id: row.id,
+      name: row.nome,
+      allowInstallments: row.permitir_parcelamento,
+      debitFromAccount: row.debitar_conta,
+    }),
+    toDb: (obj: Partial<CustomPaymentMethod>) => ({
+      nome: obj.name,
+      permitir_parcelamento: obj.allowInstallments,
+      debitar_conta: obj.debitFromAccount,
     })
   }
 };
@@ -239,6 +252,35 @@ export const api = {
     },
     delete: async (id: string) => {
       const { error } = await supabase.from('transacoes').delete().eq('id', id);
+      if (error) throw error;
+      notifyMutation();
+    }
+  },
+
+  paymentMethods: {
+    list: async (): Promise<CustomPaymentMethod[]> => {
+      const { data, error } = await supabase.from('formas_pagamento').select('*');
+      if (error) throw error;
+      return (data || []).map(mappers.paymentMethod.toApp);
+    },
+    add: async (pm: Omit<CustomPaymentMethod, 'id'>) => {
+      const userId = await getUserId();
+      const { data, error } = await supabase.from('formas_pagamento').insert({
+        ...mappers.paymentMethod.toDb(pm),
+        usuario_id: userId
+      }).select().single();
+      if (error) throw error;
+      notifyMutation();
+      return mappers.paymentMethod.toApp(data);
+    },
+    update: async (id: string, pm: Partial<CustomPaymentMethod>) => {
+      const { data, error } = await supabase.from('formas_pagamento').update(mappers.paymentMethod.toDb(pm)).eq('id', id).select().single();
+      if (error) throw error;
+      notifyMutation();
+      return mappers.paymentMethod.toApp(data);
+    },
+    delete: async (id: string) => {
+      const { error } = await supabase.from('formas_pagamento').delete().eq('id', id);
       if (error) throw error;
       notifyMutation();
     }

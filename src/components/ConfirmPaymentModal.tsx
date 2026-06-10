@@ -13,6 +13,7 @@ export function ConfirmPaymentModal() {
   const transaction = allTransactions.find(t => t.id === confirmPaymentTransactionId);
   const accounts = useDataStore(state => state.accounts);
   const cards = useDataStore(state => state.cards);
+  const customPaymentMethods = useDataStore(state => state.customPaymentMethods);
 
   const [date, setDate] = useState('');
   const [accountId, setAccountId] = useState('');
@@ -22,18 +23,36 @@ export function ConfirmPaymentModal() {
   useEffect(() => {
     if (transaction) {
       setDate(new Date().toISOString().split('T')[0]); // Default to today
-      setAccountId(transaction.accountId || '');
-      setCardId(transaction.cardId || 'money');
+      setAccountId(transaction.accountId || accounts[0]?.id || '');
+      
+      let pmId = '';
+      if (transaction.cardId) {
+        pmId = transaction.cardId;
+      } else if (transaction.notes && transaction.notes.startsWith('paymentMethod:')) {
+        const pmNameFromNotes = transaction.notes.replace('paymentMethod:', '');
+        const found = customPaymentMethods.find(p => p.name === pmNameFromNotes);
+        if (found) {
+          pmId = `custom-${found.id}`;
+        } else {
+          pmId = `custom-${pmNameFromNotes}`;
+        }
+      }
+      setCardId(pmId);
       setAmount(transaction.amount);
     }
-  }, [transaction]);
+  }, [transaction, accounts]);
 
   if (!confirmPaymentTransactionId || !transaction) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (cardId === 'money' && !accountId) {
+    const isCustom = cardId.startsWith('custom-');
+    const isCard = !isCustom;
+    const selectedMethod = isCustom ? customPaymentMethods.find(pm => `custom-${pm.id}` === cardId) : null;
+    const requiresAccount = selectedMethod ? selectedMethod.debitFromAccount !== false : true;
+
+    if (requiresAccount && !accountId) {
       alert('Por favor, selecione uma conta.');
       return;
     }
@@ -42,16 +61,18 @@ export function ConfirmPaymentModal() {
     const realPaymentDate = new Date(date + 'T12:00:00');
     const finalAmount = amount === '' ? transaction.amount : Number(amount);
 
-    const isPaidValue = cardId === 'money' ? true : false;
+    const paymentMethodName = isCustom ? (selectedMethod?.name || cardId.replace('custom-', '')) : undefined;
+
     await api.transactions.update(transaction.id, {
       amount: finalAmount,
-      paymentDate: isPaidValue ? realPaymentDate : undefined,
-      accountId: cardId === 'money' ? (accountId || undefined) : undefined,
-      cardId: cardId !== 'money' ? cardId : undefined,
-      isPaid: isPaidValue
+      paymentDate: realPaymentDate,
+      accountId: requiresAccount || transaction.type === 'receita' ? accountId : undefined,
+      cardId: transaction.type === 'despesa' && isCard ? cardId : undefined,
+      isPaid: true,
+      notes: isCustom ? `paymentMethod:${paymentMethodName}` : transaction.notes
     });
 
-    if (accountId && cardId === 'money') {
+    if (requiresAccount && accountId) {
       const acc = useDataStore.getState().accounts.find(a => a.id === accountId);
       if (acc) {
         await api.accounts.update(accountId, {
@@ -120,33 +141,37 @@ export function ConfirmPaymentModal() {
                 <Select value={cardId} onValueChange={setCardId}>
                   <SelectTrigger className="w-full h-10 bg-muted/50 border-transparent focus:ring-1 focus:ring-primary shadow-none rounded-[12px] font-medium">
                     <SelectValue placeholder="Selecione...">
-                      {cardId === 'money' ? 'PIX / Débito / Dinheiro' : (cards.find(c => c.id === cardId) ? `Cartão ${cards.find(c => c.id === cardId)?.name}` : 'Selecione...')}
+                      {cards.find(c => c.id === cardId) ? `🛒 Cartão ${cards.find(c => c.id === cardId)?.name}` : (
+                        customPaymentMethods.find(pm => `custom-${pm.id}` === cardId) ? `⚡ ${customPaymentMethods.find(pm => `custom-${pm.id}` === cardId)?.name}` : (cardId ? `⚡ ${cardId.replace('custom-', '')}` : 'Selecione...')
+                      )}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent className="rounded-xl z-[200]">
-                    <SelectItem value="money" className="font-medium">PIX / Débito / Dinheiro</SelectItem>
                     {cards.map(c => (
-                      <SelectItem key={c.id} value={c.id} className="font-medium">Cartão {c.name}</SelectItem>
+                      <SelectItem key={c.id} value={c.id} className="font-medium">🛒 Cartão {c.name}</SelectItem>
+                    ))}
+                    {customPaymentMethods.map(pm => (
+                      <SelectItem key={pm.id} value={`custom-${pm.id}`} className="font-medium">⚡ {pm.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              {cardId === 'money' && (
+              {((!cardId.startsWith('custom-') && cardId !== '') || (customPaymentMethods.find(pm => `custom-${pm.id}` === cardId)?.debitFromAccount !== false) || transaction.type === 'receita') && (
                 <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
                   <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Conta de {transaction.type === 'receita' ? 'Entrada' : 'Saída'}</label>
                   <Select value={accountId} onValueChange={setAccountId} required>
                     <SelectTrigger className="w-full h-10 bg-muted/50 border-transparent focus:ring-1 focus:ring-primary shadow-none rounded-[12px] font-medium">
-                      <SelectValue placeholder="Selecione a conta...">
-                        {accountId ? accounts.find(a => a.id === accountId)?.name : 'Selecione a conta...'}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl z-[200]">
-                      {accounts.map(a => (
-                        <SelectItem key={a.id} value={a.id} className="font-medium">{a.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <SelectValue placeholder="Selecione a conta...">
+                      {accountId ? accounts.find(a => a.id === accountId)?.name : 'Selecione a conta...'}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl z-[200]">
+                    {accounts.map(a => (
+                      <SelectItem key={a.id} value={a.id} className="font-medium">{a.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 </div>
               )}
             </div>

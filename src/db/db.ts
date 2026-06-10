@@ -58,12 +58,20 @@ export interface Invoice {
   closingDate: Date;
 }
 
+export interface CustomPaymentMethod {
+  id: string;
+  name: string;
+  allowInstallments: boolean;
+  debitFromAccount: boolean;
+}
+
 export class FinanceDB extends Dexie {
   cards!: Table<Card>;
   accounts!: Table<Account>;
   categories!: Table<Category>;
   transactions!: Table<Transaction>;
   invoices!: Table<Invoice>;
+  paymentMethods!: Table<CustomPaymentMethod>;
 
   constructor() {
     super('FinanceDB');
@@ -72,7 +80,8 @@ export class FinanceDB extends Dexie {
       accounts: 'id',
       categories: 'id',
       transactions: 'id, date, type, categoryId, accountId, cardId, isPaid, parentId',
-      invoices: 'id, cardId, month, status'
+      invoices: 'id, cardId, month, status',
+      paymentMethods: 'id'
     });
   }
 }
