@@ -11,7 +11,8 @@ import {
   ChevronRight,
   Landmark,
   Settings2,
-  LogOut
+  LogOut,
+  Menu
 } from 'lucide-react';
 import { BarChart, Bar, ResponsiveContainer, Cell, XAxis, Tooltip, YAxis } from 'recharts';
 import { formatCurrency } from '../../utils/formatters';
@@ -77,6 +78,7 @@ export function DashboardView() {
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!scrollRef.current) return;
@@ -145,33 +147,61 @@ export function DashboardView() {
 
   return (
     <div className="flex flex-col gap-4 p-4 pt-8 max-w-lg mx-auto w-full">
-      <header className="flex justify-between items-start mb-1">
+      <header className="flex justify-between items-start mb-1 relative">
         <div>
           <h1 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-0.5">Saldo Total</h1>
           <div className="text-3xl font-bold tracking-tight">{formatCurrency(totalBalance)}</div>
         </div>
-        <div className="flex gap-1.5 mt-1">
+        <div className="relative mt-1">
            <button 
-             onClick={signOut} 
-             className="flex items-center justify-center h-8 w-8 rounded-lg border border-border/40 bg-muted/20 text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 hover:border-rose-500/20 transition-all" 
-             title="Sair"
-           >
-             <LogOut className="h-4 w-4" />
-           </button>
-           <button 
-             onClick={() => setCategoryModalOpen(true)} 
+             onClick={() => setIsMenuOpen(!isMenuOpen)} 
              className="flex items-center justify-center h-8 w-8 rounded-lg border border-border/40 bg-muted/20 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all"
-             title="Categorias"
+             title="Menu"
            >
-             <Settings2 className="h-4 w-4" />
+             <Menu className="h-4 w-4" />
            </button>
-           <button 
-             onClick={() => setCurrentView('accounts')} 
-             className="flex items-center justify-center h-8 w-8 rounded-lg border border-border/40 bg-muted/20 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all"
-             title="Contas"
-           >
-             <Landmark className="h-4 w-4" />
-           </button>
+           
+           {isMenuOpen && (
+             <>
+               <div 
+                 className="fixed inset-0 z-40"
+                 onClick={() => setIsMenuOpen(false)}
+               />
+               <div className="absolute right-0 top-full mt-2 w-48 rounded-[11px] border border-border/40 bg-card p-1.5 shadow-lg z-50 flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-100">
+                 <button 
+                   onClick={() => {
+                     setCurrentView('accounts');
+                     setIsMenuOpen(false);
+                   }} 
+                   className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-sm rounded-lg hover:bg-muted/40 text-muted-foreground hover:text-foreground transition-all"
+                 >
+                   <Landmark className="h-4 w-4" />
+                   Contas
+                 </button>
+                 <button 
+                   onClick={() => {
+                     setCategoryModalOpen(true);
+                     setIsMenuOpen(false);
+                   }} 
+                   className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-sm rounded-lg hover:bg-muted/40 text-muted-foreground hover:text-foreground transition-all"
+                 >
+                   <Settings2 className="h-4 w-4" />
+                   Categorias
+                 </button>
+                 <div className="h-px bg-border/40 my-0.5 mx-1" />
+                 <button 
+                   onClick={() => {
+                     signOut();
+                     setIsMenuOpen(false);
+                   }} 
+                   className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-sm rounded-lg text-rose-600 hover:bg-rose-500/10 transition-all font-medium"
+                 >
+                   <LogOut className="h-4 w-4" />
+                   Sair
+                 </button>
+               </div>
+             </>
+           )}
          </div>
       </header>
 
