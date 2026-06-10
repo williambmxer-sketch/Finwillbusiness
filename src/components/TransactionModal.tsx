@@ -919,13 +919,13 @@ export function TransactionModal() {
                     />
                   </div>
                   {numInstallments > 1 && !editingTransactionId && (
-                    <div className="col-span-2">
+                    <div className="col-span-1">
                       <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Modo</Label>
-                      <div className="flex bg-muted/50 p-1 rounded-[10px]">
+                      <div className="flex bg-muted/50 p-1 rounded-xl h-8">
                         <button
                           type="button"
                           onClick={() => setInstallmentMode('divide')}
-                          className={`flex-1 py-1.5 rounded-[8px] text-[10px] font-bold uppercase tracking-widest transition-all ${
+                          className={`flex-1 rounded-[8px] text-[9px] font-bold uppercase tracking-widest transition-all flex items-center justify-center ${
                             installmentMode === 'divide'
                               ? 'bg-background text-foreground shadow-sm'
                               : 'text-muted-foreground hover:text-foreground'
@@ -936,7 +936,7 @@ export function TransactionModal() {
                         <button
                           type="button"
                           onClick={() => setInstallmentMode('repeat')}
-                          className={`flex-1 py-1.5 rounded-[8px] text-[10px] font-bold uppercase tracking-widest transition-all ${
+                          className={`flex-1 rounded-[8px] text-[9px] font-bold uppercase tracking-widest transition-all flex items-center justify-center ${
                             installmentMode === 'repeat'
                               ? 'bg-background text-foreground shadow-sm'
                               : 'text-muted-foreground hover:text-foreground'
