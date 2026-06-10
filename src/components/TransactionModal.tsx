@@ -946,46 +946,57 @@ export function TransactionModal() {
               )}
 
               {type !== 'transferencia' && showInstallments && (
-                <div className="grid grid-cols-2 gap-3 p-3 bg-muted/30 rounded-xl border border-border">
-                  <div className="col-span-1">
-                    <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Parcelas</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      max="72"
-                      className="rounded-xl h-8 text-[11px] bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-medium text-center"
-                      value={installments}
-                      onChange={e => setInstallments(e.target.value)}
-                      disabled={!!editingTransactionId}
-                    />
+                <div className="flex flex-col gap-2 p-3 bg-muted/30 rounded-xl border border-border">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-1">
+                      <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Parcelas</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="72"
+                        className="rounded-xl h-8 text-[11px] bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none font-medium text-center"
+                        value={installments}
+                        onChange={e => setInstallments(e.target.value)}
+                        disabled={!!editingTransactionId}
+                      />
+                    </div>
+                    {numInstallments > 1 && !editingTransactionId && (
+                      <div className="col-span-1">
+                        <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Modo</Label>
+                        <div className="flex bg-muted/50 p-1 rounded-xl h-8">
+                          <button
+                            type="button"
+                            onClick={() => setInstallmentMode('divide')}
+                            className={`flex-1 rounded-[8px] text-[9px] font-bold uppercase tracking-widest transition-all flex items-center justify-center ${
+                              installmentMode === 'divide'
+                                ? 'bg-background text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            Dividir
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setInstallmentMode('repeat')}
+                            className={`flex-1 rounded-[8px] text-[9px] font-bold uppercase tracking-widest transition-all flex items-center justify-center ${
+                              installmentMode === 'repeat'
+                                ? 'bg-background text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            Repetir
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   {numInstallments > 1 && !editingTransactionId && (
-                    <div className="col-span-1">
-                      <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Modo</Label>
-                      <div className="flex bg-muted/50 p-1 rounded-xl h-8">
-                        <button
-                          type="button"
-                          onClick={() => setInstallmentMode('divide')}
-                          className={`flex-1 rounded-[8px] text-[9px] font-bold uppercase tracking-widest transition-all flex items-center justify-center ${
-                            installmentMode === 'divide'
-                              ? 'bg-background text-foreground shadow-sm'
-                              : 'text-muted-foreground hover:text-foreground'
-                          }`}
-                        >
-                          Dividir
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setInstallmentMode('repeat')}
-                          className={`flex-1 rounded-[8px] text-[9px] font-bold uppercase tracking-widest transition-all flex items-center justify-center ${
-                            installmentMode === 'repeat'
-                              ? 'bg-background text-foreground shadow-sm'
-                              : 'text-muted-foreground hover:text-foreground'
-                          }`}
-                        >
-                          Repetir
-                        </button>
-                      </div>
+                    <div className="text-center mt-0.5 mb-0.5 animate-in fade-in slide-in-from-top-1">
+                      <span className="text-[10px] font-semibold text-muted-foreground/80 bg-background/50 px-3 py-1 rounded-full border border-border/50">
+                        {installmentMode === 'divide' 
+                          ? `${numInstallments}x de ${formatCurrency(amount / numInstallments)}` 
+                          : `${numInstallments}x de ${formatCurrency(amount)} (Total: ${formatCurrency(amount * numInstallments)})`}
+                      </span>
                     </div>
                   )}
                 </div>
