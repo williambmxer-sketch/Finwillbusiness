@@ -4,7 +4,7 @@ import { useDataStore } from '../store/useDataStore';
 import { api } from '../services/api';
 import { generateUUID } from '../lib/utils';
 import { Transaction, Category, Account, Card } from '../db/db';
-import { X, Save, Trash, ChevronDown } from 'lucide-react';
+import { X, Save, Trash, ChevronDown, ArrowRightLeft } from 'lucide-react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { formatCurrency } from '../utils/formatters';
@@ -830,12 +830,15 @@ export function TransactionModal() {
               </div>
 
               {type === 'transferencia' ? (
-                <div className="grid grid-cols-2 gap-3 p-3 bg-muted/30 rounded-xl border border-border">
+                <div className="grid grid-cols-[1fr_auto_1fr] gap-3 p-3 bg-muted/30 rounded-xl border border-border items-end">
                   <div>
                     <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Conta de Origem</Label>
                     <CustomSelect
                       value={accountId}
-                      onValueChange={setAccountId}
+                      onValueChange={(val) => {
+                        if (val === toAccountId) setToAccountId(accountId);
+                        setAccountId(val);
+                      }}
                       placeholder="De..."
                       options={accounts.map(c => ({
                         value: c.id,
@@ -843,16 +846,31 @@ export function TransactionModal() {
                       }))}
                     />
                   </div>
+                  <div className="flex items-center justify-center pb-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const temp = accountId;
+                        setAccountId(toAccountId);
+                        setToAccountId(temp);
+                      }}
+                      className="p-1.5 rounded-full bg-background border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    >
+                      <ArrowRightLeft className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                   <div>
                     <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Conta de Destino</Label>
                     <CustomSelect
                       value={toAccountId}
-                      onValueChange={setToAccountId}
+                      onValueChange={(val) => {
+                        if (val === accountId) setAccountId(toAccountId);
+                        setToAccountId(val);
+                      }}
                       placeholder="Para..."
                       options={accounts.map(c => ({
                         value: c.id,
-                        label: c.name,
-                        disabled: c.id === accountId
+                        label: c.name
                       }))}
                     />
                   </div>
