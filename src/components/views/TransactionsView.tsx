@@ -139,16 +139,23 @@ export function TransactionsView() {
     const hasCardFilter = selectedCardIds.length > 0;
     const tHasCard = t.cardId && t.cardId !== 'money';
 
-    if (hasCategoryFilter && !selectedCategoryIds.includes(t.categoryId)) {
-      return false;
+    if (!hasCategoryFilter && !hasCardFilter) {
+      return true;
     }
 
-    if (hasCardFilter) {
-      if (!tHasCard || !selectedCardIds.includes(t.cardId)) {
-        return false;
-      }
-    } else if (hasCategoryFilter && tHasCard) {
-      // Exclude card transactions if filtering by category without explicit card selection
+    let matches = false;
+
+    // Condition 1: Check card filter
+    if (hasCardFilter && tHasCard && selectedCardIds.includes(t.cardId)) {
+      matches = true;
+    }
+
+    // Condition 2: Check category filter for cash/account transactions
+    if (hasCategoryFilter && !tHasCard && selectedCategoryIds.includes(t.categoryId)) {
+      matches = true;
+    }
+
+    if (!matches) {
       return false;
     }
     
@@ -358,7 +365,7 @@ export function TransactionsView() {
           <button
             onClick={handlePrevCycle}
             disabled={selectedCycle === 'all' || chronologicalCycles.indexOf(selectedCycle) <= 0}
-            className="p-2 rounded-lg bg-muted/20 border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/40 disabled:opacity-30 disabled:pointer-events-none transition-all h-10 w-9 flex items-center justify-center shrink-0"
+            className="p-2 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 disabled:opacity-20 disabled:pointer-events-none transition-all h-10 w-9 flex items-center justify-center shrink-0"
             title="Mês Anterior"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -383,7 +390,7 @@ export function TransactionsView() {
           <button
             onClick={handleNextCycle}
             disabled={selectedCycle === 'all' || chronologicalCycles.indexOf(selectedCycle) === -1 || chronologicalCycles.indexOf(selectedCycle) >= chronologicalCycles.length - 1}
-            className="p-2 rounded-lg bg-muted/20 border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/40 disabled:opacity-30 disabled:pointer-events-none transition-all h-10 w-9 flex items-center justify-center shrink-0"
+            className="p-2 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 disabled:opacity-20 disabled:pointer-events-none transition-all h-10 w-9 flex items-center justify-center shrink-0"
             title="Próximo Mês"
           >
             <ChevronRight className="w-4 h-4" />

@@ -34,11 +34,13 @@ export function ReportsView() {
 
   let periodLabel = '';
   if (isCustomMode) {
-    const s = new Date(customStart + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-    const e = new Date(customEnd + 'T23:59:59').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' });
+    const s = new Date(customStart + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '').toUpperCase();
+    const e = new Date(customEnd + 'T23:59:59').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' }).replace('.', '').toUpperCase();
     periodLabel = `${s} – ${e}`;
   } else {
-    periodLabel = currentMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    const month = currentMonth.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase();
+    const year = currentMonth.getFullYear();
+    periodLabel = `${month}/${year}`;
   }
 
   // Helpers to get start and end dates
@@ -135,29 +137,29 @@ export function ReportsView() {
     <div className="flex flex-col h-full bg-background relative pt-6 px-4 max-w-lg mx-auto w-full pb-16">
       
       {/* Header and Fast Navigation */}
-      <header className="flex items-center justify-between pb-4 relative">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 gap-3 relative">
         <div>
           <h1 className="text-xl font-bold tracking-tight mb-0.5">Visão</h1>
           <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Saúde Financeira</p>
         </div>
         
-        <div className="flex flex-col items-end">
-          <div className="flex items-center bg-card border border-border rounded-xl p-1 shadow-sm">
+        <div className="flex flex-col items-start sm:items-end w-full sm:w-auto">
+          <div className="flex items-center w-full sm:w-auto bg-card border border-border rounded-xl p-1 shadow-sm justify-between sm:justify-start">
             {!isCustomMode && (
-              <button onClick={handlePrevMonth} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+              <button onClick={handlePrevMonth} className="p-1.5 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-all shrink-0">
                 <ChevronLeft className="w-4 h-4" />
               </button>
             )}
-            <span className="text-[10px] font-bold uppercase tracking-widest min-w-[170px] text-center px-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest flex-1 sm:flex-initial sm:min-w-[120px] text-center px-2">
               {periodLabel}
             </span>
             {!isCustomMode && (
-              <button onClick={handleNextMonth} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+              <button onClick={handleNextMonth} className="p-1.5 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-all shrink-0">
                 <ChevronRight className="w-4 h-4" />
               </button>
             )}
-            <div className="w-[1px] h-4 bg-border mx-1" />
-            <button onClick={() => setShowCalendarMenu(!showCalendarMenu)} className={`p-1.5 rounded-lg transition-colors ${showCalendarMenu || isCustomMode ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
+            <div className="w-[1px] h-4 bg-border mx-1 shrink-0" />
+            <button onClick={() => setShowCalendarMenu(!showCalendarMenu)} className={`p-1.5 rounded-lg transition-colors shrink-0 ${showCalendarMenu || isCustomMode ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
               <CalendarDays className="w-4 h-4" />
             </button>
           </div>

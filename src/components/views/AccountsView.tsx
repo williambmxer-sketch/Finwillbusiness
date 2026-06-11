@@ -15,33 +15,69 @@ export function AccountsView() {
   // Inline balance adjustment state
   const [adjustingId, setAdjustingId] = useState<string | null>(null);
   const [adjustValue, setAdjustValue] = useState('');
+  const [adjustReason, setAdjustReason] = useState('');
   const [adjustError, setAdjustError] = useState('');
 
   const handleAdjustOpen = (id: string, currentBalance: number) => {
     setAdjustingId(id);
-    setAdjustValue(currentBalance.toFixed(2).replace('.', ','));
+    setAdjustValue(currentBalance.toFixed(2));
+    setAdjustReason('');
     setAdjustError('');
   };
 
   const handleAdjustConfirm = async (id: string) => {
-    const raw = adjustValue.replace(/\./g, '').replace(',', '.');
-    const parsed = parseFloat(raw);
+    const account = accounts.find(a => a.id === id);
+    if (!account) return;
+
+    const parsed = parseFloat(adjustValue);
     if (isNaN(parsed)) {
       setAdjustError('Valor inválido');
       return;
     }
+
+    const diff = parsed - account.balance;
+    if (diff !== 0) {
+      if (!adjustReason.trim()) {
+        setAdjustError('O motivo do ajuste é obrigatório');
+        return;
+      }
+
+      const type = diff >= 0 ? 'receita' : 'despesa';
+      const categories = useDataStore.getState().categories;
+      const category = categories.find(c => c.type === type && (c.name.toLowerCase().includes('ajuste') || c.name.toLowerCase().includes('outro'))) || categories.find(c => c.type === type);
+
+      await api.transactions.add({
+        description: `Ajuste de Saldo: ${adjustReason.trim()}`,
+        amount: Math.abs(diff),
+        date: new Date(),
+        type,
+        categoryId: category?.id || 'none',
+        accountId: id,
+        isPaid: true,
+        paymentDate: new Date(),
+        notes: 'Ajuste manual de saldo'
+      });
+    }
+
     await api.accounts.update(id, { balance: parsed });
     setAdjustingId(null);
     setAdjustValue('');
+    setAdjustReason('');
     setAdjustError('');
   };
 
   const handleAdjustChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Allow numeric input with comma as decimal separator
-    let v = e.target.value.replace(/[^0-9,]/g, '');
-    setAdjustValue(v);
+    let value = e.target.value.replace(/\D/g, '');
+    if (value === '') {
+      setAdjustValue('');
+      return;
+    }
+    const numericValue = (parseInt(value, 10) / 100).toFixed(2);
+    setAdjustValue(numericValue);
     setAdjustError('');
   };
+
+  const displayAdjustValue = adjustValue ? parseFloat(adjustValue).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
 
   return (
     <div className="flex flex-col h-full bg-background relative pt-8 px-4 max-w-lg mx-auto w-full">
@@ -143,7 +179,7 @@ export function AccountsView() {
                               autoFocus
                               type="text"
                               inputMode="decimal"
-                              value={adjustValue}
+                              value={displayAdjustValue}
                               onChange={handleAdjustChange}
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') handleAdjustConfirm(account.id);
@@ -165,6 +201,19 @@ export function AccountsView() {
                           >
                             <X className="w-4 h-4" />
                           </button>
+                        </div>
+                        <div className="mt-2 bg-muted/40 rounded-xl px-3 h-8 flex items-center border border-transparent focus-within:border-primary/40 focus-within:bg-background transition-all">
+                          <input
+                            type="text"
+                            value={adjustReason}
+                            onChange={(e) => setAdjustReason(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleAdjustConfirm(account.id);
+                              if (e.key === 'Escape') setAdjustingId(null);
+                            }}
+                            className="flex-1 bg-transparent text-[10px] font-medium outline-none text-muted-foreground placeholder:text-muted-foreground/50"
+                            placeholder="Motivo do ajuste (ex: Correção, Rendimento)..."
+                          />
                         </div>
                         {adjustError && (
                           <p className="text-[10px] text-destructive mt-1 ml-1 font-medium">{adjustError}</p>

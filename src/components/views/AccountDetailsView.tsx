@@ -2,38 +2,84 @@ import React, { useState } from 'react';
 import { useDataStore } from '../../store/useDataStore';
 import { api } from '../../services/api';
 import { formatCurrency } from '../../utils/formatters';
-import { Plus, ChevronLeft, Landmark, TrendingUp, TrendingDown, Clock, CheckCircle2 } from 'lucide-react';
+import { Plus, ChevronLeft, Landmark, TrendingUp, TrendingDown, Clock, CheckCircle2, ChevronRight, ChevronDown, Check } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAppStore } from '../../store/useAppStore';
+import { getTransactionCycle } from '../../utils/cycleUtils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 export function AccountDetailsView() {
   const { setCurrentView, activeAccountId, setEditingAccountId, setAccountModalOpen, setEditingTransactionId, setTransactionModalOpen } = useAppStore();
   
   const accounts = useDataStore(state => state.accounts);
   const account = accounts.find(a => a.id === activeAccountId);
+  const cards = useDataStore(state => state.cards);
 
   const allTransactions = useDataStore(state => state.transactions);
-  const transactions = React.useMemo(() => {
+
+  const now = new Date();
+  const currentCycleId = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const [selectedCycle, setSelectedCycle] = useState<string>(currentCycleId);
+
+  const getActualDate = (t: any) => {
+    const d = t.paymentDate || t.date;
+    return d instanceof Date ? d : new Date(d);
+  };
+
+  // Get only PAID transactions for this account
+  const accountTransactions = React.useMemo(() => {
     return allTransactions
-      .filter(t => t.accountId === activeAccountId)
-      .sort((a, b) => b.date.getTime() - a.date.getTime());
+      .filter(t => t.accountId === activeAccountId && t.isPaid)
+      .sort((a, b) => getActualDate(b).getTime() - getActualDate(a).getTime());
   }, [allTransactions, activeAccountId]);
 
-  const handleQuickPay = async (e: React.MouseEvent, t: any) => {
-    e.stopPropagation();
-    if (t.isPaid || t.cardId !== 'money') return;
-    
-    await api.transactions.update(t.id, { isPaid: true });
-    
-    if (t.accountId) {
-      const acc = useDataStore.getState().accounts.find(a => a.id === t.accountId);
-      if (acc) {
-        await api.accounts.update(t.accountId, {
-          balance: acc.balance + (t.type === 'receita' ? t.amount : -t.amount)
-        });
-      }
+  const getEffectiveCycle = (t: any) => {
+    const d = getActualDate(t);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  };
+
+  const chronologicalCycles = React.useMemo(() => {
+    const uniqueCycles = Array.from<string>(new Set(accountTransactions.map(t => getEffectiveCycle(t))));
+    if (!uniqueCycles.includes(currentCycleId)) {
+      uniqueCycles.push(currentCycleId);
+    }
+    return uniqueCycles.sort();
+  }, [accountTransactions, currentCycleId]);
+
+  const sortedCycles = React.useMemo(() => {
+    const future = chronologicalCycles.filter(c => c > currentCycleId);
+    const past = chronologicalCycles.filter(c => c < currentCycleId).reverse();
+    return [currentCycleId, ...future, ...past];
+  }, [chronologicalCycles, currentCycleId]);
+
+  const handlePrevCycle = () => {
+    const idx = chronologicalCycles.indexOf(selectedCycle);
+    if (idx > 0) {
+      setSelectedCycle(chronologicalCycles[idx - 1]);
     }
   };
+
+  const handleNextCycle = () => {
+    const idx = chronologicalCycles.indexOf(selectedCycle);
+    if (idx !== -1 && idx < chronologicalCycles.length - 1) {
+      setSelectedCycle(chronologicalCycles[idx + 1]);
+    }
+  };
+
+  const formatCycleName = (cycleId: string) => {
+    const [y, m] = cycleId.split('-');
+    const date = new Date(parseInt(y), parseInt(m) - 1, 1);
+    const month = date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase();
+    return `${month}/${y}`;
+  };
+
+  // Filter transactions by selected cycle
+  const filteredTransactions = React.useMemo(() => {
+    return accountTransactions.filter(t => {
+      if (selectedCycle !== 'all' && getEffectiveCycle(t) !== selectedCycle) return false;
+      return true;
+    });
+  }, [accountTransactions, selectedCycle, cards]);
 
   if (!account) {
     return (
@@ -48,9 +94,9 @@ export function AccountDetailsView() {
     );
   }
 
-  // Calculate a mock evolution or just use the current balance as the focal point
-  const totalIncomes = transactions.filter(t => t.type === 'receita' && t.isPaid).reduce((acc, t) => acc + t.amount, 0);
-  const totalExpenses = transactions.filter(t => t.type === 'despesa' && t.isPaid).reduce((acc, t) => acc + t.amount, 0);
+  // Recalculate totals based on filtered transactions (period-specific)
+  const totalIncomes = filteredTransactions.filter(t => t.type === 'receita').reduce((acc, t) => acc + t.amount, 0);
+  const totalExpenses = filteredTransactions.filter(t => t.type === 'despesa').reduce((acc, t) => acc + t.amount, 0);
 
   return (
     <div className="flex flex-col h-full bg-background relative pt-8 px-4 max-w-lg mx-auto w-full">
@@ -101,15 +147,53 @@ export function AccountDetailsView() {
 
       {/* Transactions List */}
       <div className="flex-1 px-4 mt-2">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Movimentações</h2>
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Movimentações</h2>
+          
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handlePrevCycle}
+              disabled={selectedCycle === 'all' || chronologicalCycles.indexOf(selectedCycle) <= 0}
+              className="p-1 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 disabled:opacity-20 disabled:pointer-events-none transition-all h-8 w-7 flex items-center justify-center shrink-0"
+              title="Mês Anterior"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            
+            <Select value={selectedCycle} onValueChange={setSelectedCycle}>
+              <SelectTrigger className="w-[100px] bg-muted/30 border-border/50 rounded-[8px] !h-8 text-[10px] font-bold uppercase tracking-wider text-foreground focus:ring-primary shadow-sm hover:bg-muted/50 transition-colors py-0 px-2">
+                <SelectValue placeholder="Mês" className="justify-center !text-center flex-1">
+                  {selectedCycle === 'all' ? '✨ TODO O PERÍODO' : formatCycleName(selectedCycle)}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="rounded-xl z-[200]" side="bottom" sideOffset={4} alignItemWithTrigger={false}>
+                <SelectItem value="all" className="text-xs font-medium">✨ TODO O PERÍODO</SelectItem>
+                {sortedCycles.map(c => (
+                  <SelectItem key={c} value={c} className="text-xs font-medium capitalize">
+                    {formatCycleName(c)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <button
+              onClick={handleNextCycle}
+              disabled={selectedCycle === 'all' || chronologicalCycles.indexOf(selectedCycle) === -1 || chronologicalCycles.indexOf(selectedCycle) >= chronologicalCycles.length - 1}
+              className="p-1 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 disabled:opacity-20 disabled:pointer-events-none transition-all h-8 w-7 flex items-center justify-center shrink-0"
+              title="Próximo Mês"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
         
-        <div className="flex flex-col gap-2.5">
-          {transactions.length === 0 ? (
+        <div className="flex flex-col gap-2.5 pb-16">
+          {filteredTransactions.length === 0 ? (
             <div className="text-center text-muted-foreground p-8 flex flex-col items-center border border-dashed rounded-[11px] border-border/50">
-               <p className="text-xs">Nenhuma movimentação nesta conta</p>
+               <p className="text-xs">Nenhuma movimentação neste período</p>
             </div>
           ) : (
-            transactions.map((t, i) => (
+            filteredTransactions.map((t, i) => (
               <motion.div 
                 whileTap={{ scale: 0.98 }}
                 onClick={() => {
@@ -124,37 +208,25 @@ export function AccountDetailsView() {
               >
                  <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-[11px] ${
-                      t.type === 'receita' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500' : 
-                      !t.isPaid ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-500' : 'bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:text-rose-500'
+                      t.type === 'receita' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500' : 'bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:text-rose-500'
                     }`}>
-                      {t.type === 'receita' ? <TrendingUp className="h-4 w-4" /> : 
-                       !t.isPaid ? <Clock className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                      {t.type === 'receita' ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                     </div>
                     <div>
                       <div className="font-semibold text-xs mb-0.5 tracking-tight">{t.description}</div>
                       <div className="text-[10px] text-muted-foreground flex items-center gap-2 font-medium">
-                        <span>{t.date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</span>
+                        <span>{t.type === 'receita' ? 'Recebido em' : 'Pago em'} {getActualDate(t).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</span>
                       </div>
                     </div>
                  </div>
                  <div className="flex items-center gap-3 text-right">
                    <div>
                      <div className={`font-bold text-xs ${
-                       t.type === 'receita' ? 'text-emerald-600 dark:text-emerald-500' : 
-                       t.isPaid ? 'text-foreground' : 'text-amber-600 dark:text-amber-500'
+                       t.type === 'receita' ? 'text-emerald-600 dark:text-emerald-500' : 'text-foreground'
                      }`}>
                        {t.type === 'receita' ? '+' : '-'}{formatCurrency(t.amount)}
                      </div>
-                     {!t.isPaid && <div className="text-[9px] text-amber-500 font-bold uppercase tracking-widest mt-1">Pendente</div>}
                    </div>
-                   {!t.isPaid && t.cardId === 'money' && (
-                     <button 
-                       onClick={(e) => handleQuickPay(e, t)}
-                       className="p-2 border border-emerald-500/30 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 hover:bg-emerald-100 hover:border-emerald-500/50 rounded-lg transition-colors flex-shrink-0"
-                     >
-                       <CheckCircle2 className="w-5 h-5" />
-                     </button>
-                   )}
                  </div>
               </motion.div>
             ))
