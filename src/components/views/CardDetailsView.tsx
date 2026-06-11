@@ -96,6 +96,17 @@ export function CardDetailsView() {
   const [installments, setInstallments] = useState('1');
   const [installmentMode, setInstallmentMode] = useState<'divide' | 'repeat'>('divide');
 
+  const amountInputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (isQuickAddExpanded) {
+      const timer = setTimeout(() => {
+        amountInputRef.current?.focus();
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [isQuickAddExpanded]);
+
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
     if (value === '') {
@@ -292,6 +303,7 @@ export function CardDetailsView() {
                     <div className="flex items-center gap-1.5">
                       <span className="text-lg font-bold text-muted-foreground">R$</span>
                       <Input
+                        ref={amountInputRef}
                         type="text"
                         inputMode="numeric"
                         placeholder="0,00"
