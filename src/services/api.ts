@@ -1,5 +1,9 @@
 import { supabase } from '../lib/supabase';
 import { Account, Card, Category, Transaction, Invoice, CustomPaymentMethod } from '../db/db';
+import { offlineSync } from './offlineSync';
+
+// Initialize offline listeners
+offlineSync.setupListeners();
 
 /**
  * MAPPERS: Translate Supabase PT-BR to Frontend EN-US and vice versa
@@ -217,19 +221,51 @@ export const api = {
 
   transactions: {
     list: async (): Promise<Transaction[]> => {
-      const { data, error } = await supabase.from('transacoes').select('*');
-      if (error) throw error;
-      return (data || []).map(mappers.transaction.toApp);
+      let remoteData: any[] = [];
+      try {
+        const { data, error } = await supabase.from('transacoes').select('*');
+        if (error) throw error;
+        remoteData = data || [];
+      } catch (err: any) {
+        if (!navigator.onLine || (err.message && err.message.includes('fetch'))) {
+          console.log('[API] Usando transações em cache devido a falha de rede');
+        } else {
+          throw err;
+        }
+      }
+      
+      // Merge com cache otimista local
+      const optimisticData = offlineSync.getOptimisticTransactions();
+      const allData = [...remoteData, ...optimisticData];
+      
+      return allData.map(row => {
+        // Se for do otimista, ele já pode ter vindo no formato "Db".
+        // Se a chave for minúscula (ex: valor), passa no mapper, senão mapeia manual.
+        if ('valor' in row) return mappers.transaction.toApp(row);
+        // Fallback pra caso o optimisticData tenha estrutura incompleta:
+        return mappers.transaction.toApp(row); 
+      });
     },
     add: async (transaction: Omit<Transaction, 'id'>) => {
       const userId = await getUserId();
-      const { data, error } = await supabase.from('transacoes').insert({
+      const payload = {
         ...mappers.transaction.toDb(transaction),
         usuario_id: userId
-      }).select().single();
-      if (error) throw error;
-      notifyMutation();
-      return mappers.transaction.toApp(data);
+      };
+
+      try {
+        const { data, error } = await supabase.from('transacoes').insert(payload).select().single();
+        if (error) throw error;
+        notifyMutation();
+        return mappers.transaction.toApp(data);
+      } catch (err: any) {
+        if (!navigator.onLine || (err.message && err.message.includes('fetch'))) {
+          offlineSync.queueMutation({ collection: 'transacoes', action: 'insert', payload });
+          notifyMutation();
+          return { ...transaction, id: 'temp-' + Date.now() } as Transaction;
+        }
+        throw err;
+      }
     },
     bulkAdd: async (transactions: Omit<Transaction, 'id'>[]) => {
       const userId = await getUserId();
@@ -237,10 +273,20 @@ export const api = {
         ...mappers.transaction.toDb(t),
         usuario_id: userId
       }));
-      const { data, error } = await supabase.from('transacoes').insert(payload).select();
-      if (error) throw error;
-      notifyMutation();
-      return (data || []).map(mappers.transaction.toApp);
+
+      try {
+        const { data, error } = await supabase.from('transacoes').insert(payload).select();
+        if (error) throw error;
+        notifyMutation();
+        return (data || []).map(mappers.transaction.toApp);
+      } catch (err: any) {
+        if (!navigator.onLine || (err.message && err.message.includes('fetch'))) {
+          offlineSync.queueMutation({ collection: 'transacoes', action: 'bulkInsert', payload });
+          notifyMutation();
+          return transactions.map((t, i) => ({ ...t, id: 'temp-' + Date.now() + '-' + i })) as Transaction[];
+        }
+        throw err;
+      }
     },
     update: async (id: string, transaction: Partial<Transaction>) => {
       const { data, error } = await supabase.from('transacoes').update(mappers.transaction.toDb(transaction)).eq('id', id).select().single();

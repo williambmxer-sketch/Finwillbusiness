@@ -123,6 +123,7 @@ export function TransactionModal() {
   const [installmentMode, setInstallmentMode] = useState<'divide' | 'repeat'>('divide');
   const [balanceWarning, setBalanceWarning] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (cardId.startsWith('custom-')) {
@@ -160,13 +161,14 @@ export function TransactionModal() {
     setAmount(numericValue);
   };
 
-  const displayAmount = amount ? parseFloat(amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+  const displayAmount = amount ? parseFloat(amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 }) : '';
 
   useEffect(() => {
     if (!isTransactionModalOpen) {
       setHasInitialized(false);
       setError(null);
       setBalanceWarning(null);
+      setIsSubmitting(false);
       return;
     }
 
@@ -234,37 +236,45 @@ export function TransactionModal() {
   const numInstallments = showInstallments ? Math.max(1, parseInt(installments, 10) || 1) : 1;
 
   const handleSave = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     setError(null);
 
     if (!amount || parseFloat(amount) <= 0) {
       setError('Por favor, insira um valor válido para a transação.');
+      setIsSubmitting(false);
       return;
     }
 
     if (!description || !description.trim()) {
       setError('Por favor, preencha a descrição da transação.');
+      setIsSubmitting(false);
       return;
     }
 
     if (type === 'transferencia') {
       if (!accountId || !toAccountId || accountId === toAccountId) {
         setError('Por favor, selecione contas de origem e destino válidas e diferentes.');
+        setIsSubmitting(false);
         return;
       }
     }
     if (type === 'despesa') {
       if (isPaid && (!cardId || cardId === '')) {
         setError('Por favor, selecione uma Forma de Pagamento.');
+        setIsSubmitting(false);
         return;
       }
       if (!categoryId || categoryId === 'none' || categoryId === '') {
         setError('Por favor, selecione uma categoria.');
+        setIsSubmitting(false);
         return;
       }
     }
 
     if (type === 'receita' && isPaid && (!accountId || accountId === 'none' || accountId === '')) {
       setError('Selecione a conta de destino para receber o valor.');
+      setIsSubmitting(false);
       return;
     }
 
@@ -274,11 +284,13 @@ export function TransactionModal() {
 
     if (requiresAccount && (!accountId || accountId === 'none' || accountId === '')) {
       setError('Selecione a conta bancária para confirmar o pagamento.');
+      setIsSubmitting(false);
       return;
     }
 
     if (type === 'despesa' && showInstallments && numInstallments > 1 && !firstInstallmentIn30Days && payFirstInstallmentToday && (!accountId || accountId === 'none' || accountId === '')) {
       setError('Selecione a conta bancária para a entrada / primeira parcela.');
+      setIsSubmitting(false);
       return;
     }
 
@@ -290,7 +302,8 @@ export function TransactionModal() {
         const originalAmountPaidOnSameAcc = (oldTx && oldTx.isPaid && oldTx.accountId === accountId) ? oldTx.amount : 0;
         const netDeduction = txAmount - originalAmountPaidOnSameAcc;
         if (acc.balance < netDeduction && !balanceWarning) {
-          setBalanceWarning(`Saldo insuficiente na conta selecionada. Saldo disponível: ${acc.balance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}. Clique em Salvar novamente para confirmar mesmo assim.`);
+          setBalanceWarning(`Saldo insuficiente na conta selecionada. Saldo disponível: ${acc.balance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 3 })}. Clique em Salvar novamente para confirmar mesmo assim.`);
+          setIsSubmitting(false);
           return;
         }
       }
@@ -301,7 +314,8 @@ export function TransactionModal() {
       const acc = accountsList.find(a => a.id === accountId);
       const firstInstallmentAmount = installmentMode === 'divide' ? txAmount / numInstallments : txAmount;
       if (acc && acc.balance < firstInstallmentAmount && !balanceWarning) {
-        setBalanceWarning(`Saldo insuficiente para pagar a entrada. Saldo disponível: ${acc.balance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}. Clique em Salvar novamente para confirmar mesmo assim.`);
+        setBalanceWarning(`Saldo insuficiente para pagar a entrada. Saldo disponível: ${acc.balance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 3 })}. Clique em Salvar novamente para confirmar mesmo assim.`);
+        setIsSubmitting(false);
         return;
       }
     }
@@ -318,7 +332,8 @@ export function TransactionModal() {
           .reduce((sum, t) => sum + t.amount, 0);
 
         if (currentUsage + txAmount > card.limit) {
-          setError(`Limite do cartão excedido! Limite disponível: R$ ${(card.limit - currentUsage).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+          setError(`Limite do cartão excedido! Limite disponível: R$ ${(card.limit - currentUsage).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}`);
+          setIsSubmitting(false);
           return;
         }
       }
@@ -329,6 +344,7 @@ export function TransactionModal() {
       const oldTx = useDataStore.getState().transactions.find(t => t.id === editingTransactionId);
       if (oldTx && oldTx.parentId && oldTx.installments && oldTx.installments > 1) {
         setInstallmentActionType('edit');
+        setIsSubmitting(false);
         return;
       }
     }
@@ -389,6 +405,7 @@ export function TransactionModal() {
       if (originAcc) await api.accounts.update(accountId, { balance: originAcc.balance - txAmount });
       if (destAcc) await api.accounts.update(toAccountId, { balance: destAcc.balance + txAmount });
       
+      setIsSubmitting(false);
       closeModal();
       return;
     }
@@ -528,7 +545,9 @@ export function TransactionModal() {
       setIsPaid(false);
       setInstallments('1');
       setError(null);
+      setIsSubmitting(false);
     } else {
+      setIsSubmitting(false);
       closeModal();
     }
   };
@@ -843,7 +862,7 @@ export function TransactionModal() {
                       placeholder="De..."
                       options={accounts.map(c => ({
                         value: c.id,
-                        label: c.name
+                        label: `${c.name} • ${formatCurrency(c.balance)}`
                       }))}
                     />
                   </div>
@@ -871,7 +890,7 @@ export function TransactionModal() {
                       placeholder="Para..."
                       options={accounts.map(c => ({
                         value: c.id,
-                        label: c.name
+                        label: `${c.name} • ${formatCurrency(c.balance)}`
                       }))}
                     />
                   </div>
@@ -934,7 +953,7 @@ export function TransactionModal() {
                           placeholder="Selecione a conta..."
                           options={accounts.map(c => ({
                             value: c.id,
-                            label: c.name
+                            label: `${c.name} • ${formatCurrency(c.balance)}`
                           }))}
                         />
                       </div>
@@ -1090,8 +1109,8 @@ export function TransactionModal() {
               </button>
             )
           )}
-          <button onClick={handleSave} className={`flex-1 text-sm font-bold rounded-xl h-11 flex items-center justify-center gap-2 transition-all ${balanceWarning ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}>
-            {balanceWarning ? 'Confirmar mesmo assim' : 'Salvar'}
+          <button disabled={isSubmitting} onClick={handleSave} className={`flex-1 text-sm font-bold rounded-xl h-11 flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${balanceWarning ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}>
+            {isSubmitting ? 'Salvando...' : (balanceWarning ? 'Confirmar mesmo assim' : 'Salvar')}
           </button>
         </div>
 

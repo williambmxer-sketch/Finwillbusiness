@@ -25,7 +25,7 @@ export function AccountModal() {
     setBalance(numericValue);
   };
 
-  const displayBalance = balance ? parseFloat(balance).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+  const displayBalance = balance ? parseFloat(balance).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 }) : '';
 
   useEffect(() => {
     if (editingAccountId && isAccountModalOpen) {

@@ -43,7 +43,15 @@ export const useDataStore = create<DataState>((set, get) => ({
   },
 
   setupSubscriptions: () => {
-    const handleLocalMutation = () => get().fetchData();
+    let timeoutId: number | null = null;
+    const handleLocalMutation = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(() => {
+        get().fetchData();
+        timeoutId = null;
+      }, 500);
+    };
+
     if (typeof window !== 'undefined') {
       window.addEventListener('db_mutation', handleLocalMutation);
     }
@@ -55,9 +63,7 @@ export const useDataStore = create<DataState>((set, get) => ({
         'postgres_changes',
         { event: '*', schema: 'public' },
         (payload) => {
-          // Por simplicidade, ao invés de calcular o delta, recarregamos os dados. 
-          // Como o volume de dados costuma ser gerenciável por usuário, é seguro.
-          get().fetchData();
+          handleLocalMutation();
         }
       )
       .subscribe();

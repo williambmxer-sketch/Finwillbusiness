@@ -105,7 +105,7 @@ export function CardModal() {
     setLimit(numericValue);
   };
 
-  const displayLimit = limit ? parseFloat(limit).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+  const displayLimit = limit ? parseFloat(limit).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 }) : '';
 
   useEffect(() => {
     if (editingCardId && isCardModalOpen) {

@@ -106,7 +106,7 @@ export function CardDetailsView() {
     setAmount(numericValue);
   };
 
-  const displayAmount = amount ? parseFloat(amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+  const displayAmount = amount ? parseFloat(amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 }) : '';
 
   const handleQuickSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,7 +125,7 @@ export function CardDetailsView() {
         .reduce((sum, t) => sum + t.amount, 0);
 
       if (currentUsage + totalDeduction > card.limit) {
-        alert(`Limite do cartão excedido! Limite disponível: R$ ${(card.limit - currentUsage).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        alert(`Limite do cartão excedido! Limite disponível: R$ ${(card.limit - currentUsage).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}`);
         return;
       }
     }
@@ -304,8 +304,8 @@ export function CardDetailsView() {
                     {parseInt(installments, 10) > 1 && amount && parseFloat(amount) > 0 && (
                       <div className="text-[9px] font-medium text-rose-500/90 -mt-1 uppercase tracking-widest">
                         {installmentMode === 'divide' 
-                          ? `${parseInt(installments, 10)}x de R$ ${(parseFloat(amount) / parseInt(installments, 10)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                          : `${parseInt(installments, 10)}x de R$ ${parseFloat(amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                          ? `${parseInt(installments, 10)}x de R$ ${(parseFloat(amount) / parseInt(installments, 10)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}`
+                          : `${parseInt(installments, 10)}x de R$ ${parseFloat(amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}`}
                       </div>
                     )}
                   </div>
@@ -412,7 +412,7 @@ export function CardDetailsView() {
             <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Histórico</h2>
             {visibleTotal > 0 && (
               <span className="text-[10px] font-bold text-foreground bg-muted/50 px-1.5 py-0.5 rounded-md">
-                R$ {visibleTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                R$ {visibleTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
               </span>
             )}
           </div>
