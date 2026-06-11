@@ -406,54 +406,89 @@ export function TransactionsView() {
             <ChevronDown className="size-4 shrink-0 opacity-50" />
           </button>
 
-          {filterDropdownOpen && (
-            <div className="absolute right-0 top-full mt-1 w-full min-w-[200px] bg-popover text-popover-foreground border border-border rounded-xl shadow-md p-1.5 z-[250] animate-in fade-in-0 zoom-in-95 duration-100">
-              <div 
-                onClick={() => {
-                  const allActive = Object.values(filters).every(v => v);
-                  setFilters({
-                    receita: !allActive,
-                    despesa: !allActive,
-                    pending: !allActive,
-                    paid: !allActive
-                  });
-                }}
-                className="relative flex w-full cursor-default items-center justify-between rounded-md py-1.5 px-2.5 text-xs font-bold uppercase tracking-wider select-none hover:bg-accent hover:text-accent-foreground transition-colors"
-              >
-                <span>✨ TODAS AS TRANSAÇÕES</span>
-                {Object.values(filters).every(v => v) && <Check className="size-3.5 text-primary" />}
+          {filterDropdownOpen && (() => {
+            const toggleTypeFilter = (type: 'receita' | 'despesa') => {
+              setFilters(prev => {
+                const other = type === 'receita' ? 'despesa' : 'receita';
+                if (prev[type] && prev[other]) {
+                  return { ...prev, [type]: true, [other]: false };
+                }
+                if (prev[type] && !prev[other]) {
+                  return prev; // keep at least one checked
+                }
+                return { ...prev, [type]: true, [other]: true };
+              });
+            };
+
+            const toggleStatusFilter = (status: 'pending' | 'paid') => {
+              setFilters(prev => {
+                const other = status === 'pending' ? 'paid' : 'pending';
+                if (prev[status] && prev[other]) {
+                  return { ...prev, [status]: true, [other]: false };
+                }
+                if (prev[status] && !prev[other]) {
+                  return prev; // keep at least one checked
+                }
+                return { ...prev, [status]: true, [other]: true };
+              });
+            };
+
+            return (
+              <div className="absolute right-0 top-full mt-1 w-full min-w-[200px] bg-popover text-popover-foreground border border-border rounded-xl shadow-md p-1.5 z-[250] animate-in fade-in-0 zoom-in-95 duration-100">
+                <div 
+                  onClick={() => {
+                    const allActive = Object.values(filters).every(v => v);
+                    setFilters({
+                      receita: !allActive,
+                      despesa: !allActive,
+                      pending: !allActive,
+                      paid: !allActive
+                    });
+                  }}
+                  className="relative flex w-full cursor-default items-center justify-between rounded-md py-1.5 px-2.5 text-[10px] font-bold uppercase tracking-wider select-none hover:bg-accent hover:text-accent-foreground transition-colors"
+                >
+                  <span>✨ TODAS AS TRANSAÇÕES</span>
+                  {Object.values(filters).every(v => v) && <Check className="size-3.5 text-primary" />}
+                </div>
+                
+                <div className="h-px bg-border my-1" />
+                
+                <div className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground px-2 py-0.5 mb-0.5">Tipo</div>
+                <div 
+                  onClick={() => toggleTypeFilter('receita')}
+                  className="relative flex w-full cursor-default items-center justify-between rounded-md py-1.5 px-2.5 text-xs font-bold uppercase tracking-wider select-none hover:bg-accent text-emerald-600 dark:text-emerald-500 hover:text-accent-foreground transition-colors"
+                >
+                  <span>🟢 RECEITAS</span>
+                  {filters.receita && <Check className="size-3.5 text-emerald-600 dark:text-emerald-500" />}
+                </div>
+                <div 
+                  onClick={() => toggleTypeFilter('despesa')}
+                  className="relative flex w-full cursor-default items-center justify-between rounded-md py-1.5 px-2.5 text-xs font-bold uppercase tracking-wider select-none hover:bg-accent text-rose-600 dark:text-rose-500 hover:text-accent-foreground transition-colors"
+                >
+                  <span>🔴 DESPESAS</span>
+                  {filters.despesa && <Check className="size-3.5 text-rose-600 dark:text-rose-500" />}
+                </div>
+                
+                <div className="h-px bg-border my-1" />
+                
+                <div className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground px-2 py-0.5 mb-0.5">Situação</div>
+                <div 
+                  onClick={() => toggleStatusFilter('pending')}
+                  className="relative flex w-full cursor-default items-center justify-between rounded-md py-1.5 px-2.5 text-xs font-bold uppercase tracking-wider select-none hover:bg-accent text-amber-600 dark:text-amber-500 hover:text-accent-foreground transition-colors"
+                >
+                  <span>⏳ PENDENTES</span>
+                  {filters.pending && <Check className="size-3.5 text-amber-600 dark:text-amber-500" />}
+                </div>
+                <div 
+                  onClick={() => toggleStatusFilter('paid')}
+                  className="relative flex w-full cursor-default items-center justify-between rounded-md py-1.5 px-2.5 text-xs font-bold uppercase tracking-wider select-none hover:bg-accent text-primary hover:text-accent-foreground transition-colors"
+                >
+                  <span>✅ PAGAS</span>
+                  {filters.paid && <Check className="size-3.5 text-primary" />}
+                </div>
               </div>
-              <div className="h-px bg-border my-1" />
-              <div 
-                onClick={() => setFilters(prev => ({ ...prev, receita: !prev.receita }))}
-                className="relative flex w-full cursor-default items-center justify-between rounded-md py-1.5 px-2.5 text-xs font-bold uppercase tracking-wider select-none hover:bg-accent text-emerald-600 dark:text-emerald-500 hover:text-accent-foreground transition-colors"
-              >
-                <span>🟢 RECEITAS</span>
-                {filters.receita && <Check className="size-3.5 text-emerald-600 dark:text-emerald-500" />}
-              </div>
-              <div 
-                onClick={() => setFilters(prev => ({ ...prev, despesa: !prev.despesa }))}
-                className="relative flex w-full cursor-default items-center justify-between rounded-md py-1.5 px-2.5 text-xs font-bold uppercase tracking-wider select-none hover:bg-accent text-rose-600 dark:text-rose-500 hover:text-accent-foreground transition-colors"
-              >
-                <span>🔴 DESPESAS</span>
-                {filters.despesa && <Check className="size-3.5 text-rose-600 dark:text-rose-500" />}
-              </div>
-              <div 
-                onClick={() => setFilters(prev => ({ ...prev, pending: !prev.pending }))}
-                className="relative flex w-full cursor-default items-center justify-between rounded-md py-1.5 px-2.5 text-xs font-bold uppercase tracking-wider select-none hover:bg-accent text-amber-600 dark:text-amber-500 hover:text-accent-foreground transition-colors"
-              >
-                <span>⏳ PENDENTES</span>
-                {filters.pending && <Check className="size-3.5 text-amber-600 dark:text-amber-500" />}
-              </div>
-              <div 
-                onClick={() => setFilters(prev => ({ ...prev, paid: !prev.paid }))}
-                className="relative flex w-full cursor-default items-center justify-between rounded-md py-1.5 px-2.5 text-xs font-bold uppercase tracking-wider select-none hover:bg-accent text-primary hover:text-accent-foreground transition-colors"
-              >
-                <span>✅ PAGAS</span>
-                {filters.paid && <Check className="size-3.5 text-primary" />}
-              </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
 
