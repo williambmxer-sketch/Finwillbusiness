@@ -30,6 +30,7 @@ export function TransactionsView() {
   const cards = useDataStore(state => state.cards);
   const categories = useDataStore(state => state.categories);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
   const [isCatFilterOpen, setIsCatFilterOpen] = useState(false);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
 
@@ -133,8 +134,23 @@ export function TransactionsView() {
     if (t.isPaid && !filters.paid) return false;
     if (!t.isPaid && !filters.pending) return false;
 
-    // Category filter
-    if (selectedCategoryIds.length > 0 && !selectedCategoryIds.includes(t.categoryId)) return false;
+    // Category & Card filtering
+    const hasCategoryFilter = selectedCategoryIds.length > 0;
+    const hasCardFilter = selectedCardIds.length > 0;
+    const tHasCard = t.cardId && t.cardId !== 'money';
+
+    if (hasCategoryFilter && !selectedCategoryIds.includes(t.categoryId)) {
+      return false;
+    }
+
+    if (hasCardFilter) {
+      if (!tHasCard || !selectedCardIds.includes(t.cardId)) {
+        return false;
+      }
+    } else if (hasCategoryFilter && tHasCard) {
+      // Exclude card transactions if filtering by category without explicit card selection
+      return false;
+    }
     
     return true;
   });
@@ -221,11 +237,11 @@ export function TransactionsView() {
             <button 
               onClick={() => setIsCatFilterOpen(!isCatFilterOpen)} 
               className={`flex items-center justify-center h-8 w-8 rounded-lg border transition-all ${
-                selectedCategoryIds.length > 0 
+                (selectedCategoryIds.length > 0 || selectedCardIds.length > 0)
                   ? 'bg-primary/10 border-primary/30 text-primary' 
                   : 'border-border/40 bg-muted/20 text-muted-foreground hover:text-foreground hover:bg-muted/40'
               }`}
-              title="Filtrar por Categoria"
+              title="Filtrar por Categoria e Cartão"
             >
               <Filter className="w-4 h-4" />
             </button>
@@ -235,34 +251,67 @@ export function TransactionsView() {
                 <div className="fixed inset-0 z-[190]" onClick={() => setIsCatFilterOpen(false)} />
                 <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-border shadow-xl rounded-xl p-2 z-[200] max-h-72 overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-100">
                   <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-2">Categorias</div>
-                  {categories.map(cat => {
-                    const isSelected = selectedCategoryIds.includes(cat.id);
-                    return (
-                      <button
-                        key={cat.id}
-                        onClick={() => {
-                          setSelectedCategoryIds(prev => 
-                            isSelected ? prev.filter(id => id !== cat.id) : [...prev, cat.id]
-                          );
-                        }}
-                        className="w-full flex items-center justify-between px-2.5 py-1.5 hover:bg-muted/50 rounded-lg transition-colors text-xs font-medium text-left"
-                      >
-                        <div className="flex items-center gap-2 max-w-[80%]">
-                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat.color || '#ccc' }} />
-                          <span className="truncate">{cat.name}</span>
-                        </div>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
-                      </button>
-                    )
-                  })}
-                  {selectedCategoryIds.length > 0 && (
+                  {categories
+                    .filter(c => c.type === 'receita' || c.showInAccounts !== false)
+                    .map(cat => {
+                      const isSelected = selectedCategoryIds.includes(cat.id);
+                      return (
+                        <button
+                          key={cat.id}
+                          onClick={() => {
+                            setSelectedCategoryIds(prev => 
+                              isSelected ? prev.filter(id => id !== cat.id) : [...prev, cat.id]
+                            );
+                          }}
+                          className="w-full flex items-center justify-between px-2.5 py-1.5 hover:bg-muted/50 rounded-lg transition-colors text-xs font-medium text-left"
+                        >
+                          <div className="flex items-center gap-2 max-w-[80%]">
+                            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat.color || '#ccc' }} />
+                            <span className="truncate">{cat.name}</span>
+                          </div>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                        </button>
+                      )
+                    })}
+                  
+                  {cards.length > 0 && (
+                    <>
+                      <div className="h-px bg-border my-1.5" />
+                      <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-2">Cartões</div>
+                      {cards.map(card => {
+                        const isSelected = selectedCardIds.includes(card.id);
+                        return (
+                          <button
+                            key={card.id}
+                            onClick={() => {
+                              setSelectedCardIds(prev => 
+                                isSelected ? prev.filter(id => id !== card.id) : [...prev, card.id]
+                              );
+                            }}
+                            className="w-full flex items-center justify-between px-2.5 py-1.5 hover:bg-muted/50 rounded-lg transition-colors text-xs font-medium text-left"
+                          >
+                            <div className="flex items-center gap-2 max-w-[80%]">
+                              <div className="w-2.5 h-2.5 rounded border border-white/10 shrink-0" style={{ backgroundColor: card.color }} />
+                              <span className="truncate">{card.name}</span>
+                            </div>
+                            {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                          </button>
+                        )
+                      })}
+                    </>
+                  )}
+                  
+                  {(selectedCategoryIds.length > 0 || selectedCardIds.length > 0) && (
                     <>
                       <div className="h-px bg-border my-1.5" />
                       <button 
-                        onClick={() => setSelectedCategoryIds([])}
+                        onClick={() => {
+                          setSelectedCategoryIds([]);
+                          setSelectedCardIds([]);
+                        }}
                         className="w-full py-1 text-[9px] font-bold uppercase tracking-widest text-rose-500 hover:text-rose-600 text-center transition-colors"
                       >
-                        Limpar Filtro
+                        Limpar Filtros
                       </button>
                     </>
                   )}
