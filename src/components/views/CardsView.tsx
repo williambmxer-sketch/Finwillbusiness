@@ -6,11 +6,27 @@ import { Plus, SlidersHorizontal, X, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Progress } from '../ui/progress';
 import { useAppStore } from '../../store/useAppStore';
+import { getCycleId } from '../../utils/cycleUtils';
 
 export function CardsView() {
   const cards = useDataStore((state) => state.cards);
   const transactions = useDataStore((state) => state.transactions);
   const { setCardModalOpen, setEditingCardId, setCurrentView, setActiveContextCardId } = useAppStore();
+
+  const totalNextInvoice = React.useMemo(() => {
+    return cards.reduce((sum, card) => {
+      const now = new Date();
+      const { cycleId: currentCycle } = getCycleId(now, card.closingDay, card.dueDay);
+      const currentInvoice = transactions
+        .filter(t => {
+          if (t.type !== 'despesa' || t.cardId !== card.id || t.isPaid) return false;
+          const { cycleId } = getCycleId(t.date, card.closingDay, card.dueDay);
+          return cycleId === currentCycle;
+        })
+        .reduce((acc, t) => acc + t.amount, 0);
+      return sum + currentInvoice;
+    }, 0);
+  }, [cards, transactions]);
 
   // Inline limit adjustment state
   const [adjustingId, setAdjustingId] = useState<string | null>(null);
@@ -45,8 +61,15 @@ export function CardsView() {
 
   return (
     <div className="flex flex-col h-full bg-background relative pt-8 px-4 max-w-lg mx-auto w-full">
-      <header className="flex justify-between items-end mb-4">
-        <h1 className="text-2xl font-bold tracking-tight">Cartões</h1>
+      <header className="flex justify-between items-start mb-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Cartões</h1>
+          {cards.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-0.5 font-medium">
+              Próximas faturas: <span className="font-semibold text-foreground">{formatCurrency(totalNextInvoice)}</span>
+            </p>
+          )}
+        </div>
         <button
           onClick={() => {
             setEditingCardId(null);

@@ -289,7 +289,7 @@ export function ReportsView() {
                 </ResponsiveContainer>
               </div>
               
-              <div className="flex-1 pl-4 flex flex-col gap-2 overflow-y-auto max-h-32 pr-1">
+              <div className="flex-1 pl-4 flex flex-col gap-2 pr-1">
                 {expenseCategories.map((cat, i) => (
                   <div key={i} className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 truncate">
