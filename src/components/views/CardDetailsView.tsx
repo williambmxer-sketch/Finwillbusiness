@@ -299,22 +299,22 @@ export function CardDetailsView() {
               >
                 <form onSubmit={handleQuickSubmit} className="p-3 flex flex-col gap-2">
                   {/* Valor */}
-                  <div className="flex flex-col items-center justify-center py-1">
-                    <div className="flex items-center gap-1.5 bg-muted/20 px-4 py-1.5 rounded-xl border border-border/40">
-                      <span className="text-lg font-bold text-primary">R$</span>
+                  <div className="flex flex-col items-center justify-center py-0.5">
+                    <div className="flex items-center gap-1.5 bg-muted/40 px-3 py-0.5 rounded-lg border border-border">
+                      <span className="text-base font-bold text-primary">R$</span>
                       <Input
                         ref={amountInputRef}
                         type="text"
                         inputMode="numeric"
                         placeholder="0,00"
-                        className="w-36 h-10 text-3xl font-extrabold bg-transparent border-none focus-visible:ring-0 text-center p-0 shadow-none text-foreground"
+                        className="w-32 h-7 text-2xl font-extrabold bg-transparent border-none focus-visible:ring-0 text-center p-0 shadow-none text-foreground"
                         value={displayAmount}
                         onChange={handleAmountChange}
                         required
                       />
                     </div>
                     {parseInt(installments, 10) > 1 && amount && parseFloat(amount) > 0 && (
-                      <div className="text-[9px] font-bold text-rose-600 dark:text-rose-400 mt-1 uppercase tracking-widest">
+                      <div className="text-[9px] font-bold text-rose-600 dark:text-rose-400 mt-0.5 uppercase tracking-widest">
                         {installmentMode === 'divide' 
                           ? `${parseInt(installments, 10)}x de R$ ${(parseFloat(amount) / parseInt(installments, 10)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}`
                           : `${parseInt(installments, 10)}x de R$ ${parseFloat(amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}`}
@@ -327,7 +327,7 @@ export function CardDetailsView() {
                     <label className="text-[9px] font-bold uppercase tracking-widest text-foreground/80 ml-1">Descrição</label>
                     <Input
                       placeholder="Ex: Almoço..."
-                      className="w-full h-8 text-xs bg-muted/40 border-border/80 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary rounded-md text-foreground placeholder:text-muted-foreground/60"
+                      className="w-full h-8 text-xs bg-muted/40 border-border focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary rounded-md text-foreground placeholder:text-muted-foreground/60"
                       value={description}
                       onChange={e => setDescription(e.target.value)}
                       required
@@ -340,7 +340,7 @@ export function CardDetailsView() {
                       <label className="text-[9px] font-bold uppercase tracking-widest text-foreground/80 ml-1">Data</label>
                       <Input
                         type="date"
-                        className="w-full h-8 text-xs bg-muted/40 border-border/80 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary uppercase rounded-md text-foreground"
+                        className="w-full h-8 text-xs bg-muted/40 border-border focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary uppercase rounded-md text-foreground"
                         value={date}
                         onChange={e => setDate(e.target.value)}
                         required
@@ -352,7 +352,7 @@ export function CardDetailsView() {
                         type="number"
                         min="1"
                         max="72"
-                        className="w-full h-8 text-xs bg-muted/40 border-border/80 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary text-center rounded-md font-bold text-foreground"
+                        className="w-full h-8 text-xs bg-muted/40 border-border focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary text-center rounded-md font-bold text-foreground"
                         value={installments}
                         onChange={e => setInstallments(e.target.value)}
                       />
@@ -364,7 +364,7 @@ export function CardDetailsView() {
                     <div className="space-y-0.5">
                       <label className="text-[9px] font-bold uppercase tracking-widest text-foreground/80 ml-1">Categoria</label>
                       <Select value={categoryId || "none"} onValueChange={setCategoryId} required>
-                        <SelectTrigger className="w-full h-8 text-xs bg-muted/40 border-border/80 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary rounded-md text-foreground">
+                        <SelectTrigger className="w-full h-8 text-xs bg-muted/40 border-border focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary rounded-md text-foreground">
                           <SelectValue placeholder="Selecione...">
                             {categoryId === "none" ? "Selecione..." : categories?.find(c => c.id === categoryId)?.name || "Selecione..."}
                           </SelectValue>
@@ -379,7 +379,7 @@ export function CardDetailsView() {
                     {parseInt(installments, 10) > 1 && (
                       <div className="space-y-0.5">
                         <label className="text-[9px] uppercase tracking-widest text-foreground/80 font-bold ml-1">Modo</label>
-                        <div className="flex bg-muted/40 p-0.5 rounded-md h-8 items-center border border-border/80">
+                        <div className="flex bg-muted/40 p-0.5 rounded-md h-8 items-center border border-border">
                           <button
                             type="button"
                             onClick={() => setInstallmentMode('divide')}
