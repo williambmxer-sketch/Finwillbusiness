@@ -275,18 +275,18 @@ export function CardDetailsView() {
 
       {/* Quick Add Form - Expandable */}
       <div className="px-4 mb-4">
-        <div className="bg-card border shadow-sm rounded-[16px] overflow-hidden">
+        <div className="bg-card border border-border shadow-md rounded-[16px] overflow-hidden">
           <button 
             onClick={() => setIsQuickAddExpanded(!isQuickAddExpanded)}
-            className="w-full p-3 flex items-center justify-between bg-muted/10 hover:bg-muted/20 transition-colors"
+            className="w-full p-3 flex items-center justify-between bg-muted/30 hover:bg-muted/50 border-b border-border/60 transition-colors"
           >
             <div className="flex items-center gap-2.5">
-              <div className="p-1.5 bg-primary/10 text-primary rounded-lg">
+              <div className="p-1.5 bg-primary/15 text-primary rounded-lg border border-primary/20">
                 <Plus className="w-4 h-4" />
               </div>
-              <span className="font-bold text-sm tracking-tight">Nova Transação</span>
+              <span className="font-bold text-sm tracking-tight text-foreground">Nova Transação</span>
             </div>
-            <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${isQuickAddExpanded ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`w-4 h-4 text-foreground/70 transition-transform duration-300 ${isQuickAddExpanded ? 'rotate-180' : ''}`} />
           </button>
           
           <AnimatePresence>
@@ -295,26 +295,26 @@ export function CardDetailsView() {
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                className="border-t"
+                className="border-t border-border/60"
               >
                 <form onSubmit={handleQuickSubmit} className="p-3 flex flex-col gap-2">
                   {/* Valor */}
-                  <div className="flex flex-col items-center justify-center">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-lg font-bold text-muted-foreground">R$</span>
+                  <div className="flex flex-col items-center justify-center py-1">
+                    <div className="flex items-center gap-1.5 bg-muted/20 px-4 py-1.5 rounded-xl border border-border/40">
+                      <span className="text-lg font-bold text-primary">R$</span>
                       <Input
                         ref={amountInputRef}
                         type="text"
                         inputMode="numeric"
                         placeholder="0,00"
-                        className="w-36 h-10 text-3xl font-extrabold bg-transparent border-none focus-visible:ring-0 text-center p-0 shadow-none"
+                        className="w-36 h-10 text-3xl font-extrabold bg-transparent border-none focus-visible:ring-0 text-center p-0 shadow-none text-foreground"
                         value={displayAmount}
                         onChange={handleAmountChange}
                         required
                       />
                     </div>
                     {parseInt(installments, 10) > 1 && amount && parseFloat(amount) > 0 && (
-                      <div className="text-[9px] font-medium text-rose-500/90 -mt-1 uppercase tracking-widest">
+                      <div className="text-[9px] font-bold text-rose-600 dark:text-rose-400 mt-1 uppercase tracking-widest">
                         {installmentMode === 'divide' 
                           ? `${parseInt(installments, 10)}x de R$ ${(parseFloat(amount) / parseInt(installments, 10)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}`
                           : `${parseInt(installments, 10)}x de R$ ${parseFloat(amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}`}
@@ -324,10 +324,10 @@ export function CardDetailsView() {
 
                   {/* Descrição */}
                   <div className="space-y-0.5">
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Descrição</label>
+                    <label className="text-[9px] font-bold uppercase tracking-widest text-foreground/80 ml-1">Descrição</label>
                     <Input
                       placeholder="Ex: Almoço..."
-                      className="w-full h-8 text-xs bg-muted/30 border-transparent focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary rounded-md"
+                      className="w-full h-8 text-xs bg-muted/40 border-border/80 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary rounded-md text-foreground placeholder:text-muted-foreground/60"
                       value={description}
                       onChange={e => setDescription(e.target.value)}
                       required
@@ -337,22 +337,22 @@ export function CardDetailsView() {
                   {/* Grid Data / Parcelas */}
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-0.5">
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Data</label>
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-foreground/80 ml-1">Data</label>
                       <Input
                         type="date"
-                        className="w-full h-8 text-xs bg-muted/30 border-transparent focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary uppercase rounded-md"
+                        className="w-full h-8 text-xs bg-muted/40 border-border/80 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary uppercase rounded-md text-foreground"
                         value={date}
                         onChange={e => setDate(e.target.value)}
                         required
                       />
                     </div>
                     <div className="space-y-0.5">
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Parcelas</label>
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-foreground/80 ml-1">Parcelas</label>
                       <Input
                         type="number"
                         min="1"
                         max="72"
-                        className="w-full h-8 text-xs bg-muted/30 border-transparent focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary text-center rounded-md font-bold"
+                        className="w-full h-8 text-xs bg-muted/40 border-border/80 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary text-center rounded-md font-bold text-foreground"
                         value={installments}
                         onChange={e => setInstallments(e.target.value)}
                       />
@@ -362,9 +362,9 @@ export function CardDetailsView() {
                   {/* Categoria e Modo Parcelamento */}
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-0.5">
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Categoria</label>
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-foreground/80 ml-1">Categoria</label>
                       <Select value={categoryId || "none"} onValueChange={setCategoryId} required>
-                        <SelectTrigger className="w-full h-8 text-xs bg-muted/30 border-transparent focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary rounded-md">
+                        <SelectTrigger className="w-full h-8 text-xs bg-muted/40 border-border/80 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary rounded-md text-foreground">
                           <SelectValue placeholder="Selecione...">
                             {categoryId === "none" ? "Selecione..." : categories?.find(c => c.id === categoryId)?.name || "Selecione..."}
                           </SelectValue>
@@ -378,8 +378,8 @@ export function CardDetailsView() {
                     </div>
                     {parseInt(installments, 10) > 1 && (
                       <div className="space-y-0.5">
-                        <label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold ml-1">Modo</label>
-                        <div className="flex bg-muted/50 p-0.5 rounded-md h-8 items-center">
+                        <label className="text-[9px] uppercase tracking-widest text-foreground/80 font-bold ml-1">Modo</label>
+                        <div className="flex bg-muted/40 p-0.5 rounded-md h-8 items-center border border-border/80">
                           <button
                             type="button"
                             onClick={() => setInstallmentMode('divide')}
