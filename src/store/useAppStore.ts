@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 
 interface AppState {
-  currentView: 'dashboard' | 'transactions' | 'cards' | 'invoices' | 'accounts' | 'accountDetails' | 'cardDetails' | 'reports';
-  setCurrentView: (view: 'dashboard' | 'transactions' | 'cards' | 'invoices' | 'accounts' | 'accountDetails' | 'cardDetails' | 'reports') => void;
+  currentView: 'dashboard' | 'transactions' | 'cards' | 'invoices' | 'accounts' | 'accountDetails' | 'cardDetails' | 'reports' | 'planning';
+  setCurrentView: (view: 'dashboard' | 'transactions' | 'cards' | 'invoices' | 'accounts' | 'accountDetails' | 'cardDetails' | 'reports' | 'planning') => void;
   isDarkMode: boolean;
   toggleDarkMode: () => void;
   confirmPaymentTransactionId: string | null;

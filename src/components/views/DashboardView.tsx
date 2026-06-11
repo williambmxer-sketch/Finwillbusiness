@@ -12,7 +12,8 @@ import {
   Landmark,
   Settings2,
   LogOut,
-  Menu
+  Menu,
+  CalendarRange
 } from 'lucide-react';
 import { BarChart, Bar, ResponsiveContainer, Cell, XAxis, Tooltip, YAxis } from 'recharts';
 import { formatCurrency } from '../../utils/formatters';
@@ -204,6 +205,16 @@ export function DashboardView() {
                  >
                    <Settings2 className="h-4 w-4" />
                    Categorias
+                 </button>
+                 <button 
+                   onClick={() => {
+                     setCurrentView('planning');
+                     setIsMenuOpen(false);
+                   }} 
+                   className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-sm rounded-lg hover:bg-muted/40 text-muted-foreground hover:text-foreground transition-all"
+                 >
+                   <CalendarRange className="h-4 w-4" />
+                   Planejamento
                  </button>
                  <div className="h-px bg-border/40 my-0.5 mx-1" />
                  <button 
