@@ -3,7 +3,7 @@ import { api } from '../../services/api';
 import { useDataStore } from '../../store/useDataStore';
 import { formatCurrency } from '../../utils/formatters';
 import { getTransactionCycle } from '../../utils/cycleUtils';
-import { Plus, Filter, Search, TrendingUp, TrendingDown, Clock, Settings2, CheckCircle2, Pencil, CreditCard, ChevronDown, Check } from 'lucide-react';
+import { Plus, Filter, Search, TrendingUp, TrendingDown, Clock, Settings2, CheckCircle2, Pencil, CreditCard, ChevronDown, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Input } from '../ui/input';
 import { useAppStore } from '../../store/useAppStore';
@@ -28,6 +28,9 @@ export function TransactionsView() {
   
   const allTransactions = useDataStore(state => state.transactions);
   const cards = useDataStore(state => state.cards);
+  const categories = useDataStore(state => state.categories);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [isCatFilterOpen, setIsCatFilterOpen] = useState(false);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -48,16 +51,39 @@ export function TransactionsView() {
 
   const getEffectiveCycle = (t: any) => getTransactionCycle(t, cards);
 
-  const cycles = Array.from<string>(new Set(transactions.map(t => getEffectiveCycle(t)))).sort().reverse();
-  if (!cycles.includes(currentCycleId)) {
-    cycles.push(currentCycleId);
-    cycles.sort().reverse();
-  }
+  const chronologicalCycles = React.useMemo(() => {
+    const uniqueCycles = Array.from<string>(new Set(allTransactions.map(t => getEffectiveCycle(t))));
+    if (!uniqueCycles.includes(currentCycleId)) {
+      uniqueCycles.push(currentCycleId);
+    }
+    return uniqueCycles.sort();
+  }, [allTransactions, currentCycleId]);
+
+  const sortedCycles = React.useMemo(() => {
+    const future = chronologicalCycles.filter(c => c > currentCycleId); // Already sorted ASC
+    const past = chronologicalCycles.filter(c => c < currentCycleId).reverse(); // Sorted DESC
+    return [currentCycleId, ...future, ...past];
+  }, [chronologicalCycles, currentCycleId]);
+
+  const handlePrevCycle = () => {
+    const idx = chronologicalCycles.indexOf(selectedCycle);
+    if (idx > 0) {
+      setSelectedCycle(chronologicalCycles[idx - 1]);
+    }
+  };
+
+  const handleNextCycle = () => {
+    const idx = chronologicalCycles.indexOf(selectedCycle);
+    if (idx !== -1 && idx < chronologicalCycles.length - 1) {
+      setSelectedCycle(chronologicalCycles[idx + 1]);
+    }
+  };
 
   const formatCycleName = (cycleId: string) => {
     const [y, m] = cycleId.split('-');
     const date = new Date(parseInt(y), parseInt(m) - 1, 1);
-    return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    const month = date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase();
+    return `${month}/${y}`;
   };
 
   const handleTogglePayment = async (t: any) => {
@@ -106,6 +132,9 @@ export function TransactionsView() {
     // Status filter
     if (t.isPaid && !filters.paid) return false;
     if (!t.isPaid && !filters.pending) return false;
+
+    // Category filter
+    if (selectedCategoryIds.length > 0 && !selectedCategoryIds.includes(t.categoryId)) return false;
     
     return true;
   });
@@ -186,15 +215,61 @@ export function TransactionsView() {
   return (
     <div className="flex flex-col h-full bg-background relative pt-8 px-4 max-w-lg mx-auto w-full">
       <header className="px-4 pb-3">
-        <div className="flex justify-between items-end mb-4">
+        <div className="flex justify-between items-end mb-4 relative">
           <h1 className="text-2xl font-bold tracking-tight">Transações</h1>
-          <button 
-            onClick={() => setCategoryModalOpen(true)} 
-            className="flex items-center justify-center h-8 w-8 rounded-lg border border-border/40 bg-muted/20 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all"
-            title="Categorias"
-          >
-            <Settings2 className="w-4 h-4" />
-          </button>
+          <div className="relative">
+            <button 
+              onClick={() => setIsCatFilterOpen(!isCatFilterOpen)} 
+              className={`flex items-center justify-center h-8 w-8 rounded-lg border transition-all ${
+                selectedCategoryIds.length > 0 
+                  ? 'bg-primary/10 border-primary/30 text-primary' 
+                  : 'border-border/40 bg-muted/20 text-muted-foreground hover:text-foreground hover:bg-muted/40'
+              }`}
+              title="Filtrar por Categoria"
+            >
+              <Filter className="w-4 h-4" />
+            </button>
+            
+            {isCatFilterOpen && (
+              <>
+                <div className="fixed inset-0 z-[190]" onClick={() => setIsCatFilterOpen(false)} />
+                <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-border shadow-xl rounded-xl p-2 z-[200] max-h-72 overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-100">
+                  <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-2">Categorias</div>
+                  {categories.map(cat => {
+                    const isSelected = selectedCategoryIds.includes(cat.id);
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => {
+                          setSelectedCategoryIds(prev => 
+                            isSelected ? prev.filter(id => id !== cat.id) : [...prev, cat.id]
+                          );
+                        }}
+                        className="w-full flex items-center justify-between px-2.5 py-1.5 hover:bg-muted/50 rounded-lg transition-colors text-xs font-medium text-left"
+                      >
+                        <div className="flex items-center gap-2 max-w-[80%]">
+                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat.color || '#ccc' }} />
+                          <span className="truncate">{cat.name}</span>
+                        </div>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                      </button>
+                    )
+                  })}
+                  {selectedCategoryIds.length > 0 && (
+                    <>
+                      <div className="h-px bg-border my-1.5" />
+                      <button 
+                        onClick={() => setSelectedCategoryIds([])}
+                        className="w-full py-1 text-[9px] font-bold uppercase tracking-widest text-rose-500 hover:text-rose-600 text-center transition-colors"
+                      >
+                        Limpar Filtro
+                      </button>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -229,22 +304,42 @@ export function TransactionsView() {
         </div>
       </header>
 
-      <div className="px-4 mb-3 flex gap-2">
-        <Select value={selectedCycle} onValueChange={setSelectedCycle}>
-          <SelectTrigger className="w-1/2 bg-muted/30 border-border/50 rounded-[11px] !h-10 text-xs font-bold uppercase tracking-wider text-foreground focus:ring-primary shadow-sm hover:bg-muted/50 transition-colors">
-            <SelectValue placeholder="Mês">
-              {selectedCycle === 'all' ? '✨ TODO O PERÍODO' : formatCycleName(selectedCycle)}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent className="rounded-xl z-[200]" side="bottom" sideOffset={4} alignItemWithTrigger={false}>
-            <SelectItem value="all" className="text-sm font-medium">✨ TODO O PERÍODO</SelectItem>
-            {cycles.map(c => (
-              <SelectItem key={c} value={c} className="text-sm font-medium capitalize">
-                {formatCycleName(c)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="px-4 mb-3 flex gap-2 items-center">
+        <div className="w-1/2 flex items-center gap-1">
+          <button
+            onClick={handlePrevCycle}
+            disabled={selectedCycle === 'all' || chronologicalCycles.indexOf(selectedCycle) <= 0}
+            className="p-2 rounded-lg bg-muted/20 border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/40 disabled:opacity-30 disabled:pointer-events-none transition-all h-10 w-9 flex items-center justify-center shrink-0"
+            title="Mês Anterior"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          
+          <Select value={selectedCycle} onValueChange={setSelectedCycle}>
+            <SelectTrigger className="flex-1 bg-muted/30 border-border/50 rounded-[11px] !h-10 text-xs font-bold uppercase tracking-wider text-foreground focus:ring-primary shadow-sm hover:bg-muted/50 transition-colors">
+              <SelectValue placeholder="Mês" className="justify-center !text-center flex-1">
+                {selectedCycle === 'all' ? '✨ TODO O PERÍODO' : formatCycleName(selectedCycle)}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent className="rounded-xl z-[200]" side="bottom" sideOffset={4} alignItemWithTrigger={false}>
+              <SelectItem value="all" className="text-sm font-medium">✨ TODO O PERÍODO</SelectItem>
+              {sortedCycles.map(c => (
+                <SelectItem key={c} value={c} className="text-sm font-medium capitalize">
+                  {formatCycleName(c)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <button
+            onClick={handleNextCycle}
+            disabled={selectedCycle === 'all' || chronologicalCycles.indexOf(selectedCycle) === -1 || chronologicalCycles.indexOf(selectedCycle) >= chronologicalCycles.length - 1}
+            className="p-2 rounded-lg bg-muted/20 border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/40 disabled:opacity-30 disabled:pointer-events-none transition-all h-10 w-9 flex items-center justify-center shrink-0"
+            title="Próximo Mês"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
 
         <div className="w-1/2 relative" ref={dropdownRef}>
           <button
