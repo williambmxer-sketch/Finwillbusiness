@@ -33,8 +33,14 @@ export function DashboardView() {
     const grouped = new Map<string, any>();
     const ungrouped: any[] = [];
 
-    // Sort allTransactions by date descending so we process newer ones first
-    const sortedAll = [...allTransactions].sort((a, b) => b.date.getTime() - a.date.getTime());
+    // Sort allTransactions by createdAt descending so we process newer ones first
+    // If createdAt is missing, use array index (assuming newest are at the end)
+    const sortedAll = allTransactions.map((t, index) => ({ t, index })).sort((a, b) => {
+      if (a.t.createdAt && b.t.createdAt) {
+        return new Date(b.t.createdAt).getTime() - new Date(a.t.createdAt).getTime();
+      }
+      return b.index - a.index;
+    }).map(x => x.t);
 
     sortedAll.forEach(t => {
       if (t.parentId && t.installments && t.installments > 1) {
@@ -52,7 +58,10 @@ export function DashboardView() {
             cardId: t.cardId,
             isGroupedInstallments: true,
             totalPaid: 0,
-            installmentCount: t.installments
+            installmentCount: t.installments,
+            accountId: t.accountId,
+            createdAt: t.createdAt,
+            _originalIndex: sortedAll.findIndex(tx => tx.id === t.id)
           });
         }
         const groupObj = grouped.get(t.parentId);
@@ -71,7 +80,15 @@ export function DashboardView() {
     });
 
     const combined = [...ungrouped, ...Array.from(grouped.values())];
-    return combined.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 5);
+    return combined.sort((a, b) => {
+      if (a.createdAt && b.createdAt) {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      // If one of them is missing createdAt, or both, sort based on their position in sortedAll
+      const indexA = a.isGroupedInstallments ? a._originalIndex : sortedAll.findIndex(t => t.id === a.id);
+      const indexB = b.isGroupedInstallments ? b._originalIndex : sortedAll.findIndex(t => t.id === b.id);
+      return indexA - indexB;
+    }).slice(0, 5);
   }, [allTransactions]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -367,6 +384,15 @@ export function DashboardView() {
                       </div>
                       <div className="text-[10px] text-muted-foreground font-medium">
                         {t.date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                        {t.cardId && t.cardId !== 'money' ? (
+                           <span className="ml-1 opacity-70 border-l border-border/50 pl-1">
+                             {cards.find(c => c.id === t.cardId)?.name || 'Cartão'}
+                           </span>
+                        ) : t.accountId && t.accountId !== 'none' ? (
+                           <span className="ml-1 opacity-70 border-l border-border/50 pl-1">
+                             {accounts.find(a => a.id === t.accountId)?.name || 'Conta'}
+                           </span>
+                        ) : null}
                       </div>
                     </div>
                  </div>

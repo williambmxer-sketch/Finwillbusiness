@@ -46,6 +46,7 @@ export interface Transaction {
   isPaid: boolean;
   paymentDate?: Date; // The date when the user actually clicked 'Confirmar Pagamento'
   notes?: string;
+  createdAt?: string;
 }
 
 export interface Invoice {

@@ -85,6 +85,7 @@ export const mappers = {
       isPaid: row.esta_pago,
       paymentDate: row.data_pagamento ? new Date(row.data_pagamento) : undefined,
       notes: row.observacoes || undefined,
+      createdAt: row.criado_em,
     }),
     toDb: (obj: Partial<Transaction>) => ({
       descricao: obj.description,
