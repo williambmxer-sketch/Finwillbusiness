@@ -19,6 +19,8 @@ export function TransactionsView() {
   });
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [hasClickedType, setHasClickedType] = useState(false);
+  const [hasClickedStatus, setHasClickedStatus] = useState(false);
   
   const now = new Date();
   const currentCycleId = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -45,6 +47,13 @@ export function TransactionsView() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  React.useEffect(() => {
+    if (!filterDropdownOpen) {
+      setHasClickedType(false);
+      setHasClickedStatus(false);
+    }
+  }, [filterDropdownOpen]);
   
   const transactions = React.useMemo(() => {
     return [...allTransactions].sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -410,26 +419,24 @@ export function TransactionsView() {
             const toggleTypeFilter = (type: 'receita' | 'despesa') => {
               setFilters(prev => {
                 const other = type === 'receita' ? 'despesa' : 'receita';
-                if (prev[type] && prev[other]) {
+                if (!hasClickedType && prev[type] && prev[other]) {
+                  setHasClickedType(true);
                   return { ...prev, [type]: true, [other]: false };
                 }
-                if (prev[type] && !prev[other]) {
-                  return prev; // keep at least one checked
-                }
-                return { ...prev, [type]: true, [other]: true };
+                setHasClickedType(true);
+                return { ...prev, [type]: !prev[type] };
               });
             };
 
             const toggleStatusFilter = (status: 'pending' | 'paid') => {
               setFilters(prev => {
                 const other = status === 'pending' ? 'paid' : 'pending';
-                if (prev[status] && prev[other]) {
+                if (!hasClickedStatus && prev[status] && prev[other]) {
+                  setHasClickedStatus(true);
                   return { ...prev, [status]: true, [other]: false };
                 }
-                if (prev[status] && !prev[other]) {
-                  return prev; // keep at least one checked
-                }
-                return { ...prev, [status]: true, [other]: true };
+                setHasClickedStatus(true);
+                return { ...prev, [status]: !prev[status] };
               });
             };
 
@@ -444,6 +451,8 @@ export function TransactionsView() {
                       pending: !allActive,
                       paid: !allActive
                     });
+                    setHasClickedType(false);
+                    setHasClickedStatus(false);
                   }}
                   className="relative flex w-full cursor-default items-center justify-between rounded-md py-1.5 px-2.5 text-[10px] font-bold uppercase tracking-wider select-none hover:bg-accent hover:text-accent-foreground transition-colors"
                 >
