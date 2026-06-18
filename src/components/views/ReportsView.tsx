@@ -4,7 +4,7 @@ import { getCycleId } from '../../utils/cycleUtils';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { formatCurrency } from '../../utils/formatters';
 import { ChevronLeft, ChevronRight, CalendarDays, Download } from 'lucide-react';
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 
 const COLOR_RECEITA = '#10b981';
@@ -144,26 +144,24 @@ export function ReportsView() {
     // Add a slight delay to allow React state to reflect any necessary pre-render changes
     setTimeout(async () => {
       try {
-        const canvas = await html2canvas(reportRef.current as HTMLElement, {
-          scale: 2,
-          useCORS: true,
+        const imgData = await toPng(reportRef.current as HTMLElement, {
+          pixelRatio: 2,
           backgroundColor: '#ffffff', // Ensures a white background for the PDF
-          ignoreElements: (element) => {
-            if (element && element.classList && element.classList.contains('hide-in-pdf')) {
-              return true;
+          filter: (node: any) => {
+            if (node && node.classList && node.classList.contains('hide-in-pdf')) {
+              return false;
             }
-            return false;
+            return true;
           }
         });
-        const imgData = canvas.toDataURL('image/png');
         
         const pdf = new jsPDF({
           orientation: 'portrait',
           unit: 'px',
-          format: [canvas.width, canvas.height]
+          format: [reportRef.current!.offsetWidth, reportRef.current!.offsetHeight]
         });
         
-        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.addImage(imgData, 'PNG', 0, 0, reportRef.current!.offsetWidth, reportRef.current!.offsetHeight);
         pdf.save(`relatorio-${periodLabel.replace(/\s+/g, '-').replace(/\//g, '-')}.pdf`);
       } catch (err: any) {
         console.error('Failed to export PDF', err);
