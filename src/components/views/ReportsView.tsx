@@ -3,12 +3,17 @@ import { useDataStore } from '../../store/useDataStore';
 import { getCycleId } from '../../utils/cycleUtils';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { formatCurrency } from '../../utils/formatters';
-import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, Download } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 const COLOR_RECEITA = '#10b981';
 const COLOR_DESPESA = '#dc2626';
 
 export function ReportsView() {
+  const reportRef = React.useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
+
   const allTransactions = useDataStore(state => state.transactions);
   const allCategories = useDataStore(state => state.categories);
   const cards = useDataStore(state => state.cards);
@@ -133,18 +138,58 @@ export function ReportsView() {
     );
   };
 
-  return (
-    <div className="flex flex-col h-full bg-background relative pt-6 px-4 max-w-lg mx-auto w-full pb-16">
-      
-      {/* Header and Fast Navigation */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 gap-3 relative">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight mb-0.5">Visão</h1>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Saúde Financeira</p>
-        </div>
+  const handleExportPDF = async () => {
+    if (!reportRef.current) return;
+    setIsExporting(true);
+    // Add a slight delay to allow React state to reflect any necessary pre-render changes
+    setTimeout(async () => {
+      try {
+        const canvas = await html2canvas(reportRef.current as HTMLElement, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff', // Ensures a white background for the PDF
+          ignoreElements: (element) => element.classList.contains('hide-in-pdf')
+        });
+        const imgData = canvas.toDataURL('image/png');
         
-        <div className="flex flex-col items-start sm:items-end w-full sm:w-auto">
-          <div className="flex items-center w-full sm:w-auto bg-card border border-border rounded-xl p-1 shadow-sm justify-between sm:justify-start">
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'px',
+          format: [canvas.width, canvas.height]
+        });
+        
+        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.save(`relatorio-${periodLabel.replace(/\s+/g, '-').replace(/\//g, '-')}.pdf`);
+      } catch (err) {
+        console.error('Failed to export PDF', err);
+      } finally {
+        setIsExporting(false);
+      }
+    }, 100);
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-background relative pt-6 px-4 max-w-lg mx-auto w-full pb-16 overflow-y-auto">
+      <div ref={reportRef} className="bg-background pb-8 pt-2">
+        {/* Header and Fast Navigation */}
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 gap-3 relative px-1">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight mb-0.5">Visão</h1>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Saúde Financeira</p>
+          </div>
+          
+          <div className="flex flex-col items-start sm:items-end w-full sm:w-auto">
+            <div className="flex items-center w-full gap-2 justify-between sm:justify-end">
+              <button 
+                onClick={handleExportPDF}
+                disabled={isExporting}
+                className="hide-in-pdf flex shrink-0 items-center justify-center gap-1.5 h-[34px] px-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-500 hover:bg-rose-500/20 transition-all disabled:opacity-50 shadow-sm"
+                title="Salvar como PDF"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span className="text-[10px] font-bold uppercase tracking-widest hidden xs:inline">PDF</span>
+              </button>
+              <div className="flex items-center w-full sm:w-auto bg-card border border-border rounded-xl p-1 shadow-sm justify-between sm:justify-start">
             {!isCustomMode && (
               <button onClick={handlePrevMonth} className="p-1.5 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-all shrink-0">
                 <ChevronLeft className="w-4 h-4" />
@@ -163,6 +208,7 @@ export function ReportsView() {
               <CalendarDays className="w-4 h-4" />
             </button>
           </div>
+        </div>
 
           {/* Popover for custom date */}
           {showCalendarMenu && (
@@ -359,10 +405,11 @@ export function ReportsView() {
         )}
 
         {expenseCategories.length === 0 && incomeCategories.length === 0 && (
-          <div className="text-center text-muted-foreground p-10 border border-dashed rounded-[16px] border-border/50 text-xs">
+          <div className="text-center text-muted-foreground p-10 border border-dashed rounded-[16px] border-border/50 text-xs mx-1">
             Nenhum dado no mês selecionado
           </div>
         )}
+      </div>
       </div>
     </div>
   );
