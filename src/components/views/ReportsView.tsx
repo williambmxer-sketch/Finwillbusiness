@@ -155,13 +155,19 @@ export function ReportsView() {
           }
         });
         
+        const padding = 24;
+        const contentWidth = reportRef.current!.offsetWidth;
+        const contentHeight = reportRef.current!.offsetHeight;
+        const pdfWidth = contentWidth + (padding * 2);
+        const pdfHeight = contentHeight + (padding * 2);
+
         const pdf = new jsPDF({
           orientation: 'portrait',
           unit: 'px',
-          format: [reportRef.current!.offsetWidth, reportRef.current!.offsetHeight]
+          format: [pdfWidth, pdfHeight]
         });
         
-        pdf.addImage(imgData, 'PNG', 0, 0, reportRef.current!.offsetWidth, reportRef.current!.offsetHeight);
+        pdf.addImage(imgData, 'PNG', padding, padding, contentWidth, contentHeight);
         pdf.save(`relatorio-${periodLabel.replace(/\s+/g, '-').replace(/\//g, '-')}.pdf`);
       } catch (err: any) {
         console.error('Failed to export PDF', err);
