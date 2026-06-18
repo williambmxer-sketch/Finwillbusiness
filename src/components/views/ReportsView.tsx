@@ -148,7 +148,12 @@ export function ReportsView() {
           scale: 2,
           useCORS: true,
           backgroundColor: '#ffffff', // Ensures a white background for the PDF
-          ignoreElements: (element) => element.classList.contains('hide-in-pdf')
+          ignoreElements: (element) => {
+            if (element && element.classList && element.classList.contains('hide-in-pdf')) {
+              return true;
+            }
+            return false;
+          }
         });
         const imgData = canvas.toDataURL('image/png');
         
@@ -160,12 +165,13 @@ export function ReportsView() {
         
         pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
         pdf.save(`relatorio-${periodLabel.replace(/\s+/g, '-').replace(/\//g, '-')}.pdf`);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to export PDF', err);
+        alert('Erro ao gerar PDF: ' + (err?.message || String(err)));
       } finally {
         setIsExporting(false);
       }
-    }, 100);
+    }, 150);
   };
 
   return (
