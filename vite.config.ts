@@ -12,6 +12,9 @@ export default defineConfig(() => {
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['icon-192x192.png', 'icon-512x512.png'],
+        workbox: {
+          maximumFileSizeToCacheInBytes: 5000000
+        },
         manifest: {
           name: 'FinWill',
           short_name: 'FinWill',
