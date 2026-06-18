@@ -3,11 +3,14 @@ import { api } from '../../services/api';
 import { useDataStore } from '../../store/useDataStore';
 import { formatCurrency } from '../../utils/formatters';
 import { getTransactionCycle } from '../../utils/cycleUtils';
-import { Plus, Filter, Search, TrendingUp, TrendingDown, Clock, Settings2, CheckCircle2, Pencil, CreditCard, ChevronDown, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Filter, Search, TrendingUp, TrendingDown, Clock, Settings2, CheckCircle2, Pencil, CreditCard, ChevronDown, Check, ChevronLeft, ChevronRight, FileSpreadsheet, FileText } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Input } from '../ui/input';
 import { useAppStore } from '../../store/useAppStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import * as XLSX from 'xlsx-js-style';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export function TransactionsView() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -241,15 +244,216 @@ export function TransactionsView() {
     });
 
     items.push(...Array.from(cardInvoices.values()));
-    return items.sort((a, b) => b.date.getTime() - a.date.getTime());
+    return items.sort((a, b) => a.date.getTime() - b.date.getTime());
   }, [filtered, cards]);
+
+  const handleExportExcel = () => {
+    if (displayItems.length === 0) return;
+
+    // Use displayItems directly since it's already sorted ASC now
+    const grouped = displayItems.reduce((acc, t) => {
+      const cycle = getEffectiveCycle(t);
+      if (!acc[cycle]) acc[cycle] = [];
+      acc[cycle].push(t);
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    const aoa: any[][] = [];
+    let totalGeralReceitas = 0;
+    let totalGeralDespesas = 0;
+
+    Object.keys(grouped).sort().forEach(cycle => {
+      const items = grouped[cycle];
+      let monthReceitas = 0;
+      let monthDespesas = 0;
+
+      aoa.push([{ 
+        v: `Mês: ${formatCycleName(cycle)}`, 
+        s: { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "3B82F6" } } } 
+      }]);
+      aoa.push([
+        { v: "Data", s: { font: { bold: true } } }, 
+        { v: "Descrição", s: { font: { bold: true } } }, 
+        { v: "Categoria", s: { font: { bold: true } } }, 
+        { v: "Tipo", s: { font: { bold: true } } }, 
+        { v: "Valor", s: { font: { bold: true } } }, 
+        { v: "Situação", s: { font: { bold: true } } }
+      ]);
+
+      items.forEach(t => {
+        let catName = 'N/A';
+        if (t.isVirtualInvoice) {
+          catName = 'Fatura';
+        } else {
+          const cat = categories.find(c => c.id === t.categoryId);
+          if (cat) catName = cat.name;
+        }
+
+        if (t.type === 'receita') {
+          monthReceitas += t.amount;
+          totalGeralReceitas += t.amount;
+        } else {
+          monthDespesas += t.amount;
+          totalGeralDespesas += t.amount;
+        }
+
+        aoa.push([
+          t.date.toLocaleDateString('pt-BR'),
+          t.description,
+          catName,
+          t.type === 'receita' ? 'Receita' : 'Despesa',
+          t.amount,
+          (t.isPaid || t.isVirtualInvoice) ? 'Pago' : 'Pendente'
+        ]);
+      });
+
+      const isPositiveMonth = (monthReceitas - monthDespesas) >= 0;
+      aoa.push([]);
+      aoa.push([
+        "", "", "", 
+        { v: "Total Mês:", s: { font: { bold: true } } }, 
+        { 
+          v: `Rec: ${formatCurrency(monthReceitas)} | Desp: ${formatCurrency(monthDespesas)} | Saldo: ${formatCurrency(monthReceitas - monthDespesas)}`, 
+          s: { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: isPositiveMonth ? "10B981" : "EF4444" } } } 
+        }, 
+        ""
+      ]);
+      aoa.push([]);
+    });
+
+    const isPositiveTotal = (totalGeralReceitas - totalGeralDespesas) >= 0;
+    aoa.push([]);
+    aoa.push([
+      "", "", "", 
+      { v: "TOTAL GERAL:", s: { font: { bold: true } } }, 
+      { 
+        v: `Rec: ${formatCurrency(totalGeralReceitas)} | Desp: ${formatCurrency(totalGeralDespesas)} | Saldo: ${formatCurrency(totalGeralReceitas - totalGeralDespesas)}`, 
+        s: { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: isPositiveTotal ? "059669" : "DC2626" } } } 
+      }, 
+      ""
+    ]);
+
+    const worksheet = XLSX.utils.aoa_to_sheet(aoa);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Transações");
+
+    worksheet['!cols'] = [
+      { wch: 15 },
+      { wch: 30 },
+      { wch: 20 },
+      { wch: 15 },
+      { wch: 40 },
+      { wch: 15 }
+    ];
+
+    XLSX.writeFile(workbook, `transacoes-${selectedCycle}.xlsx`);
+  };
+
+  const handleExportPDF = () => {
+    if (displayItems.length === 0) return;
+
+    const doc = new jsPDF();
+    const tableColumn = ["Data", "Descrição", "Categoria", "Tipo", "Valor", "Situação"];
+    const tableRows: any[] = [];
+
+    const grouped = displayItems.reduce((acc, t) => {
+      const cycle = getEffectiveCycle(t);
+      if (!acc[cycle]) acc[cycle] = [];
+      acc[cycle].push(t);
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    let totalGeralReceitas = 0;
+    let totalGeralDespesas = 0;
+
+    Object.keys(grouped).sort().forEach(cycle => {
+      const items = grouped[cycle];
+      let monthReceitas = 0;
+      let monthDespesas = 0;
+
+      tableRows.push([{ content: `Mês: ${formatCycleName(cycle)}`, colSpan: 6, styles: { fillColor: [240, 240, 240], fontStyle: 'bold', textColor: [0, 0, 0] } }]);
+
+      items.forEach(t => {
+        let catName = 'N/A';
+        if (t.isVirtualInvoice) {
+          catName = 'Fatura';
+        } else {
+          const cat = categories.find(c => c.id === t.categoryId);
+          if (cat) catName = cat.name;
+        }
+
+        if (t.type === 'receita') {
+          monthReceitas += t.amount;
+          totalGeralReceitas += t.amount;
+        } else {
+          monthDespesas += t.amount;
+          totalGeralDespesas += t.amount;
+        }
+
+        tableRows.push([
+          t.date.toLocaleDateString('pt-BR'),
+          t.description,
+          catName,
+          t.type === 'receita' ? 'Receita' : 'Despesa',
+          formatCurrency(t.amount),
+          (t.isPaid || t.isVirtualInvoice) ? 'Pago' : 'Pendente'
+        ]);
+      });
+
+      tableRows.push([{ 
+        content: `Total do Mês - Receitas: ${formatCurrency(monthReceitas)} | Despesas: ${formatCurrency(monthDespesas)} | Saldo: ${formatCurrency(monthReceitas - monthDespesas)}`, 
+        colSpan: 6, 
+        styles: { fontStyle: 'bold', halign: 'right', fillColor: [250, 250, 250] } 
+      }]);
+    });
+
+    tableRows.push([{ 
+      content: `TOTAL GERAL - Receitas: ${formatCurrency(totalGeralReceitas)} | Despesas: ${formatCurrency(totalGeralDespesas)} | Saldo: ${formatCurrency(totalGeralReceitas - totalGeralDespesas)}`, 
+      colSpan: 6, 
+      styles: { fontStyle: 'bold', halign: 'right', fillColor: [230, 230, 230], textColor: [0, 0, 0] } 
+    }]);
+
+    doc.text(`Relatório de Transações`, 14, 15);
+    doc.setFontSize(10);
+    const cycleText = selectedCycle === 'all' ? 'Todo o Período' : formatCycleName(selectedCycle);
+    doc.text(`Período: ${cycleText}`, 14, 22);
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 25,
+      theme: 'grid',
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [249, 115, 22] } // primary/orange
+    });
+
+    doc.save(`transacoes-${selectedCycle}.pdf`);
+  };
 
   return (
     <div className="flex flex-col h-full bg-background relative pt-8 px-4 max-w-lg mx-auto w-full">
       <header className="px-4 pb-3">
         <div className="flex justify-between items-end mb-4 relative">
           <h1 className="text-2xl font-bold tracking-tight">Transações</h1>
-          <div className="relative">
+          <div className="relative flex items-center gap-2">
+            <button 
+              onClick={handleExportExcel}
+              disabled={displayItems.length === 0}
+              className="flex items-center justify-center gap-1.5 h-8 px-2.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 hover:bg-emerald-500/20 transition-all disabled:opacity-30 shadow-sm"
+              title="Exportar para Excel"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span className="text-[10px] font-bold uppercase tracking-widest hidden xs:inline">Excel</span>
+            </button>
+            <button 
+              onClick={handleExportPDF}
+              disabled={displayItems.length === 0}
+              className="flex items-center justify-center gap-1.5 h-8 px-2.5 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-500 hover:bg-rose-500/20 transition-all disabled:opacity-30 shadow-sm"
+              title="Exportar para PDF"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span className="text-[10px] font-bold uppercase tracking-widest hidden xs:inline">PDF</span>
+            </button>
             <button 
               onClick={() => setIsCatFilterOpen(!isCatFilterOpen)} 
               className={`flex items-center justify-center h-8 w-8 rounded-lg border transition-all ${
