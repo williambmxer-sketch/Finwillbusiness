@@ -611,13 +611,15 @@ export function TransactionsView() {
           </button>
         </div>
 
-        <div className="w-[120px] shrink-0 relative" ref={dropdownRef}>
+        <div className="relative shrink-0" ref={dropdownRef}>
           <button
             onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
-            className="w-full flex items-center justify-between gap-1.5 px-3 bg-muted/30 border border-border/50 rounded-[11px] h-10 text-xs font-bold uppercase tracking-wider text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-sm hover:bg-muted/50 transition-colors"
+            className="flex items-center justify-center gap-1.5 px-3 bg-muted/30 border border-border/50 rounded-[11px] h-10 text-xs font-bold uppercase text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-sm hover:bg-muted/50 transition-colors"
+            title="Filtrar Transações"
           >
-            <span className="truncate">{getFilterLabel()}</span>
-            <ChevronDown className="size-4 shrink-0 opacity-50" />
+            <Filter className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline truncate max-w-[80px]">{getFilterLabel()}</span>
+            <ChevronDown className="w-3.5 h-3.5 shrink-0 opacity-50" />
           </button>
 
           {filterDropdownOpen && (() => {
