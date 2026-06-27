@@ -575,7 +575,7 @@ export function TransactionsView() {
       </header>
 
       <div className="px-4 mb-3 flex gap-2 items-center">
-        <div className="w-1/2 flex items-center gap-1">
+        <div className="flex-1 flex items-center gap-1 min-w-0">
           <button
             onClick={handlePrevCycle}
             disabled={selectedCycle === 'all' || chronologicalCycles.indexOf(selectedCycle) <= 0}
@@ -586,7 +586,7 @@ export function TransactionsView() {
           </button>
           
           <Select value={selectedCycle} onValueChange={setSelectedCycle}>
-            <SelectTrigger className="flex-1 bg-muted/30 border-border/50 rounded-[11px] !h-10 text-xs font-bold uppercase tracking-wider text-foreground focus:ring-primary shadow-sm hover:bg-muted/50 transition-colors">
+            <SelectTrigger className="flex-1 bg-muted/30 border-border/50 rounded-[11px] !h-10 text-xs font-bold uppercase tracking-wider text-foreground focus:ring-primary shadow-sm hover:bg-muted/50 transition-colors min-w-0">
               <SelectValue placeholder="Mês" className="justify-center !text-center flex-1">
                 {selectedCycle === 'all' ? '✨ TODO O PERÍODO' : formatCycleName(selectedCycle)}
               </SelectValue>
@@ -611,7 +611,7 @@ export function TransactionsView() {
           </button>
         </div>
 
-        <div className="w-1/2 relative" ref={dropdownRef}>
+        <div className="w-[120px] shrink-0 relative" ref={dropdownRef}>
           <button
             onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
             className="w-full flex items-center justify-between gap-1.5 px-3 bg-muted/30 border border-border/50 rounded-[11px] h-10 text-xs font-bold uppercase tracking-wider text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-sm hover:bg-muted/50 transition-colors"
