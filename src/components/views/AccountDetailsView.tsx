@@ -34,7 +34,7 @@ export function AccountDetailsView() {
   }, [allTransactions, activeAccountId]);
 
   const getEffectiveCycle = (t: any) => {
-    const d = getActualDate(t);
+    const d = t.date instanceof Date ? t.date : new Date(t.date);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   };
 

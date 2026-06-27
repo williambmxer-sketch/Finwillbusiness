@@ -34,9 +34,12 @@ export function DashboardView() {
     const grouped = new Map<string, any>();
     const ungrouped: any[] = [];
 
-    // Sort allTransactions by createdAt descending so we process newer ones first
+    // Filter out transfer transactions
+    const filteredTxs = allTransactions.filter(t => !t.notes?.startsWith('transferencia:'));
+
+    // Sort transactions by createdAt descending so we process newer ones first
     // If createdAt is missing, use array index (assuming newest are at the end)
-    const sortedAll = allTransactions.map((t, index) => ({ t, index })).sort((a, b) => {
+    const sortedAll = filteredTxs.map((t, index) => ({ t, index })).sort((a, b) => {
       if (a.t.createdAt && b.t.createdAt) {
         return new Date(b.t.createdAt).getTime() - new Date(a.t.createdAt).getTime();
       }

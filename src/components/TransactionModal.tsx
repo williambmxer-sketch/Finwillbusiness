@@ -556,6 +556,25 @@ export function TransactionModal() {
     if (editingTransactionId) {
       const oldTx = useDataStore.getState().transactions.find(t => t.id === editingTransactionId);
       if (oldTx) {
+        if (oldTx.notes && oldTx.notes.startsWith('transferencia:')) {
+          const transferGroupId = oldTx.notes.replace('transferencia:', '');
+          const related = useDataStore.getState().transactions.filter(t => t.notes === `transferencia:${transferGroupId}`);
+          
+          for (const tx of related) {
+            if (tx.accountId && tx.isPaid) {
+              const acc = useDataStore.getState().accounts.find(a => a.id === tx.accountId);
+              if (acc) {
+                await api.accounts.update(tx.accountId, {
+                  balance: acc.balance - (tx.type === 'receita' ? tx.amount : -tx.amount)
+                });
+              }
+            }
+            await api.transactions.delete(tx.id);
+          }
+          closeModal();
+          return;
+        }
+
         if (oldTx.parentId && oldTx.installments && oldTx.installments > 1) {
           setInstallmentActionType('delete');
           return;

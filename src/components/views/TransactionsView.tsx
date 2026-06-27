@@ -135,6 +135,7 @@ export function TransactionsView() {
   };
 
   const filtered = transactions.filter(t => {
+    if (t.notes?.startsWith('transferencia:')) return false;
     if (selectedCycle !== 'all' && getEffectiveCycle(t) !== selectedCycle) return false;
     if (searchTerm && !t.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     
