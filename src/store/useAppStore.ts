@@ -26,7 +26,7 @@ interface AppState {
   setAccountModalOpen: (open: boolean) => void;
   editingAccountId: string | null;
   setEditingAccountId: (id: string | null) => void;
-  
+
   activeAccountId: string | null;
   setActiveAccountId: (id: string | null) => void;
 
@@ -81,7 +81,7 @@ export const useAppStore = create<AppState>((set) => ({
 
   isCategoryModalOpen: false,
   setCategoryModalOpen: (open) => set({ isCategoryModalOpen: open }),
-  
+
   confirmModal: null,
   setConfirmModal: (modal) => set({ confirmModal: modal }),
 }));

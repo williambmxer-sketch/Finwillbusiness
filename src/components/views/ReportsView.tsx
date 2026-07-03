@@ -154,7 +154,7 @@ export function ReportsView() {
             return true;
           }
         });
-        
+
         const padding = 24;
         const contentWidth = reportRef.current!.offsetWidth;
         const contentHeight = reportRef.current!.offsetHeight;
@@ -166,7 +166,7 @@ export function ReportsView() {
           unit: 'px',
           format: [pdfWidth, pdfHeight]
         });
-        
+
         pdf.addImage(imgData, 'PNG', padding, padding, contentWidth, contentHeight);
         pdf.save(`relatorio-${periodLabel.replace(/\s+/g, '-').replace(/\//g, '-')}.pdf`);
       } catch (err: any) {
@@ -187,10 +187,10 @@ export function ReportsView() {
             <h1 className="text-xl font-bold tracking-tight mb-0.5">Visão</h1>
             <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Saúde Financeira</p>
           </div>
-          
+
           <div className="flex flex-col items-start sm:items-end w-full sm:w-auto">
             <div className="flex items-center w-full gap-2 justify-between sm:justify-end">
-              <button 
+              <button
                 onClick={handleExportPDF}
                 disabled={isExporting}
                 className="hide-in-pdf flex shrink-0 items-center justify-center gap-1.5 h-[34px] px-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-500 hover:bg-rose-500/20 transition-all disabled:opacity-50 shadow-sm"
@@ -200,226 +200,226 @@ export function ReportsView() {
                 <span className="text-[10px] font-bold uppercase tracking-widest hidden xs:inline">PDF</span>
               </button>
               <div className="flex items-center w-full sm:w-auto bg-card border border-border rounded-xl p-1 shadow-sm justify-between sm:justify-start">
-            {!isCustomMode && (
-              <button onClick={handlePrevMonth} className="p-1.5 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-all shrink-0">
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-            )}
-            <span className="text-[10px] font-bold uppercase tracking-widest flex-1 sm:flex-initial sm:min-w-[120px] text-center px-2">
-              {periodLabel}
-            </span>
-            {!isCustomMode && (
-              <button onClick={handleNextMonth} className="p-1.5 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-all shrink-0">
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            )}
-            <div className="w-[1px] h-4 bg-border mx-1 shrink-0" />
-            <button onClick={() => setShowCalendarMenu(!showCalendarMenu)} className={`p-1.5 rounded-lg transition-colors shrink-0 ${showCalendarMenu || isCustomMode ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
-              <CalendarDays className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-          {/* Popover for custom date */}
-          {showCalendarMenu && (
-            <div className="absolute top-full right-0 mt-2 w-72 bg-card border border-border shadow-xl rounded-xl p-3 z-50 animate-in fade-in slide-in-from-top-2">
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Período Customizado</span>
-                {isCustomMode && (
-                  <button onClick={() => { setIsCustomMode(false); setShowCalendarMenu(false); }} className="text-[9px] font-bold uppercase text-primary hover:underline">
-                    Resetar
+                {!isCustomMode && (
+                  <button onClick={handlePrevMonth} className="p-1.5 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-all shrink-0">
+                    <ChevronLeft className="w-4 h-4" />
                   </button>
                 )}
-              </div>
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <div>
-                  <label className="text-[9px] font-bold uppercase text-muted-foreground mb-1 block">De</label>
-                  <input
-                    type="date"
-                    value={customStart}
-                    onChange={e => setCustomStart(e.target.value)}
-                    className="w-full bg-muted/50 border border-transparent focus:border-primary/50 focus:bg-background rounded-lg text-xs h-8 px-2 outline-none uppercase font-medium"
-                  />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold uppercase text-muted-foreground mb-1 block">Até</label>
-                  <input
-                    type="date"
-                    value={customEnd}
-                    onChange={e => setCustomEnd(e.target.value)}
-                    className="w-full bg-muted/50 border border-transparent focus:border-primary/50 focus:bg-background rounded-lg text-xs h-8 px-2 outline-none uppercase font-medium"
-                  />
-                </div>
-              </div>
-              
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                {[
-                  { label: 'Este ano', fn: () => { const d = new Date(); setCustomStart(`${d.getFullYear()}-01-01`); setCustomEnd(`${d.getFullYear()}-12-31`); } },
-                  { label: 'Últimos 30 dias', fn: () => { const d = new Date(); const p = new Date(d); p.setDate(p.getDate() - 30); setCustomStart(p.toISOString().split('T')[0]); setCustomEnd(d.toISOString().split('T')[0]); } },
-                  { label: 'Últimos 6 meses', fn: () => { const d = new Date(); const p = new Date(d); p.setMonth(p.getMonth() - 6); setCustomStart(p.toISOString().split('T')[0]); setCustomEnd(d.toISOString().split('T')[0]); } },
-                ].map((shortcut) => (
-                  <button key={shortcut.label} onClick={shortcut.fn} className="text-[9px] font-bold uppercase tracking-wider bg-muted hover:bg-muted/80 text-muted-foreground px-2 py-1 rounded-md transition-colors">
-                    {shortcut.label}
+                <span className="text-[10px] font-bold uppercase tracking-widest flex-1 sm:flex-initial sm:min-w-[120px] text-center px-2">
+                  {periodLabel}
+                </span>
+                {!isCustomMode && (
+                  <button onClick={handleNextMonth} className="p-1.5 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-all shrink-0">
+                    <ChevronRight className="w-4 h-4" />
                   </button>
-                ))}
+                )}
+                <div className="w-[1px] h-4 bg-border mx-1 shrink-0" />
+                <button onClick={() => setShowCalendarMenu(!showCalendarMenu)} className={`p-1.5 rounded-lg transition-colors shrink-0 ${showCalendarMenu || isCustomMode ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
+                  <CalendarDays className="w-4 h-4" />
+                </button>
               </div>
+            </div>
 
-              <button 
-                onClick={() => { setIsCustomMode(true); setShowCalendarMenu(false); }}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-[10px] font-bold uppercase tracking-wider h-8 rounded-lg transition-colors"
-              >
-                Aplicar
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
+            {/* Popover for custom date */}
+            {showCalendarMenu && (
+              <div className="absolute top-full right-0 mt-2 w-72 bg-card border border-border shadow-xl rounded-xl p-3 z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Período Customizado</span>
+                  {isCustomMode && (
+                    <button onClick={() => { setIsCustomMode(false); setShowCalendarMenu(false); }} className="text-[9px] font-bold uppercase text-primary hover:underline">
+                      Resetar
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <div>
+                    <label className="text-[9px] font-bold uppercase text-muted-foreground mb-1 block">De</label>
+                    <input
+                      type="date"
+                      value={customStart}
+                      onChange={e => setCustomStart(e.target.value)}
+                      className="w-full bg-muted/50 border border-transparent focus:border-primary/50 focus:bg-background rounded-lg text-xs h-8 px-2 outline-none uppercase font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-bold uppercase text-muted-foreground mb-1 block">Até</label>
+                    <input
+                      type="date"
+                      value={customEnd}
+                      onChange={e => setCustomEnd(e.target.value)}
+                      className="w-full bg-muted/50 border border-transparent focus:border-primary/50 focus:bg-background rounded-lg text-xs h-8 px-2 outline-none uppercase font-medium"
+                    />
+                  </div>
+                </div>
 
-      {/* KPIs Grid */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col">
-          <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Receitas</div>
-          <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(currentTotals.receitas)}</div>
-          {prevTotals.receitas > 0 && !isCustomMode && (
-            <div className={`text-[8px] font-bold uppercase tracking-widest mt-1.5 ${diffReceitas >= 0 ? 'text-emerald-500/80' : 'text-rose-500/80'}`}>
-              {diffReceitas >= 0 ? '▲' : '▼'} {Math.abs(diffReceitas).toFixed(0)}% ref. mês ant.
-            </div>
-          )}
-        </div>
-        <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col">
-          <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Despesas</div>
-          <div className="text-sm font-bold text-rose-600 dark:text-rose-400">{formatCurrency(currentTotals.despesas)}</div>
-          {prevTotals.despesas > 0 && !isCustomMode && (
-            <div className={`text-[8px] font-bold uppercase tracking-widest mt-1.5 ${diffDespesas <= 0 ? 'text-emerald-500/80' : 'text-rose-500/80'}`}>
-              {diffDespesas > 0 ? '▲' : '▼'} {Math.abs(diffDespesas).toFixed(0)}% ref. mês ant.
-            </div>
-          )}
-        </div>
-        
-        <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col col-span-2">
-          <div className="flex justify-between items-center mb-1">
-            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Balanço do Período</div>
-            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Poupança</div>
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {[
+                    { label: 'Este ano', fn: () => { const d = new Date(); setCustomStart(`${d.getFullYear()}-01-01`); setCustomEnd(`${d.getFullYear()}-12-31`); } },
+                    { label: 'Últimos 30 dias', fn: () => { const d = new Date(); const p = new Date(d); p.setDate(p.getDate() - 30); setCustomStart(p.toISOString().split('T')[0]); setCustomEnd(d.toISOString().split('T')[0]); } },
+                    { label: 'Últimos 6 meses', fn: () => { const d = new Date(); const p = new Date(d); p.setMonth(p.getMonth() - 6); setCustomStart(p.toISOString().split('T')[0]); setCustomEnd(d.toISOString().split('T')[0]); } },
+                  ].map((shortcut) => (
+                    <button key={shortcut.label} onClick={shortcut.fn} className="text-[9px] font-bold uppercase tracking-wider bg-muted hover:bg-muted/80 text-muted-foreground px-2 py-1 rounded-md transition-colors">
+                      {shortcut.label}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => { setIsCustomMode(true); setShowCalendarMenu(false); }}
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-[10px] font-bold uppercase tracking-wider h-8 rounded-lg transition-colors"
+                >
+                  Aplicar
+                </button>
+              </div>
+            )}
           </div>
-          <div className="flex justify-between items-end">
-            <div className={`text-xl font-bold tracking-tight ${currentTotals.balanco >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-              {currentTotals.balanco >= 0 ? '+' : ''}{formatCurrency(currentTotals.balanco)}
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className={`text-sm font-bold ${savingsRate >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                {savingsRate.toFixed(1)}%
-              </div>
-            </div>
-          </div>
-          {savingsRate > 0 && (
-            <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden mt-3">
-              <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(savingsRate, 100)}%` }} />
-            </div>
-          )}
-        </div>
-      </div>
+        </header>
 
-      <div className="flex flex-col gap-6">
-        {/* Donut Chart for Expenses */}
-        {expenseCategories.length > 0 && (
-          <section>
-            <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3 px-1">Distribuição de Despesas</h2>
-            <div className="p-4 bg-card border rounded-[16px] shadow-sm flex items-center justify-between">
-              <div className="w-32 h-32 shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={expenseCategories}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={40}
-                      outerRadius={60}
-                      paddingAngle={2}
-                      dataKey="amount"
-                      stroke="none"
-                    >
-                      {expenseCategories.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <RechartsTooltip content={<CustomPieTooltip />} cursor={false} />
-                  </PieChart>
-                </ResponsiveContainer>
+        {/* KPIs Grid */}
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col">
+            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Receitas</div>
+            <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(currentTotals.receitas)}</div>
+            {prevTotals.receitas > 0 && !isCustomMode && (
+              <div className={`text-[8px] font-bold uppercase tracking-widest mt-1.5 ${diffReceitas >= 0 ? 'text-emerald-500/80' : 'text-rose-500/80'}`}>
+                {diffReceitas >= 0 ? '▲' : '▼'} {Math.abs(diffReceitas).toFixed(0)}% ref. mês ant.
               </div>
-              
-              <div className="flex-1 pl-4 flex flex-col gap-2 pr-1">
+            )}
+          </div>
+          <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col">
+            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Despesas</div>
+            <div className="text-sm font-bold text-rose-600 dark:text-rose-400">{formatCurrency(currentTotals.despesas)}</div>
+            {prevTotals.despesas > 0 && !isCustomMode && (
+              <div className={`text-[8px] font-bold uppercase tracking-widest mt-1.5 ${diffDespesas <= 0 ? 'text-emerald-500/80' : 'text-rose-500/80'}`}>
+                {diffDespesas > 0 ? '▲' : '▼'} {Math.abs(diffDespesas).toFixed(0)}% ref. mês ant.
+              </div>
+            )}
+          </div>
+
+          <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col col-span-2">
+            <div className="flex justify-between items-center mb-1">
+              <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Balanço do Período</div>
+              <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Poupança</div>
+            </div>
+            <div className="flex justify-between items-end">
+              <div className={`text-xl font-bold tracking-tight ${currentTotals.balanco >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                {currentTotals.balanco >= 0 ? '+' : ''}{formatCurrency(currentTotals.balanco)}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className={`text-sm font-bold ${savingsRate >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                  {savingsRate.toFixed(1)}%
+                </div>
+              </div>
+            </div>
+            {savingsRate > 0 && (
+              <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden mt-3">
+                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(savingsRate, 100)}%` }} />
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          {/* Donut Chart for Expenses */}
+          {expenseCategories.length > 0 && (
+            <section>
+              <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3 px-1">Distribuição de Despesas</h2>
+              <div className="p-4 bg-card border rounded-[16px] shadow-sm flex items-center justify-between">
+                <div className="w-32 h-32 shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={expenseCategories}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={60}
+                        paddingAngle={2}
+                        dataKey="amount"
+                        stroke="none"
+                      >
+                        {expenseCategories.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip content={<CustomPieTooltip />} cursor={false} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="flex-1 pl-4 flex flex-col gap-2 pr-1">
+                  {expenseCategories.map((cat, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2 truncate">
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                        <span className="font-semibold truncate text-[10px] uppercase tracking-wider">{cat.name}</span>
+                      </div>
+                      <span className="font-bold text-[10px] text-muted-foreground ml-2">{cat.percentage.toFixed(0)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Expense categories Details */}
+          {expenseCategories.length > 0 && (
+            <section>
+              <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 px-1">Maiores Gastos</h2>
+              <div className="flex flex-col gap-2">
                 {expenseCategories.map((cat, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2 truncate">
-                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
-                      <span className="font-semibold truncate text-[10px] uppercase tracking-wider">{cat.name}</span>
+                  <div key={i} className="bg-card border border-border/50 shadow-sm rounded-[12px] p-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                        <span className="text-xs font-semibold">{cat.name}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-bold">{formatCurrency(cat.amount)}</span>
+                        <span className="text-[9px] text-muted-foreground ml-1.5 font-bold uppercase">{cat.percentage.toFixed(0)}%</span>
+                      </div>
                     </div>
-                    <span className="font-bold text-[10px] text-muted-foreground ml-2">{cat.percentage.toFixed(0)}%</span>
+                    <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${cat.percentage}%`, backgroundColor: cat.color }} />
+                    </div>
                   </div>
                 ))}
               </div>
-            </div>
-          </section>
-        )}
+            </section>
+          )}
 
-        {/* Expense categories Details */}
-        {expenseCategories.length > 0 && (
-          <section>
-            <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 px-1">Maiores Gastos</h2>
-            <div className="flex flex-col gap-2">
-              {expenseCategories.map((cat, i) => (
-                <div key={i} className="bg-card border border-border/50 shadow-sm rounded-[12px] p-3">
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
-                      <span className="text-xs font-semibold">{cat.name}</span>
+          {/* Income categories Details */}
+          {incomeCategories.length > 0 && (
+            <section>
+              <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 px-1">Fontes de Renda</h2>
+              <div className="flex flex-col gap-2">
+                {incomeCategories.map((cat, i) => (
+                  <div key={i} className="bg-card border border-border/50 shadow-sm rounded-[12px] p-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                        <span className="text-xs font-semibold">{cat.name}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(cat.amount)}</span>
+                        <span className="text-[9px] text-muted-foreground ml-1.5 font-bold uppercase">{cat.percentage.toFixed(0)}%</span>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <span className="text-xs font-bold">{formatCurrency(cat.amount)}</span>
-                      <span className="text-[9px] text-muted-foreground ml-1.5 font-bold uppercase">{cat.percentage.toFixed(0)}%</span>
+                    <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${cat.percentage}%`, backgroundColor: cat.color }} />
                     </div>
                   </div>
-                  <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${cat.percentage}%`, backgroundColor: cat.color }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
+                ))}
+              </div>
+            </section>
+          )}
 
-        {/* Income categories Details */}
-        {incomeCategories.length > 0 && (
-          <section>
-            <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 px-1">Fontes de Renda</h2>
-            <div className="flex flex-col gap-2">
-              {incomeCategories.map((cat, i) => (
-                <div key={i} className="bg-card border border-border/50 shadow-sm rounded-[12px] p-3">
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
-                      <span className="text-xs font-semibold">{cat.name}</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(cat.amount)}</span>
-                      <span className="text-[9px] text-muted-foreground ml-1.5 font-bold uppercase">{cat.percentage.toFixed(0)}%</span>
-                    </div>
-                  </div>
-                  <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${cat.percentage}%`, backgroundColor: cat.color }} />
-                  </div>
-                </div>
-              ))}
+          {expenseCategories.length === 0 && incomeCategories.length === 0 && (
+            <div className="text-center text-muted-foreground p-10 border border-dashed rounded-[16px] border-border/50 text-xs mx-1">
+              Nenhum dado no mês selecionado
             </div>
-          </section>
-        )}
-
-        {expenseCategories.length === 0 && incomeCategories.length === 0 && (
-          <div className="text-center text-muted-foreground p-10 border border-dashed rounded-[16px] border-border/50 text-xs mx-1">
-            Nenhum dado no mês selecionado
-          </div>
-        )}
-      </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -77,3 +77,35 @@ export function getTransactionCycle(
   const { cycleId } = getCycleId(d, card.closingDay, card.dueDay);
   return cycleId;
 }
+/**
+ * Calcula o saldo total das contas no início de um dado ciclo (mês).
+ * Ponto de partida: Soma dos saldos atuais das contas.
+ * Subtraímos o fluxo líquido de todas as transações pagas que afetaram contas deste ciclo em diante.
+ */
+export function getStartBalanceForCycle(
+  cycleId: string,
+  accounts: { balance: number }[],
+  transactions: { amount: number; type: 'receita' | 'despesa'; notes?: string; date: Date; cardId?: string | null; isPaid: boolean; accountId?: string | null }[],
+  cards: { id: string; closingDay: number; dueDay: number }[]
+): number {
+  const currentTotal = accounts.reduce((sum, a) => sum + a.balance, 0);
+  if (!cycleId || cycleId === 'all') return currentTotal;
+
+  // Filter transactions that affected account balances from cycleId onwards
+  const futureTxs = transactions.filter(t => {
+    if (!t.isPaid || !t.accountId || t.accountId === 'none') return false;
+    if (t.notes?.startsWith('transferencia:')) return false;
+
+    const dateObj = typeof t.date === 'string' ? new Date(t.date) : t.date;
+    const tCycle = getTransactionCycle({ ...t, date: dateObj }, cards);
+    return tCycle >= cycleId;
+  });
+
+  const netFlow = futureTxs.reduce((sum, t) => {
+    return sum + (t.type === 'receita' ? t.amount : -t.amount);
+  }, 0);
+
+  return currentTotal - netFlow;
+}
+
+
