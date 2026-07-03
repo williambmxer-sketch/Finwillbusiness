@@ -603,6 +603,14 @@ export function TransactionsView() {
                         onClick={() => {
                           setSelectedCategoryIds([]);
                           setSelectedCardIds([]);
+                          setFilters({
+                            receita: true,
+                            despesa: true,
+                            pending: true,
+                            paid: true
+                          });
+                          setHasClickedType(false);
+                          setHasClickedStatus(false);
                         }}
                         className="w-full py-1 text-[9px] font-bold uppercase tracking-widest text-rose-500 hover:text-rose-600 text-center transition-colors"
                       >
