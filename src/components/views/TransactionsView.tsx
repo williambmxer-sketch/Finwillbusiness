@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { api } from '../../services/api';
 import { useDataStore } from '../../store/useDataStore';
 import { formatCurrency } from '../../utils/formatters';
-import { getTransactionCycle } from '../../utils/cycleUtils';
+import { getTransactionCycle, getCycleId } from '../../utils/cycleUtils';
 import { Plus, Filter, Search, TrendingUp, TrendingDown, Clock, Settings2, CheckCircle2, Pencil, CreditCard, ChevronDown, Check, ChevronLeft, ChevronRight, FileSpreadsheet, FileText } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Input } from '../ui/input';
@@ -101,8 +101,9 @@ export function TransactionsView() {
       lastProcessedFilterKeyRef.current = currentFilterKey;
       hasInitializedRef.current = true;
 
-      const hasPending = cycleTransactions.some(t => !t.isPaid);
-      const hasPaid = cycleTransactions.some(t => t.isPaid);
+      const nonCardTx = cycleTransactions.filter(t => !t.cardId || t.cardId === 'money');
+      const hasPending = nonCardTx.some(t => !t.isPaid);
+      const hasPaid = nonCardTx.some(t => t.isPaid);
 
       if (hasPending && hasPaid) {
         setFilters({
@@ -201,55 +202,37 @@ export function TransactionsView() {
     if (t.type === 'receita' && !filters.receita) return false;
     if (t.type === 'despesa' && !filters.despesa) return false;
 
+    const tHasCard = Boolean(t.cardId && t.cardId !== 'money');
+
     // Status filter
-    if (t.isPaid && !filters.paid) return false;
-    if (!t.isPaid && !filters.pending) return false;
+    if (!tHasCard) {
+      if (t.isPaid && !filters.paid) return false;
+      if (!t.isPaid && !filters.pending) return false;
+    }
 
     // Category & Card filtering
     const hasCategoryFilter = selectedCategoryIds.length > 0;
     const hasCardFilter = selectedCardIds.length > 0;
-    const tHasCard = t.cardId && t.cardId !== 'money';
 
     if (!hasCategoryFilter && !hasCardFilter) {
       return true;
     }
 
-    let matches = false;
-
-    // Condition 1: Check card filter
-    if (hasCardFilter && tHasCard && selectedCardIds.includes(t.cardId)) {
-      matches = true;
-    }
-
-    // Condition 2: Check category filter for cash/account transactions
-    if (hasCategoryFilter && !tHasCard && selectedCategoryIds.includes(t.categoryId)) {
-      matches = true;
-    }
-
-    if (!matches) {
+    if (hasCategoryFilter && !selectedCategoryIds.includes(t.categoryId)) {
       return false;
+    }
+
+    if (hasCardFilter) {
+      if (!tHasCard || !selectedCardIds.includes(t.cardId as string)) {
+        return false;
+      }
     }
 
     return true;
   });
 
-  const totals = React.useMemo(() => {
-    let receitas = 0;
-    let despesas = 0;
-    filtered.forEach(t => {
-      if (t.notes?.startsWith('transferencia:')) return;
-      if (t.type === 'receita') {
-        receitas += t.amount;
-      } else {
-        despesas += t.amount;
-      }
-    });
-    return {
-      receitas,
-      despesas,
-      saldo: receitas - despesas
-    };
-  }, [filtered]);
+  // We will move the totals calculation to be below displayItems
+  // so we can calculate it directly from displayItems, which prevents discrepancies.
 
   const getFilterLabel = () => {
     const active: string[] = [];
@@ -271,19 +254,26 @@ export function TransactionsView() {
       // Se for transação de crédito, não coloca solta na lista. Agrupa na fatura.
       if (t.cardId && t.cardId !== 'money') {
         const cycleId = getEffectiveCycle(t);
-        const invoiceKey = `${t.cardId}-${cycleId}`;
+        const invoiceKey = `${t.cardId}-${cycleId}-${t.isPaid ? 'paid' : 'pending'}`;
 
         if (!cardInvoices.has(invoiceKey)) {
           const card = cards.find(c => c.id === t.cardId);
+          
+          let dueDate = new Date(t.date);
+          if (card) {
+            const cycleData = getCycleId(new Date(t.date), card.closingDay, card.dueDay);
+            dueDate = cycleData.dueDate;
+          }
+
           cardInvoices.set(invoiceKey, {
             id: `invoice-${invoiceKey}`,
             isVirtualInvoice: true,
             cardId: t.cardId,
             description: `Fatura ${card ? card.name : 'Cartão'}`,
             amount: 0,
-            date: new Date(t.date), // Just a reference date
+            date: dueDate,
             type: 'despesa',
-            isPaid: false,
+            isPaid: t.isPaid,
             color: card?.color,
             brand: card?.brand
           });
@@ -295,16 +285,43 @@ export function TransactionsView() {
         } else {
           inv.amount -= t.amount;
         }
-        // update reference date to be the latest date in that invoice
-        if (t.date > inv.date) inv.date = t.date;
       } else {
         items.push(t);
       }
     });
 
-    items.push(...Array.from(cardInvoices.values()));
+    const finalInvoices = Array.from(cardInvoices.values()).filter(inv => {
+      if (inv.isPaid && !filters.paid) return false;
+      if (!inv.isPaid && !filters.pending) return false;
+      return true;
+    });
+
+    items.push(...finalInvoices);
     return items.sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [filtered, cards]);
+  }, [filtered, cards, filters.paid, filters.pending]);
+
+  const totals = React.useMemo(() => {
+    let receitas = 0;
+    let despesas = 0;
+    
+    displayItems.forEach(item => {
+      if (item.isVirtualInvoice) {
+        despesas += item.amount;
+      } else {
+        if (item.notes?.startsWith('transferencia:')) return;
+        if (item.type === 'receita') {
+          receitas += item.amount;
+        } else {
+          despesas += item.amount;
+        }
+      }
+    });
+    return {
+      receitas,
+      despesas,
+      saldo: receitas - despesas
+    };
+  }, [displayItems]);
 
   const handleExportExcel = () => {
     if (displayItems.length === 0) return;
@@ -853,7 +870,8 @@ export function TransactionsView() {
                         </div>
                         {!t.isPaid && !isInvoice && <div className="text-[9px] text-amber-500 font-bold uppercase tracking-widest mt-1">Pendente</div>}
                         {t.isPaid && !isInvoice && <div className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest mt-1">Pago</div>}
-                        {isInvoice && <div className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Fatura</div>}
+                        {isInvoice && !t.isPaid && <div className="text-[9px] text-amber-500 font-bold uppercase tracking-widest mt-1">Fatura Aberta</div>}
+                        {isInvoice && t.isPaid && <div className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest mt-1">Fatura Paga</div>}
                       </div>
                     </div>
                   </div>

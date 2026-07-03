@@ -20,14 +20,16 @@ export const mappers = {
       showInCards: row.mostrar_em_cartoes ?? true,
       showInAccounts: row.mostrar_em_contas ?? true,
     }),
-    toDb: (obj: Partial<Category>) => ({
-      nome: obj.name,
-      icone: obj.icon,
-      cor: obj.color,
-      tipo: obj.type,
-      mostrar_em_cartoes: obj.showInCards ?? true,
-      mostrar_em_contas: obj.showInAccounts ?? true,
-    })
+    toDb: (obj: Partial<Category>) => {
+      const payload: any = {};
+      if (obj.name !== undefined) payload.nome = obj.name;
+      if (obj.icon !== undefined) payload.icone = obj.icon;
+      if (obj.color !== undefined) payload.cor = obj.color;
+      if (obj.type !== undefined) payload.tipo = obj.type;
+      if (obj.showInCards !== undefined) payload.mostrar_em_cartoes = obj.showInCards;
+      if (obj.showInAccounts !== undefined) payload.mostrar_em_contas = obj.showInAccounts;
+      return payload;
+    }
   },
   account: {
     toApp: (row: any): Account => ({
@@ -38,13 +40,15 @@ export const mappers = {
       color: row.cor,
       icon: row.icone,
     }),
-    toDb: (obj: Partial<Account>) => ({
-      nome: obj.name,
-      tipo: obj.type,
-      saldo: obj.balance,
-      cor: obj.color,
-      icone: obj.icon,
-    })
+    toDb: (obj: Partial<Account>) => {
+      const payload: any = {};
+      if (obj.name !== undefined) payload.nome = obj.name;
+      if (obj.type !== undefined) payload.tipo = obj.type;
+      if (obj.balance !== undefined) payload.saldo = obj.balance;
+      if (obj.color !== undefined) payload.cor = obj.color;
+      if (obj.icon !== undefined) payload.icone = obj.icon;
+      return payload;
+    }
   },
   card: {
     toApp: (row: any): Card => ({
@@ -58,16 +62,18 @@ export const mappers = {
       bank: row.banco,
       lastFour: row.ultimos_quatro,
     }),
-    toDb: (obj: Partial<Card>) => ({
-      nome: obj.name,
-      bandeira: obj.brand,
-      cor: obj.color,
-      limite_credito: obj.limit,
-      dia_fechamento: obj.closingDay,
-      dia_vencimento: obj.dueDay,
-      banco: obj.bank,
-      ultimos_quatro: obj.lastFour,
-    })
+    toDb: (obj: Partial<Card>) => {
+      const payload: any = {};
+      if (obj.name !== undefined) payload.nome = obj.name;
+      if (obj.brand !== undefined) payload.bandeira = obj.brand;
+      if (obj.color !== undefined) payload.cor = obj.color;
+      if (obj.limit !== undefined) payload.limite_credito = obj.limit;
+      if (obj.closingDay !== undefined) payload.dia_fechamento = obj.closingDay;
+      if (obj.dueDay !== undefined) payload.dia_vencimento = obj.dueDay;
+      if (obj.bank !== undefined) payload.banco = obj.bank;
+      if (obj.lastFour !== undefined) payload.ultimos_quatro = obj.lastFour;
+      return payload;
+    }
   },
   transaction: {
     toApp: (row: any): Transaction => ({
@@ -87,21 +93,23 @@ export const mappers = {
       notes: row.observacoes || undefined,
       createdAt: row.criado_em,
     }),
-    toDb: (obj: Partial<Transaction>) => ({
-      descricao: obj.description,
-      valor: obj.amount,
-      data: obj.date?.toISOString(),
-      tipo: obj.type,
-      categoria_id: obj.categoryId,
-      conta_id: obj.accountId || null,
-      cartao_id: obj.cardId || null,
-      parcelas: obj.installments || null,
-      parcela_atual: obj.currentInstallment || null,
-      transacao_pai_id: obj.parentId || null,
-      esta_pago: obj.isPaid,
-      data_pagamento: obj.paymentDate?.toISOString() || null,
-      observacoes: obj.notes || null,
-    })
+    toDb: (obj: Partial<Transaction>) => {
+      const payload: any = {};
+      if (obj.description !== undefined) payload.descricao = obj.description;
+      if (obj.amount !== undefined) payload.valor = obj.amount;
+      if (obj.date !== undefined) payload.data = obj.date?.toISOString();
+      if (obj.type !== undefined) payload.tipo = obj.type;
+      if (obj.categoryId !== undefined) payload.categoria_id = obj.categoryId;
+      if (obj.accountId !== undefined) payload.conta_id = obj.accountId || null;
+      if (obj.cardId !== undefined) payload.cartao_id = obj.cardId || null;
+      if (obj.installments !== undefined) payload.parcelas = obj.installments || null;
+      if (obj.currentInstallment !== undefined) payload.parcela_atual = obj.currentInstallment || null;
+      if (obj.parentId !== undefined) payload.transacao_pai_id = obj.parentId || null;
+      if (obj.isPaid !== undefined) payload.esta_pago = obj.isPaid;
+      if (obj.paymentDate !== undefined) payload.data_pagamento = obj.paymentDate?.toISOString() || null;
+      if (obj.notes !== undefined) payload.observacoes = obj.notes || null;
+      return payload;
+    }
   },
   paymentMethod: {
     toApp: (row: any): CustomPaymentMethod => ({
@@ -109,10 +117,12 @@ export const mappers = {
       name: row.nome,
       debitFromAccount: row.debitar_conta,
     }),
-    toDb: (obj: Partial<CustomPaymentMethod>) => ({
-      nome: obj.name,
-      debitar_conta: obj.debitFromAccount,
-    })
+    toDb: (obj: Partial<CustomPaymentMethod>) => {
+      const payload: any = {};
+      if (obj.name !== undefined) payload.nome = obj.name;
+      if (obj.debitFromAccount !== undefined) payload.debitar_conta = obj.debitFromAccount;
+      return payload;
+    }
   }
 };
 
