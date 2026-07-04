@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 import { useAppStore } from '../../store/useAppStore';
+import { getCycleId } from '../../utils/cycleUtils';
 
 interface ComputedInvoice {
   id: string;
@@ -17,34 +18,6 @@ interface ComputedInvoice {
   dueDate: Date;
   transactions: Transaction[];
   yearMonth: string;
-}
-
-function getCycleId(date: Date, closingDay: number = 1, dueDay: number = 5) {
-  let yr = date.getFullYear();
-  let mo = date.getMonth();
-  let currentMonthClosing = new Date(yr, mo, closingDay, 23, 59, 59);
-  
-  let cycleMonth = mo;
-  let cycleYear = yr;
-
-  if (date > currentMonthClosing) {
-    cycleMonth += 1;
-    if (cycleMonth > 11) { cycleMonth = 0; cycleYear++; }
-  }
-  
-  let dueMonth = cycleMonth;
-  let dueYear = cycleYear;
-  if (dueDay < closingDay) {
-    dueMonth += 1;
-    if (dueMonth > 11) { dueMonth = 0; dueYear++; }
-  }
-
-  let finalDueDate = new Date(dueYear, dueMonth, dueDay);
-  return {
-    cycleId: `${dueYear}-${dueMonth + 1}`,
-    dueDate: finalDueDate,
-    monthName: finalDueDate.toLocaleDateString('pt-BR', { month: 'long' })
-  };
 }
 
 export function InvoicesView() {

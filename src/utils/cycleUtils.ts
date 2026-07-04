@@ -25,9 +25,14 @@ export function getCycleId(
     return { cycleId: '', dueDate: new Date(), monthName: '' };
   }
 
+  const cDay = parseInt(closingDay.toString(), 10) || 10;
+  const dDay = parseInt(dueDay.toString(), 10) || 17;
+
   let yr = date.getFullYear();
   let mo = date.getMonth();
-  const currentMonthClosing = new Date(yr, mo, closingDay, 23, 59, 59);
+  // O dia de fechamento é considerado o dia da "virada". 
+  // Ou seja, se o fechamento é dia 2, o último segundo da fatura atual é dia 1 às 23:59:59.
+  const currentMonthClosing = new Date(yr, mo, cDay - 1, 23, 59, 59);
 
   // Se a compra foi feita APÓS o fechamento deste mês, vai para o próximo ciclo
   let cycleMonth = mo;
@@ -40,15 +45,15 @@ export function getCycleId(
   // O vencimento pode cair no mês seguinte ao fechamento (ex: fecha dia 25, vence dia 5)
   let dueMonth = cycleMonth;
   let dueYear = cycleYear;
-  if (dueDay < closingDay) {
+  if (dDay < cDay) {
     dueMonth += 1;
     if (dueMonth > 11) { dueMonth = 0; dueYear++; }
   }
 
   return {
     cycleId: `${dueYear}-${String(dueMonth + 1).padStart(2, '0')}`,
-    dueDate: new Date(dueYear, dueMonth, dueDay),
-    monthName: new Date(dueYear, dueMonth, dueDay).toLocaleDateString('pt-BR', { month: 'long' }),
+    dueDate: new Date(dueYear, dueMonth, dDay),
+    monthName: new Date(dueYear, dueMonth, dDay).toLocaleDateString('pt-BR', { month: 'long' }),
   };
 }
 
