@@ -38,6 +38,7 @@ export function DashboardView() {
       title: 'Resetar Sistema',
       description: 'Tem certeza que deseja excluir todos os lançamentos, transações e zerar os saldos de todas as contas? Suas categorias, contas bancárias e cartões serão mantidos.',
       variant: 'danger',
+      requireText: 'resetar',
       onConfirm: async () => {
         try {
           await api.transactions.deleteAll();

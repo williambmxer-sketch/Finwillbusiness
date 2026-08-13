@@ -38,8 +38,9 @@ interface AppState {
     description: string;
     onConfirm: () => void;
     variant?: 'danger' | 'primary';
+    requireText?: string;
   } | null;
-  setConfirmModal: (modal: { title: string; description: string; onConfirm: () => void; variant?: 'danger' | 'primary' } | null) => void;
+  setConfirmModal: (modal: { title: string; description: string; onConfirm: () => void; variant?: 'danger' | 'primary'; requireText?: string } | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
