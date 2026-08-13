@@ -7,10 +7,12 @@ export function ConfirmationModal() {
 
   if (!confirmModal) return null;
 
+  const isDanger = confirmModal.variant === 'danger';
+
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
       <div className="bg-card w-full max-w-sm rounded-[24px] border border-border shadow-2xl p-6 flex flex-col items-center text-center animate-in zoom-in-95 duration-150">
-        <div className="p-3 bg-primary/10 text-primary rounded-full mb-3">
+        <div className={`p-3 rounded-full mb-3 ${isDanger ? 'bg-rose-500/10 text-rose-600' : 'bg-primary/10 text-primary'}`}>
           <AlertTriangle className="w-5 h-5" />
         </div>
         <h3 className="text-sm font-bold tracking-tight mb-1">{confirmModal.title}</h3>
@@ -20,7 +22,7 @@ export function ConfirmationModal() {
           <button
             type="button"
             onClick={() => setConfirmModal(null)}
-            className="flex-1 py-2 bg-muted text-foreground text-[10px] font-bold uppercase tracking-wider rounded-xl hover:bg-muted/80 transition-colors"
+            className="flex-1 py-2 bg-muted text-foreground text-[10px] font-bold uppercase tracking-wider rounded-xl hover:bg-muted/80 transition-colors font-semibold"
           >
             Cancelar
           </button>
@@ -30,7 +32,11 @@ export function ConfirmationModal() {
               confirmModal.onConfirm();
               setConfirmModal(null);
             }}
-            className="flex-1 py-2 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider rounded-xl hover:bg-primary/90 transition-colors"
+            className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-xl transition-colors ${
+              isDanger 
+                ? 'bg-rose-600 text-white hover:bg-rose-700' 
+                : 'bg-primary text-primary-foreground hover:bg-primary/90'
+            }`}
           >
             Confirmar
           </button>

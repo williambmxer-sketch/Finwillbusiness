@@ -309,6 +309,25 @@ export const api = {
       const { error } = await supabase.from('transacoes').delete().eq('id', id);
       if (error) throw error;
       notifyMutation();
+    },
+    deleteAll: async () => {
+      try {
+        const userId = await getUserId();
+        const { error } = await supabase.from('transacoes').delete().eq('usuario_id', userId);
+        if (error) {
+          const { error: err2 } = await supabase.from('transacoes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+          if (err2) throw err2;
+        }
+      } catch (err) {
+        const { error: err2 } = await supabase.from('transacoes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        if (err2) throw err2;
+      }
+
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('financas_sync_queue');
+        localStorage.removeItem('financas_simulated_items');
+      }
+      notifyMutation();
     }
   },
 

@@ -13,22 +13,42 @@ import {
   Settings2,
   LogOut,
   Menu,
-  CalendarRange
+  CalendarRange,
+  RotateCcw
 } from 'lucide-react';
 import { BarChart, Bar, ResponsiveContainer, Cell, XAxis, Tooltip, YAxis } from 'recharts';
 import { formatCurrency } from '../../utils/formatters';
 
 import { useAppStore } from '../../store/useAppStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { api } from '../../services/api';
 
 
 
 export function DashboardView() {
-  const { setCategoryModalOpen, setCurrentView } = useAppStore();
+  const { setCategoryModalOpen, setCurrentView, setConfirmModal } = useAppStore();
   const signOut = useAuthStore(state => state.signOut);
   const accounts = useDataStore(state => state.accounts);
   const cards = useDataStore(state => state.cards);
   const allTransactions = useDataStore(state => state.transactions);
+
+  const handleResetSystem = () => {
+    setIsMenuOpen(false);
+    setConfirmModal({
+      title: 'Resetar Sistema',
+      description: 'Tem certeza que deseja excluir todos os lançamentos, transações e compras em cartões? Suas categorias, contas bancárias e cartões serão mantidos.',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await api.transactions.deleteAll();
+          await useDataStore.getState().fetchData();
+        } catch (err: any) {
+          console.error('Erro ao resetar sistema:', err);
+          alert('Erro ao resetar sistema: ' + (err.message || 'Erro desconhecido'));
+        }
+      }
+    });
+  };
 
   const transactions = useMemo(() => {
     const grouped = new Map<string, any>();
@@ -218,6 +238,13 @@ export function DashboardView() {
                 >
                   <CalendarRange className="h-4 w-4" />
                   Planejamento
+                </button>
+                <button
+                  onClick={handleResetSystem}
+                  className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-sm rounded-lg hover:bg-rose-500/10 text-rose-600 transition-all font-medium"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Resetar Sistema
                 </button>
                 <div className="h-px bg-border/40 my-0.5 mx-1" />
                 <button
