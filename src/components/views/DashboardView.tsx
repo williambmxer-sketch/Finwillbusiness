@@ -36,7 +36,7 @@ export function DashboardView() {
     setIsMenuOpen(false);
     setConfirmModal({
       title: 'Resetar Sistema',
-      description: 'Tem certeza que deseja excluir todos os lançamentos, transações e compras em cartões? Suas categorias, contas bancárias e cartões serão mantidos.',
+      description: 'Tem certeza que deseja excluir todos os lançamentos, transações e zerar os saldos de todas as contas? Suas categorias, contas bancárias e cartões serão mantidos.',
       variant: 'danger',
       onConfirm: async () => {
         try {

@@ -198,6 +198,18 @@ export const api = {
       const { error } = await supabase.from('contas').delete().eq('id', id);
       if (error) throw error;
       notifyMutation();
+    },
+    resetBalances: async () => {
+      try {
+        const userId = await getUserId();
+        const { error } = await supabase.from('contas').update({ saldo: 0 }).eq('usuario_id', userId);
+        if (error) {
+          await supabase.from('contas').update({ saldo: 0 }).neq('id', '00000000-0000-0000-0000-000000000000');
+        }
+      } catch (err) {
+        await supabase.from('contas').update({ saldo: 0 }).neq('id', '00000000-0000-0000-0000-000000000000');
+      }
+      notifyMutation();
     }
   },
 
@@ -313,12 +325,15 @@ export const api = {
     deleteAll: async () => {
       try {
         const userId = await getUserId();
+        await supabase.from('contas').update({ saldo: 0 }).eq('usuario_id', userId);
         const { error } = await supabase.from('transacoes').delete().eq('usuario_id', userId);
         if (error) {
+          await supabase.from('contas').update({ saldo: 0 }).neq('id', '00000000-0000-0000-0000-000000000000');
           const { error: err2 } = await supabase.from('transacoes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
           if (err2) throw err2;
         }
       } catch (err) {
+        await supabase.from('contas').update({ saldo: 0 }).neq('id', '00000000-0000-0000-0000-000000000000');
         const { error: err2 } = await supabase.from('transacoes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         if (err2) throw err2;
       }
