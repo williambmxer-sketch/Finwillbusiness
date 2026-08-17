@@ -52,14 +52,6 @@ export default function App() {
       useDataStore.getState().fetchData();
       const cleanup = useDataStore.getState().setupSubscriptions();
 
-      // Corrigir a transação do almoço que ficou com isPaid=true devido ao bug anterior
-      supabase.from('transacoes')
-        .update({ esta_pago: false, data_pagamento: null })
-        .eq('id', 'ece992ac-a2a1-4f46-8ccd-65274cbd512d')
-        .then(() => {
-          useDataStore.getState().fetchData();
-        });
-
       return () => cleanup();
     }
   }, [session]);
@@ -186,4 +178,3 @@ function NavItem({ icon: Icon, label, active, onClick }: { icon: any, label: str
     </button>
   );
 }
-

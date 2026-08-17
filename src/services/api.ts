@@ -106,7 +106,7 @@ export const mappers = {
       if (obj.currentInstallment !== undefined) payload.parcela_atual = obj.currentInstallment || null;
       if (obj.parentId !== undefined) payload.transacao_pai_id = obj.parentId || null;
       if (obj.isPaid !== undefined) payload.esta_pago = obj.isPaid;
-      if (obj.paymentDate !== undefined) payload.data_pagamento = obj.paymentDate?.toISOString() || null;
+      if ('paymentDate' in obj) payload.data_pagamento = obj.paymentDate ? obj.paymentDate.toISOString() : null;
       if (obj.notes !== undefined) payload.observacoes = obj.notes || null;
       return payload;
     }
@@ -200,15 +200,9 @@ export const api = {
       notifyMutation();
     },
     resetBalances: async () => {
-      try {
-        const userId = await getUserId();
-        const { error } = await supabase.from('contas').update({ saldo: 0 }).eq('usuario_id', userId);
-        if (error) {
-          await supabase.from('contas').update({ saldo: 0 }).neq('id', '00000000-0000-0000-0000-000000000000');
-        }
-      } catch (err) {
-        await supabase.from('contas').update({ saldo: 0 }).neq('id', '00000000-0000-0000-0000-000000000000');
-      }
+      const userId = await getUserId();
+      const { error } = await supabase.from('contas').update({ saldo: 0 }).eq('usuario_id', userId);
+      if (error) throw error;
       notifyMutation();
     }
   },
@@ -269,6 +263,13 @@ export const api = {
         return mappers.transaction.toApp(row); 
       });
     },
+    // Fluxos financeiros compostos não podem cair no cache nem entrar na fila
+    // offline: precisamos confirmar o estado real antes de continuar.
+    listFresh: async (): Promise<Transaction[]> => {
+      const { data, error } = await supabase.from('transacoes').select('*');
+      if (error) throw error;
+      return (data || []).map(mappers.transaction.toApp);
+    },
     add: async (transaction: Omit<Transaction, 'id'>) => {
       const userId = await getUserId();
       const payload = {
@@ -289,6 +290,19 @@ export const api = {
         }
         throw err;
       }
+    },
+    // Usado somente por operações que precisam ser atômicas/reconciliáveis.
+    // Diferentemente de add(), nunca cria uma mutação offline silenciosa.
+    addStrict: async (transaction: Omit<Transaction, 'id'>) => {
+      const userId = await getUserId();
+      const payload = {
+        ...mappers.transaction.toDb(transaction),
+        usuario_id: userId
+      };
+      const { data, error } = await supabase.from('transacoes').insert(payload).select().single();
+      if (error) throw error;
+      notifyMutation();
+      return mappers.transaction.toApp(data);
     },
     bulkAdd: async (transactions: Omit<Transaction, 'id'>[]) => {
       const userId = await getUserId();
@@ -323,20 +337,11 @@ export const api = {
       notifyMutation();
     },
     deleteAll: async () => {
-      try {
-        const userId = await getUserId();
-        await supabase.from('contas').update({ saldo: 0 }).eq('usuario_id', userId);
-        const { error } = await supabase.from('transacoes').delete().eq('usuario_id', userId);
-        if (error) {
-          await supabase.from('contas').update({ saldo: 0 }).neq('id', '00000000-0000-0000-0000-000000000000');
-          const { error: err2 } = await supabase.from('transacoes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-          if (err2) throw err2;
-        }
-      } catch (err) {
-        await supabase.from('contas').update({ saldo: 0 }).neq('id', '00000000-0000-0000-0000-000000000000');
-        const { error: err2 } = await supabase.from('transacoes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        if (err2) throw err2;
-      }
+      const userId = await getUserId();
+      const { error: accountsError } = await supabase.from('contas').update({ saldo: 0 }).eq('usuario_id', userId);
+      if (accountsError) throw accountsError;
+      const { error: transactionsError } = await supabase.from('transacoes').delete().eq('usuario_id', userId);
+      if (transactionsError) throw transactionsError;
 
       if (typeof window !== 'undefined') {
         localStorage.removeItem('financas_sync_queue');

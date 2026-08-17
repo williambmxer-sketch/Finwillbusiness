@@ -8,6 +8,7 @@ import { X, Save, Trash, ChevronDown, ArrowRightLeft } from 'lucide-react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { formatCurrency } from '../utils/formatters';
+import { splitAmount } from '../utils/financialRules';
 
 interface DropdownOption {
   value: string;
@@ -414,9 +415,9 @@ export function TransactionModal() {
     if (numInstallments > 1 && !editingTransactionId) {
       const parentId = generateUUID();
       // 'divide': split total equally; 'repeat': repeat full amount each month
-      const installmentAmount = installmentMode === 'divide'
-        ? txAmount / numInstallments
-        : txAmount;
+      const installmentAmounts = installmentMode === 'divide'
+        ? splitAmount(txAmount, numInstallments)
+        : Array.from({ length: numInstallments }, () => txAmount);
       const newTransactions: Transaction[] = [];
 
       for (let i = 0; i < numInstallments; i++) {
@@ -431,7 +432,7 @@ export function TransactionModal() {
         newTransactions.push({
           id: generateUUID(),
           description: `${description} (${i + 1}/${numInstallments})`,
-          amount: installmentAmount,
+          amount: installmentAmounts[i],
           date: txDate,
           type: type,
           categoryId,
@@ -441,13 +442,14 @@ export function TransactionModal() {
           currentInstallment: i + 1,
           parentId,
           isPaid: isThisPaid,
+          paymentDate: isThisPaid ? dateObj : undefined,
           notes: isCustom ? `paymentMethod:${paymentMethodName}` : undefined,
         });
       }
 
       await api.transactions.bulkAdd(newTransactions);
 
-      const firstPaidAmount = installmentMode === 'divide' ? txAmount / numInstallments : txAmount;
+      const firstPaidAmount = installmentAmounts[0];
       if (type === 'receita' && isPaid && accountId) {
         const acc = getAcc(accountId);
         if (acc) {
@@ -474,6 +476,7 @@ export function TransactionModal() {
         accountId: requiresAccount || type === 'receita' ? accountId : undefined,
         cardId: type === 'despesa' && isCard ? cardId : undefined,
         isPaid: isPaid,
+        paymentDate: isPaid ? dateObj : null,
         notes: isCustom ? `paymentMethod:${paymentMethodName}` : undefined,
       };
 
@@ -483,6 +486,7 @@ export function TransactionModal() {
           tx.installments = oldTx.installments;
           tx.currentInstallment = oldTx.currentInstallment;
           tx.parentId = oldTx.parentId;
+          tx.paymentDate = isPaid ? (oldTx.paymentDate || dateObj) : null;
           if (!isCustom && oldTx.notes) tx.notes = oldTx.notes;
         }
         await api.transactions.update(editingTransactionId, tx);
@@ -668,6 +672,7 @@ export function TransactionModal() {
           accountId: requiresAccount || type === 'receita' ? accountId : undefined,
           cardId: type === 'despesa' && isCard ? cardId : undefined,
           isPaid: isPaid,
+          paymentDate: isPaid ? (t.paymentDate || dateObj) : null,
           notes: isCustom ? `paymentMethod:${paymentMethodName}` : (t.notes && !isCustom ? t.notes : undefined),
         };
 

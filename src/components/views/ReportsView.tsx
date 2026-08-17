@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useDataStore } from '../../store/useDataStore';
 import { getCycleId } from '../../utils/cycleUtils';
+import { getCashDate, isRealizedCashFlow, isTransfer, toDate } from '../../utils/financialRules';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { formatCurrency } from '../../utils/formatters';
 import { ChevronLeft, ChevronRight, CalendarDays, Download } from 'lucide-react';
@@ -33,6 +34,7 @@ export function ReportsView() {
     return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
   });
   const [showCalendarMenu, setShowCalendarMenu] = useState(false);
+  const [reportMode, setReportMode] = useState<'realized' | 'projected' | 'comparison'>('realized');
 
   const handlePrevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
   const handleNextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
@@ -55,27 +57,54 @@ export function ReportsView() {
   const prevStart = isCustomMode ? new Date(start.getTime() - (end.getTime() - start.getTime())) : new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
   const prevEnd = isCustomMode ? new Date(start.getTime() - 1) : new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 0, 23, 59, 59);
 
-  // Helper to get effective date (due date for credit cards)
-  const getEffectiveDate = (t: any) => {
-    if (!t.cardId || t.cardId === 'money') return t.date;
-    const card = cards.find((c: any) => c.id === t.cardId);
-    if (!card) return t.date;
-    return getCycleId(t.date, card.closingDay, card.dueDay).dueDate;
+  // Relatórios representam caixa realizado. Compras de cartão entram quando
+  // a fatura é paga, por meio da transação técnica de pagamento da fatura.
+  const getEffectiveDate = (t: any) => getCashDate(t);
+
+  // Para pendências, cartão usa a data de vencimento da fatura; os demais
+  // lançamentos usam a própria data prevista.
+  const getForecastDate = (t: any) => {
+    if (t.isPaid) return getCashDate(t);
+    const date = toDate(t.date);
+    if (!date) return null;
+    if (!t.cardId || t.cardId === 'money') return date;
+    const card = cards.find(c => c.id === t.cardId);
+    return card ? getCycleId(date, card.closingDay, card.dueDay).dueDate : date;
   };
 
   // Transactions within selected range
   const filtered = useMemo(
     () => allTransactions.filter(t => {
+      if (!isRealizedCashFlow(t)) return false;
       const d = getEffectiveDate(t);
-      return d >= start && d <= end;
+      return Boolean(d && d >= start && d <= end);
+    }),
+    [allTransactions, start, end]
+  );
+
+  const pendingFiltered = useMemo(
+    () => allTransactions.filter(t => {
+      if (t.isPaid || isTransfer(t)) return false;
+      const d = getForecastDate(t);
+      return Boolean(d && d >= start && d <= end);
     }),
     [allTransactions, start, end, cards]
   );
 
   const prevFiltered = useMemo(
     () => allTransactions.filter(t => {
+      if (!isRealizedCashFlow(t)) return false;
       const d = getEffectiveDate(t);
-      return d >= prevStart && d <= prevEnd;
+      return Boolean(d && d >= prevStart && d <= prevEnd);
+    }),
+    [allTransactions, prevStart, prevEnd]
+  );
+
+  const prevPendingFiltered = useMemo(
+    () => allTransactions.filter(t => {
+      if (t.isPaid || isTransfer(t)) return false;
+      const d = getForecastDate(t);
+      return Boolean(d && d >= prevStart && d <= prevEnd);
     }),
     [allTransactions, prevStart, prevEnd, cards]
   );
@@ -89,10 +118,18 @@ export function ReportsView() {
     return { receitas, despesas, balanco: receitas - despesas };
   };
 
-  const currentTotals = calcTotals(filtered);
-  const prevTotals = calcTotals(prevFiltered);
+  const realizedTotals = calcTotals(filtered);
+  const pendingTotals = calcTotals(pendingFiltered);
+  const projectedTotals = calcTotals([...filtered, ...pendingFiltered]);
+  const prevRealizedTotals = calcTotals(prevFiltered);
+  const prevProjectedTotals = calcTotals([...prevFiltered, ...prevPendingFiltered]);
+  const currentTotals = reportMode === 'projected' ? projectedTotals : realizedTotals;
+  const prevTotals = reportMode === 'projected' ? prevProjectedTotals : prevRealizedTotals;
+  const categoryTransactions = reportMode === 'realized' ? filtered : [...filtered, ...pendingFiltered];
 
-  const savingsRate = currentTotals.receitas > 0 ? (currentTotals.balanco / currentTotals.receitas) * 100 : 0;
+  const realizedSavingsRate = realizedTotals.receitas > 0 ? (realizedTotals.balanco / realizedTotals.receitas) * 100 : 0;
+  const projectedSavingsRate = projectedTotals.receitas > 0 ? (projectedTotals.balanco / projectedTotals.receitas) * 100 : 0;
+  const savingsRate = reportMode === 'projected' ? projectedSavingsRate : realizedSavingsRate;
 
   // Percentage differences
   const getDiff = (current: number, prev: number) => {
@@ -106,7 +143,7 @@ export function ReportsView() {
   // Categories
   const getCategories = (type: 'receita' | 'despesa') => {
     const map = new Map<string, number>();
-    const txs = filtered.filter(t => t.type === type && !t.notes?.startsWith('transferencia:'));
+    const txs = categoryTransactions.filter(t => t.type === type && !t.notes?.startsWith('transferencia:'));
 
     txs.forEach(t => map.set(t.categoryId, (map.get(t.categoryId) || 0) + t.amount));
     const total = txs.reduce((s, t) => s + t.amount, 0);
@@ -120,8 +157,20 @@ export function ReportsView() {
       .sort((a, b) => b.amount - a.amount);
   };
 
-  const incomeCategories = useMemo(() => getCategories('receita'), [filtered, allCategories]);
-  const expenseCategories = useMemo(() => getCategories('despesa'), [filtered, allCategories]);
+  const incomeCategories = useMemo(() => getCategories('receita'), [categoryTransactions, allCategories]);
+  const expenseCategories = useMemo(() => getCategories('despesa'), [categoryTransactions, allCategories]);
+
+  const modeDescription = reportMode === 'realized'
+    ? 'Somente o que já foi pago ou recebido.'
+    : reportMode === 'projected'
+      ? `Realizado + ${pendingFiltered.length} pendência(s) prevista(s) no período.`
+      : 'Compare o realizado com o fechamento esperado do período.';
+
+  const modeLabel = reportMode === 'realized'
+    ? 'realizadas'
+    : reportMode === 'projected'
+      ? 'projetadas'
+      : '';
 
   const CustomPieTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.length) return null;
@@ -184,8 +233,7 @@ export function ReportsView() {
         {/* Header and Fast Navigation */}
         <header className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 gap-3 relative px-1">
           <div>
-            <h1 className="text-xl font-bold tracking-tight mb-0.5">Visão</h1>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Saúde Financeira</p>
+            <h1 className="text-xl font-bold tracking-tight mb-0.5">Relatório</h1>
           </div>
 
           <div className="flex flex-col items-start sm:items-end w-full sm:w-auto">
@@ -275,21 +323,54 @@ export function ReportsView() {
           </div>
         </header>
 
+        <div className="mb-5 px-1">
+          <div className="flex w-full bg-muted p-1 rounded-xl gap-1">
+            {([
+              ['realized', 'Realizado'],
+              ['projected', 'Projetado'],
+              ['comparison', 'Comparativo'],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => setReportMode(value)}
+                className={`flex-1 py-2 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${reportMode === value ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-muted-foreground font-medium mt-2 px-1">{modeDescription}</p>
+        </div>
+
         {/* KPIs Grid */}
         <div className="grid grid-cols-2 gap-3 mb-6">
           <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col">
-            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Receitas</div>
-            <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(currentTotals.receitas)}</div>
-            {prevTotals.receitas > 0 && !isCustomMode && (
+            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">{reportMode === 'comparison' ? 'Entradas' : `Entradas ${modeLabel}`}</div>
+            {reportMode === 'comparison' ? (
+              <div className="flex flex-col gap-0.5 text-[10px] font-bold">
+                <span className="text-emerald-600 dark:text-emerald-400">Real.: {formatCurrency(realizedTotals.receitas)}</span>
+                <span className="text-sky-600 dark:text-sky-400">Proj.: {formatCurrency(projectedTotals.receitas)}</span>
+              </div>
+            ) : (
+              <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(currentTotals.receitas)}</div>
+            )}
+            {reportMode !== 'comparison' && prevTotals.receitas > 0 && !isCustomMode && (
               <div className={`text-[8px] font-bold uppercase tracking-widest mt-1.5 ${diffReceitas >= 0 ? 'text-emerald-500/80' : 'text-rose-500/80'}`}>
                 {diffReceitas >= 0 ? '▲' : '▼'} {Math.abs(diffReceitas).toFixed(0)}% ref. mês ant.
               </div>
             )}
           </div>
           <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col">
-            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Despesas</div>
-            <div className="text-sm font-bold text-rose-600 dark:text-rose-400">{formatCurrency(currentTotals.despesas)}</div>
-            {prevTotals.despesas > 0 && !isCustomMode && (
+            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">{reportMode === 'comparison' ? 'Saídas' : `Saídas ${modeLabel}`}</div>
+            {reportMode === 'comparison' ? (
+              <div className="flex flex-col gap-0.5 text-[10px] font-bold">
+                <span className="text-rose-600 dark:text-rose-400">Real.: {formatCurrency(realizedTotals.despesas)}</span>
+                <span className="text-orange-600 dark:text-orange-400">Proj.: {formatCurrency(projectedTotals.despesas)}</span>
+              </div>
+            ) : (
+              <div className="text-sm font-bold text-rose-600 dark:text-rose-400">{formatCurrency(currentTotals.despesas)}</div>
+            )}
+            {reportMode !== 'comparison' && prevTotals.despesas > 0 && !isCustomMode && (
               <div className={`text-[8px] font-bold uppercase tracking-widest mt-1.5 ${diffDespesas <= 0 ? 'text-emerald-500/80' : 'text-rose-500/80'}`}>
                 {diffDespesas > 0 ? '▲' : '▼'} {Math.abs(diffDespesas).toFixed(0)}% ref. mês ant.
               </div>
@@ -298,17 +379,33 @@ export function ReportsView() {
 
           <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col col-span-2">
             <div className="flex justify-between items-center mb-1">
-              <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Balanço do Período</div>
+              <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+                {reportMode === 'realized' ? 'Balanço realizado' : reportMode === 'projected' ? 'Balanço projetado' : 'Balanço do período'}
+              </div>
               <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Poupança</div>
             </div>
             <div className="flex justify-between items-end">
-              <div className={`text-xl font-bold tracking-tight ${currentTotals.balanco >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                {currentTotals.balanco >= 0 ? '+' : ''}{formatCurrency(currentTotals.balanco)}
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className={`text-sm font-bold ${savingsRate >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                  {savingsRate.toFixed(1)}%
+              {reportMode === 'comparison' ? (
+                <div className="flex flex-col gap-0.5 text-[11px] font-bold">
+                  <span className={realizedTotals.balanco >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>Real.: {realizedTotals.balanco >= 0 ? '+' : ''}{formatCurrency(realizedTotals.balanco)}</span>
+                  <span className={projectedTotals.balanco >= 0 ? 'text-sky-600 dark:text-sky-400' : 'text-orange-600 dark:text-orange-400'}>Proj.: {projectedTotals.balanco >= 0 ? '+' : ''}{formatCurrency(projectedTotals.balanco)}</span>
                 </div>
+              ) : (
+                <div className={`text-xl font-bold tracking-tight ${currentTotals.balanco >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                  {currentTotals.balanco >= 0 ? '+' : ''}{formatCurrency(currentTotals.balanco)}
+                </div>
+              )}
+              <div className="flex items-center gap-1.5">
+                {reportMode === 'comparison' ? (
+                  <div className="flex flex-col items-end gap-0.5 text-[10px] font-bold">
+                    <span className={realizedSavingsRate >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>Real.: {realizedSavingsRate.toFixed(1)}%</span>
+                    <span className={projectedSavingsRate >= 0 ? 'text-sky-600 dark:text-sky-400' : 'text-orange-600 dark:text-orange-400'}>Proj.: {projectedSavingsRate.toFixed(1)}%</span>
+                  </div>
+                ) : (
+                  <div className={`text-sm font-bold ${savingsRate >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                    {savingsRate.toFixed(1)}%
+                  </div>
+                )}
               </div>
             </div>
             {savingsRate > 0 && (
@@ -323,7 +420,7 @@ export function ReportsView() {
           {/* Donut Chart for Expenses */}
           {expenseCategories.length > 0 && (
             <section>
-              <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3 px-1">Distribuição de Despesas</h2>
+              <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3 px-1">Distribuição de Despesas {reportMode === 'realized' ? 'Realizadas' : 'Projetadas'}</h2>
               <div className="p-4 bg-card border rounded-[16px] shadow-sm flex items-center justify-between">
                 <div className="w-32 h-32 shrink-0">
                   <ResponsiveContainer width="100%" height="100%">

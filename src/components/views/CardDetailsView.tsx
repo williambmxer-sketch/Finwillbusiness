@@ -10,6 +10,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { generateUUID } from '../../lib/utils';
+import { splitAmount } from '../../utils/financialRules';
 
 
 
@@ -126,7 +127,9 @@ export function CardDetailsView() {
     const numInstallments = Math.max(1, parseInt(installments, 10) || 1);
     const totalAmount = parseFloat(amount);
     
-    const installmentAmount = installmentMode === 'divide' ? totalAmount / numInstallments : totalAmount;
+    const installmentAmounts = installmentMode === 'divide'
+      ? splitAmount(totalAmount, numInstallments)
+      : Array.from({ length: numInstallments }, () => totalAmount);
     const totalDeduction = installmentMode === 'divide' ? totalAmount : totalAmount * numInstallments;
 
     if (true) {
@@ -155,7 +158,7 @@ export function CardDetailsView() {
       newTransactions.push({
         id: generateUUID(),
         description: numInstallments > 1 ? `${description} (${i + 1}/${numInstallments})` : description,
-        amount: installmentAmount,
+        amount: installmentAmounts[i],
         date: txDate,
         type: 'despesa',
         categoryId,

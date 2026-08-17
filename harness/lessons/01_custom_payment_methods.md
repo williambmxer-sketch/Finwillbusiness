@@ -15,10 +15,11 @@ O usuário precisava cadastrar formas de pagamento neutras (como "Crediário", "
 - **Formas de Pagamento Customizadas**: Foram **MIGRADAS** do `localStorage` para a nuvem via Supabase (na tabela `formas_pagamento`). O sistema não usa mais armazenamento local, garantindo integridade e sincronização entre dispositivos. O estado global no aplicativo gerencia essas opções através do `useDataStore`, buscando dados via API. Cada forma possui:
   - `id`: UUID gerenciado pelo Supabase.
   - `name`: Nome (ex: "Pix", "Dinheiro em Espécie").
-  - `allowInstallments`: Define se permite parcelamento.
   - `debitFromAccount`: Define se a forma de pagamento deve debitar o saldo de uma Conta Bancária (Ex: Pix debita, Dinheiro em Espécie não).
 
 - **Vínculo com Transações**: Para não violar as tabelas relacionais do Supabase (`transacoes`), vinculamos as formas de pagamento personalizadas utilizando o campo `notes` (observações) no formato: `paymentMethod:NomeDaForma` e a chave estrangeira `cardId` é alimentada com o `id` da forma customizada (usando o prefixo `custom-id`).
+
+  > Estado atual: o frontend identifica a forma personalizada pelo marcador `paymentMethod:NomeDaForma`; formas personalizadas não usam `cartao_id` como chave estrangeira de cartão.
 
 ### B. Ciclo de Vida e Baixa
 - **Lançamento Flexível e Enxuto**: 
@@ -33,6 +34,11 @@ O usuário precisava cadastrar formas de pagamento neutras (como "Crediário", "
 
 ### C. Alerta de Saldo
 - Implementada validação no salvamento/edição de despesas pagas: se o valor a ser debitado ultrapassar o saldo atual da conta bancária de origem, a operação é bloqueada e um alerta é exibido.
+
+### D. Caixa realizado e faturas
+- Compras de cartão não entram no caixa realizado enquanto estiverem representadas pela fatura.
+- O pagamento da fatura cria uma transação técnica com `pagamento_fatura:<cartão>-<ciclo>`, vinculada à conta debitada.
+- O valor debitado considera apenas o saldo em aberto da fatura e a operação é protegida contra repetição pelo marcador técnico.
 
 ---
 

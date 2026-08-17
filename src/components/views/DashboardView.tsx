@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { useDataStore } from '../../store/useDataStore';
-import { getCycleId, getTransactionCycle } from '../../utils/cycleUtils';
+import { getCycleId } from '../../utils/cycleUtils';
 import { Card } from '../ui/card';
 import { motion } from 'motion/react';
 import {
@@ -22,6 +22,7 @@ import { formatCurrency } from '../../utils/formatters';
 import { useAppStore } from '../../store/useAppStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../services/api';
+import { getCashPeriodId, isRealizedCashFlow } from '../../utils/financialRules';
 
 
 
@@ -153,7 +154,7 @@ export function DashboardView() {
   const currentCycleId = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
 
   const currentMonthTransactions = allTransactions.filter(t =>
-    getTransactionCycle(t, cards) === currentCycleId
+    isRealizedCashFlow(t) && getCashPeriodId(t) === currentCycleId
   );
 
   const totalIncomes = currentMonthTransactions
@@ -175,7 +176,7 @@ export function DashboardView() {
 
       const cycleId = `${yearNumber}-${String(monthNumber + 1).padStart(2, '0')}`;
       const monthExpenses = allTransactions
-        .filter(t => t.type === 'despesa' && !t.notes?.startsWith('transferencia:') && getTransactionCycle(t, cards) === cycleId)
+        .filter(t => t.type === 'despesa' && isRealizedCashFlow(t) && getCashPeriodId(t) === cycleId)
         .reduce((sum, t) => sum + t.amount, 0);
 
       data.push({
@@ -269,14 +270,14 @@ export function DashboardView() {
         <div className="p-3.5 bg-card rounded-[11px] border shadow-sm">
           <div className="flex items-center gap-1.5 text-emerald-600 mb-0.5">
             <TrendingUp className="h-3.5 w-3.5" />
-            <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Receitas</span>
+            <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Entradas realizadas</span>
           </div>
           <div className="text-base font-bold text-foreground">{formatCurrency(totalIncomes)}</div>
         </div>
         <div className="p-3.5 bg-card rounded-[11px] border shadow-sm">
           <div className="flex items-center gap-1.5 text-rose-600 mb-0.5">
             <TrendingDown className="h-3.5 w-3.5" />
-            <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Despesas</span>
+            <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Saídas realizadas</span>
           </div>
           <div className="text-base font-bold text-foreground">{formatCurrency(totalExpenses)}</div>
         </div>

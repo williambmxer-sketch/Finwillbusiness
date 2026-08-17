@@ -23,6 +23,7 @@ import {
 import { Card } from '../ui/card';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../../services/api';
+import { splitAmount } from '../../utils/financialRules';
 
 interface SimulatedItem {
   id: string;
@@ -611,12 +612,13 @@ export function PlanningView() {
           // Installment transactions
           const transactionsToAdd = [];
           const parentId = Math.random().toString(36).substring(7);
+          const installmentAmounts = splitAmount(item.amount, item.durationMonths);
           
           for (let i = 0; i < item.durationMonths; i++) {
             const transDate = new Date(year, month - 1 + i, 15);
             transactionsToAdd.push({
               description: `${item.description} (${i + 1}/${item.durationMonths})`,
-              amount: parseFloat((item.amount / item.durationMonths).toFixed(2)),
+              amount: installmentAmounts[i],
               type: item.type,
               date: transDate,
               categoryId: item.categoryId,

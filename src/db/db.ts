@@ -44,7 +44,7 @@ export interface Transaction {
   currentInstallment?: number;
   parentId?: string; // To link installments
   isPaid: boolean;
-  paymentDate?: Date; // The date when the user actually clicked 'Confirmar Pagamento'
+  paymentDate?: Date | null; // The date when the user actually clicked 'Confirmar Pagamento'
   notes?: string;
   createdAt?: string;
 }

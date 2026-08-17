@@ -1,20 +1,19 @@
-# Tarefas: Migração para Supabase
+# Estado da Migração para Supabase
 
-- [ ] **Configuração do Projeto Supabase**
-  - [ ] Criar projeto no painel do Supabase.
-  - [ ] Configurar `.env.local` com `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`.
+## Concluído
 
-- [ ] **Autenticação**
-  - [ ] Habilitar Email/Password Auth no Supabase.
-  - [ ] Criar cliente Supabase em `src/db/supabase.ts`.
-  - [ ] Criar telas de Login e Cadastro (`AuthPage`).
-  - [ ] Criar store no Zustand (`useAuthStore`) para manter a sessão.
+- [x] Cliente Supabase em `src/lib/supabase.ts`.
+- [x] Autenticação por e-mail e senha.
+- [x] Estado de sessão em `useAuthStore`.
+- [x] Categorias, contas, cartões, transações e formas de pagamento via API Supabase.
+- [x] Mapeadores entre o schema PT-BR do banco e os modelos do frontend.
+- [x] Assinatura de mudanças via Realtime.
+- [x] Fila offline parcial para transações.
 
-- [ ] **Modelagem do Banco de Dados (PostgreSQL)**
-  - [ ] Criar tabelas equivalentes ao Dexie atual (`accounts`, `cards`, `categories`, `transactions`).
-  - [ ] Adicionar coluna `user_id` vinculada a `auth.users` em todas as tabelas.
-  - [ ] Configurar Row Level Security (RLS) para que usuários só vejam seus próprios dados.
+## Pendências de infraestrutura
 
-- [ ] **Integração de Dados (Refatoração)**
-  - [ ] Substituir chamadas do Dexie.js pelas chamadas da API do Supabase nas Modais (AccountModal, CardModal, TransactionModal, CategoryModal).
-  - [ ] Atualizar o store `useAppStore.ts` para buscar dados remoto em vez de locais.
+- [ ] Confirmar RLS em todas as tabelas com testes negativos entre usuários.
+- [ ] Gerar tipos oficiais do Supabase e substituir `any` nos mapeadores.
+- [ ] Criar RPC/transação para baixa de fatura, transferência e atualização de saldo.
+- [ ] Revisar políticas de exclusão e integridade referencial.
+- [ ] Documentar o schema real do banco junto ao código.

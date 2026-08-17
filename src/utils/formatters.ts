@@ -3,6 +3,6 @@ export function formatCurrency(value: number): string {
     style: 'currency',
     currency: 'BRL',
     minimumFractionDigits: 2,
-    maximumFractionDigits: 3,
+    maximumFractionDigits: 2,
   }).format(value);
 }

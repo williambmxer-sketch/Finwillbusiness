@@ -1,16 +1,29 @@
-# Domínio de Negócio: Sistema Financeiro
+# Domínio de Negócio: Finanças Pessoais
 
-O sistema é um gerenciador financeiro pessoal focado no controle detalhado de receitas, despesas, cartões e contas.
+## Entidades
 
-## Entidades Principais
-1. **Contas (Accounts)**: Onde o saldo real existe (Corrente, Poupança, Dinheiro, etc.).
-2. **Cartões (Cards)**: Cartões de crédito com dias de vencimento e fechamento. Faturas são pagas através de contas.
-3. **Transações (Transactions)**: 
-   - **Despesas**: Dinheiro que sai.
-   - **Receitas**: Dinheiro que entra.
-   - **Transferências**: Movimentações entre contas.
-4. **Categorias (Categories)**: Classificação de transações para relatórios.
-5. **Metas (Goals/Budgets)**: Orçamentos estipulados para diferentes áreas da vida financeira.
+1. **Contas**: onde o saldo bancário ou de carteira é materializado.
+2. **Cartões**: instrumentos de crédito com fechamento e vencimento.
+3. **Transações**: receitas, despesas, transferências e movimentos técnicos de fatura.
+4. **Categorias**: classificação de receitas e despesas.
+5. **Formas de pagamento**: meios personalizados que podem ou não debitar uma conta.
+6. **Faturas**: atualmente calculadas a partir das transações de cartão; não são uma tabela persistida usada pelo frontend.
 
-## Contexto de Usuário (Supabase Auth)
-Com a adoção do Supabase, o domínio envolverá o contexto de **Usuários (Users)**, garantindo que todas as transações, contas e cartões pertençam estritamente ao usuário autenticado (Row Level Security - RLS).
+## Estados financeiros
+
+- **Pendente**: compromisso registrado, ainda sem entrada/saída realizada.
+- **Pago/recebido**: movimento realizado; deve possuir `data_pagamento` quando a baixa ocorre em data diferente do lançamento.
+- **Compra de cartão**: permanece como compromisso até a baixa da fatura.
+- **Pagamento de fatura**: saída real da conta, registrada separadamente com o marcador `pagamento_fatura:<cardId>-<ciclo>`.
+
+## Regras de caixa
+
+- Dashboard e relatórios de caixa usam somente movimentos realizados.
+- O período de caixa usa a data efetiva (`data_pagamento`) e não a data original do compromisso.
+- Transferências podem aparecer no extrato da conta, mas não entram no total consolidado de receitas/despesas.
+- Uma compra de cartão e o pagamento da respectiva fatura não podem ser somados como duas saídas realizadas.
+- O pagamento de uma fatura deve considerar apenas o valor ainda em aberto.
+
+## Usuário e isolamento
+
+Todas as entidades persistidas devem pertencer ao usuário autenticado e depender das políticas RLS do Supabase. Nenhum fallback de erro pode ampliar uma operação filtrada por usuário para a tabela inteira.

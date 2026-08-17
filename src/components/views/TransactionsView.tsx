@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import * as XLSX from 'xlsx-js-style';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { getCashImpact, isInvoicePayment } from '../../utils/financialRules';
 
 export function TransactionsView() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -59,7 +60,9 @@ export function TransactionsView() {
   }, [filterDropdownOpen]);
 
   const transactions = React.useMemo(() => {
-    return [...allTransactions].sort((a, b) => b.date.getTime() - a.date.getTime());
+    return allTransactions
+      .filter(t => !isInvoicePayment(t))
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [allTransactions]);
 
   const getEffectiveCycle = (t: any) => getTransactionCycle(t, cards);
@@ -177,13 +180,14 @@ export function TransactionsView() {
   };
 
   const executeTogglePayment = async (t: any, isNowPaid: boolean) => {
-    await api.transactions.update(t.id, { isPaid: isNowPaid });
+    const paymentDate = isNowPaid ? new Date() : null;
+    await api.transactions.update(t.id, { isPaid: isNowPaid, paymentDate });
 
-    if (t.accountId && t.cardId === 'money') {
+    if (t.accountId) {
       const accounts = useDataStore.getState().accounts;
       const acc = accounts.find(a => a.id === t.accountId);
       if (acc) {
-        const amountChange = t.type === 'receita' ? t.amount : -t.amount;
+        const amountChange = getCashImpact(t);
         const balanceChange = isNowPaid ? amountChange : -amountChange;
 
         await api.accounts.update(t.accountId, {

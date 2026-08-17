@@ -28,11 +28,14 @@ export function getCycleId(
   const cDay = parseInt(closingDay.toString(), 10) || 10;
   const dDay = parseInt(dueDay.toString(), 10) || 17;
 
+  const daysInMonth = (year: number, monthIndex: number) => new Date(year, monthIndex + 1, 0).getDate();
+
   let yr = date.getFullYear();
   let mo = date.getMonth();
   // O dia de fechamento é considerado o dia da "virada". 
   // Ou seja, se o fechamento é dia 2, o último segundo da fatura atual é dia 1 às 23:59:59.
-  const currentMonthClosing = new Date(yr, mo, cDay - 1, 23, 59, 59);
+  const closingDate = Math.min(cDay, daysInMonth(yr, mo));
+  const currentMonthClosing = new Date(yr, mo, closingDate - 1, 23, 59, 59);
 
   // Se a compra foi feita APÓS o fechamento deste mês, vai para o próximo ciclo
   let cycleMonth = mo;
@@ -52,8 +55,8 @@ export function getCycleId(
 
   return {
     cycleId: `${dueYear}-${String(dueMonth + 1).padStart(2, '0')}`,
-    dueDate: new Date(dueYear, dueMonth, dDay),
-    monthName: new Date(dueYear, dueMonth, dDay).toLocaleDateString('pt-BR', { month: 'long' }),
+    dueDate: new Date(dueYear, dueMonth, Math.min(dDay, daysInMonth(dueYear, dueMonth))),
+    monthName: new Date(dueYear, dueMonth, Math.min(dDay, daysInMonth(dueYear, dueMonth))).toLocaleDateString('pt-BR', { month: 'long' }),
   };
 }
 
@@ -112,5 +115,4 @@ export function getStartBalanceForCycle(
 
   return currentTotal - netFlow;
 }
-
 

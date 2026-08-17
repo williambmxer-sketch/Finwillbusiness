@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 
 import { useAppStore } from '../../store/useAppStore';
 import { getCycleId } from '../../utils/cycleUtils';
+import { INVOICE_PAYMENT_PREFIX } from '../../utils/financialRules';
 
 interface ComputedInvoice {
   id: string;
@@ -18,7 +19,42 @@ interface ComputedInvoice {
   dueDate: Date;
   transactions: Transaction[];
   yearMonth: string;
+  outstandingAmount: number;
 }
+
+interface InvoicePaymentRecovery {
+  paymentNote: string;
+  accountId: string;
+  amount: number;
+  balanceBefore: number;
+  paymentId?: string;
+}
+
+const paymentRecoveryKey = (paymentNote: string) => `invoice-payment-recovery:${paymentNote}`;
+
+const readPaymentRecovery = (paymentNote: string): InvoicePaymentRecovery | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(paymentRecoveryKey(paymentNote));
+    return raw ? JSON.parse(raw) as InvoicePaymentRecovery : null;
+  } catch {
+    return null;
+  }
+};
+
+const savePaymentRecovery = (recovery: InvoicePaymentRecovery) => {
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(paymentRecoveryKey(recovery.paymentNote), JSON.stringify(recovery));
+  }
+};
+
+const clearPaymentRecovery = (paymentNote: string) => {
+  if (typeof window !== 'undefined') {
+    window.localStorage.removeItem(paymentRecoveryKey(paymentNote));
+  }
+};
+
+const sameMoney = (a: number, b: number) => Math.abs(a - b) < 0.005;
 
 export function InvoicesView() {
   const { setCurrentView, setActiveContextCardId, setConfirmModal } = useAppStore();
@@ -33,6 +69,8 @@ export function InvoicesView() {
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [payAccountId, setPayAccountId] = useState('');
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [isPaying, setIsPaying] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   useEffect(() => {
     if (cards.length > 0 && !selectedCardId) {
@@ -84,6 +122,7 @@ export function InvoicesView() {
           month: monthName,
           yearMonth: cycleId,
           amount: 0,
+          outstandingAmount: 0,
           status: st,
           dueDate: dueDate,
           transactions: []
@@ -94,8 +133,10 @@ export function InvoicesView() {
       inv.transactions.push(t);
       if (t.type === 'despesa') {
         inv.amount += t.amount;
+        if (!t.isPaid) inv.outstandingAmount += t.amount;
       } else {
         inv.amount -= t.amount;
+        if (!t.isPaid) inv.outstandingAmount -= t.amount;
       }
     });
 
@@ -110,6 +151,7 @@ export function InvoicesView() {
           month: currentMonthName,
           yearMonth: currentCycle,
           amount: 0,
+          outstandingAmount: 0,
           status: st,
           dueDate: currentDue,
           transactions: []
@@ -159,28 +201,156 @@ export function InvoicesView() {
   const [selectedInvoice, setSelectedInvoice] = useState<ComputedInvoice | null>(null);
 
   const handlePayInvoice = async () => {
-    if (!selectedInvoice || !selectedCardId || selectedInvoice.amount <= 0 || !payAccountId) return;
+    if (isPaying || !selectedInvoice || !selectedCardId || selectedInvoice.outstandingAmount <= 0 || !payAccountId) return;
     
     const card = cards.find(c => c.id === selectedCardId);
     if (!card) return;
 
     const executePayInvoice = async () => {
-      if (selectedInvoice.transactions.length > 0) {
-        await Promise.all(selectedInvoice.transactions.map(t => 
-          api.transactions.update(t.id, { isPaid: true })
-        ));
-      }
-      
-      const acc = accounts.find(a => a.id === payAccountId);
-      if (acc) {
-        await api.accounts.update(payAccountId, {
-          balance: acc.balance - selectedInvoice.amount
-        });
-      }
+      if (isPaying) return;
+      setIsPaying(true);
+      setPaymentError(null);
 
-      setPayModalOpen(false);
-      setSelectedInvoice(null);
-      setDetailsOpen(false);
+      const paymentNote = `${INVOICE_PAYMENT_PREFIX}${selectedInvoice.id}`;
+      const transactionIds = new Set(selectedInvoice.transactions.map(t => t.id));
+
+      try {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          throw new Error('A baixa da fatura precisa de conexão ativa para proteger o saldo da conta.');
+        }
+
+        // A tela pode estar aberta há algum tempo. O pagamento nunca usa um
+        // saldo ou uma fatura potencialmente desatualizados do estado local.
+        const [freshTransactions, freshAccounts, freshCategories] = await Promise.all([
+          api.transactions.listFresh(),
+          api.accounts.list(),
+          api.categories.list()
+        ]);
+        const account = freshAccounts.find(a => a.id === payAccountId);
+        if (!account) throw new Error('A conta escolhida não foi encontrada. Atualize a tela e tente novamente.');
+
+        const invoiceTransactions = freshTransactions.filter(t => transactionIds.has(t.id));
+        const unpaidTransactions = invoiceTransactions.filter(t => !t.isPaid);
+        const paymentAmount = unpaidTransactions.reduce((total, t) => total + (t.type === 'despesa' ? t.amount : -t.amount), 0);
+        if (unpaidTransactions.length === 0 || paymentAmount <= 0) {
+          throw new Error('A fatura já está quitada ou não possui saldo pendente. Atualize a tela para conferir.');
+        }
+
+        let existingPayment = freshTransactions.find(t => t.notes === paymentNote);
+        const recovery = readPaymentRecovery(paymentNote);
+
+        // Se houve uma interrupção anterior, distinguimos com o saldo real se
+        // o débito ocorreu. Só removemos um registro técnico criado por esta
+        // própria operação quando comprovadamente não houve débito.
+        if (recovery && recovery.accountId === payAccountId) {
+          const balanceAfter = recovery.balanceBefore - recovery.amount;
+          if (sameMoney(account.balance, balanceAfter)) {
+            if (!existingPayment) {
+              throw new Error('O saldo já foi debitado, mas o registro da baixa não foi localizado. A fatura não foi reprocessada para evitar duplicidade.');
+            }
+            // O débito já ocorreu; a execução atual apenas concluirá as baixas.
+          } else if (sameMoney(account.balance, recovery.balanceBefore)) {
+            if (existingPayment && recovery.paymentId === existingPayment.id) {
+              await api.transactions.delete(existingPayment.id);
+              existingPayment = undefined;
+            }
+            clearPaymentRecovery(paymentNote);
+          } else {
+            throw new Error('A operação anterior encontrou uma alteração no saldo. A fatura não foi reprocessada para evitar duplicidade.');
+          }
+        }
+
+        if (existingPayment) {
+          if (!existingPayment.isPaid || !sameMoney(existingPayment.amount, paymentAmount)) {
+            throw new Error('Existe um registro parcial desta baixa. Nenhuma nova movimentação foi feita; confira a conta e a fatura.');
+          }
+          if (existingPayment.accountId !== payAccountId) {
+            throw new Error('Esta fatura já foi baixada por outra conta. Nenhum novo débito foi feito.');
+          }
+        } else {
+          const paymentDate = new Date();
+          let paymentCategory = freshCategories.find(c => c.type === 'despesa' && c.name.toLowerCase() === 'pagamento de fatura');
+          if (!paymentCategory) {
+            paymentCategory = await api.categories.add({
+              name: 'Pagamento de Fatura',
+              icon: 'receipt',
+              color: '#7c3aed',
+              type: 'despesa',
+              showInCards: false,
+              showInAccounts: true,
+            });
+          }
+
+          const nextRecovery: InvoicePaymentRecovery = {
+            paymentNote,
+            accountId: payAccountId,
+            amount: paymentAmount,
+            balanceBefore: account.balance,
+          };
+          savePaymentRecovery(nextRecovery);
+
+          const payment = await api.transactions.addStrict({
+            description: `Pagamento da fatura ${card.name}`,
+            amount: paymentAmount,
+            date: paymentDate,
+            type: 'despesa',
+            categoryId: paymentCategory.id,
+            accountId: payAccountId,
+            isPaid: true,
+            paymentDate,
+            notes: paymentNote,
+          });
+          savePaymentRecovery({ ...nextRecovery, paymentId: payment.id });
+          existingPayment = payment;
+
+          try {
+            await api.accounts.update(payAccountId, { balance: account.balance - paymentAmount });
+          } catch (accountError) {
+            // Se a resposta da atualização se perdeu, confirmamos antes de
+            // desfazer o registro novo. Assim não apagamos um débito que de
+            // fato tenha sido aplicado no servidor.
+            try {
+              const verifiedAccounts = await api.accounts.list();
+              const verifiedAccount = verifiedAccounts.find(a => a.id === payAccountId);
+              if (!verifiedAccount || !sameMoney(verifiedAccount.balance, account.balance - paymentAmount)) {
+                await api.transactions.delete(payment.id);
+                clearPaymentRecovery(paymentNote);
+                throw new Error('Não foi possível confirmar o débito. O registro técnico foi removido e nenhum lançamento antigo foi alterado.');
+              }
+            } catch (verificationError) {
+              if (verificationError instanceof Error && verificationError.message.startsWith('Não foi possível confirmar')) {
+                throw verificationError;
+              }
+              throw new Error('O pagamento foi registrado, mas o saldo não pôde ser confirmado. Não tente pagar novamente até atualizar a tela.');
+            }
+          }
+        }
+
+        const paymentDate = existingPayment.paymentDate || new Date();
+        // Atualização sequencial e idempotente: se a conexão cair, a próxima
+        // tentativa continua somente nos lançamentos ainda pendentes.
+        for (const transaction of unpaidTransactions) {
+          await api.transactions.update(transaction.id, { isPaid: true, paymentDate });
+        }
+
+        const verifiedTransactions = await api.transactions.listFresh();
+        const remaining = verifiedTransactions.filter(t => transactionIds.has(t.id) && !t.isPaid);
+        if (remaining.length > 0) {
+          throw new Error('O débito foi confirmado, mas parte da fatura ainda não pôde ser marcada como paga. Atualize a tela e conclua a baixa.');
+        }
+
+        clearPaymentRecovery(paymentNote);
+        await useDataStore.getState().fetchData();
+        setPayModalOpen(false);
+        setSelectedInvoice(null);
+        setDetailsOpen(false);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Não foi possível concluir a baixa da fatura.';
+        setPaymentError(message);
+        await useDataStore.getState().fetchData().catch(() => undefined);
+      } finally {
+        setIsPaying(false);
+      }
     };
 
     const now = new Date();
@@ -296,10 +466,11 @@ export function InvoicesView() {
                           onClick={(e) => {
                             e.stopPropagation();
                             setPayAccountId(accounts[0]?.id || '');
+                            setPaymentError(null);
                             setSelectedInvoice(inv);
                             setPayModalOpen(true);
                           }}
-                          disabled={inv.amount <= 0}
+                          disabled={inv.outstandingAmount <= 0}
                           className="flex-1 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest rounded-lg py-2.5 hover:bg-primary/90 transition-colors disabled:opacity-50"
                         >
                           Pagar Fatura
@@ -427,9 +598,10 @@ export function InvoicesView() {
                    <button 
                     onClick={() => {
                       setPayAccountId(accounts[0]?.id || '');
+                      setPaymentError(null);
                       setPayModalOpen(true);
                     }}
-                    disabled={selectedInvoice.amount <= 0}
+                    disabled={selectedInvoice.outstandingAmount <= 0}
                     className="w-full bg-primary text-primary-foreground text-sm font-bold rounded-xl h-11 flex items-center justify-center transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                    >
                      Pagar Fatura
@@ -475,8 +647,14 @@ export function InvoicesView() {
                 </button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Selecione de qual conta bancária deseja debitar o valor de <strong className="text-foreground">{formatCurrency(selectedInvoice.amount)}</strong> para pagar a fatura do cartão.
+                Selecione de qual conta bancária deseja debitar o valor de <strong className="text-foreground">{formatCurrency(selectedInvoice.outstandingAmount)}</strong> para pagar a fatura do cartão.
               </p>
+
+              {paymentError && (
+                <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] leading-relaxed text-rose-700 dark:text-rose-300">
+                  {paymentError}
+                </div>
+              )}
               
               <div className="space-y-1">
                 <label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold ml-1">Conta de Origem</label>
@@ -511,10 +689,10 @@ export function InvoicesView() {
                 </button>
                 <button 
                   onClick={handlePayInvoice}
-                  disabled={!payAccountId}
+                  disabled={!payAccountId || isPaying}
                   className="flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest text-primary-foreground bg-primary hover:bg-primary/90 transition-colors disabled:opacity-50"
                 >
-                  Confirmar
+                  {isPaying ? 'Processando...' : 'Confirmar'}
                 </button>
               </div>
             </motion.div>

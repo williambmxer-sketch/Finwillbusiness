@@ -5,7 +5,7 @@ import { formatCurrency } from '../../utils/formatters';
 import { Plus, ChevronLeft, Landmark, TrendingUp, TrendingDown, Clock, CheckCircle2, ChevronRight, ChevronDown, Check } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAppStore } from '../../store/useAppStore';
-import { getTransactionCycle } from '../../utils/cycleUtils';
+import { getCashDate, getCashPeriodId } from '../../utils/financialRules';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 export function AccountDetailsView() {
@@ -22,8 +22,7 @@ export function AccountDetailsView() {
   const [selectedCycle, setSelectedCycle] = useState<string>(currentCycleId);
 
   const getActualDate = (t: any) => {
-    const d = t.paymentDate || t.date;
-    return d instanceof Date ? d : new Date(d);
+    return getCashDate(t) || new Date(t.date);
   };
 
   // Get only PAID transactions for this account
@@ -34,8 +33,7 @@ export function AccountDetailsView() {
   }, [allTransactions, activeAccountId]);
 
   const getEffectiveCycle = (t: any) => {
-    const d = t.date instanceof Date ? t.date : new Date(t.date);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    return getCashPeriodId(t) || '';
   };
 
   const chronologicalCycles = React.useMemo(() => {
