@@ -38,6 +38,12 @@ Compras de cartão com `paymentDate` são excluídas do caixa realizado para evi
 
 O modo não altera o filtro de mês ou período personalizado. Ele altera apenas a camada de dados exibida, mantendo a distinção explícita entre dinheiro já movimentado e compromisso previsto.
 
+## Inicialização
+
+- A interface não deve apresentar valores vazios como se fossem o estado real enquanto a sessão autenticada ainda carrega os dados.
+- A aplicação só libera o painel após a primeira carga bem-sucedida; em falha, mostra erro e uma ação explícita para tentar novamente.
+- Consultas concorrentes não podem permitir que uma resposta antiga sobrescreva uma carga mais recente.
+
 ## Invariantes mínimas
 
 1. Pendências não entram no caixa realizado.

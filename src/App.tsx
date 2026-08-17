@@ -31,6 +31,7 @@ import { ConfirmationModal } from './components/ConfirmationModal';
 export default function App() {
   const { currentView, setCurrentView, setTransactionModalOpen, setEditingTransactionId, activeContextCardId, setDefaultPaymentMethod } = useAppStore();
   const { session, setSession, isLoading } = useAuthStore();
+  const { hasLoaded: hasLoadedData, isLoading: isLoadingData, error: dataError, fetchData, clearData } = useDataStore();
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
@@ -49,12 +50,14 @@ export default function App() {
 
   useEffect(() => {
     if (session) {
-      useDataStore.getState().fetchData();
+      fetchData();
       const cleanup = useDataStore.getState().setupSubscriptions();
 
       return () => cleanup();
     }
-  }, [session]);
+
+    clearData();
+  }, [session, fetchData, clearData]);
 
   useEffect(() => {
     async function init() {
@@ -64,7 +67,7 @@ export default function App() {
     init();
   }, []);
 
-  if (isLoading || !isReady) {
+  if (isLoading || !isReady || (session && isLoadingData && !hasLoadedData)) {
     return (
       <div className="flex bg-background h-screen w-screen items-center justify-center">
         <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.5 }}>
@@ -76,6 +79,24 @@ export default function App() {
 
   if (!session) {
     return <AuthView />;
+  }
+
+  if (dataError && !hasLoadedData) {
+    return (
+      <div className="flex h-screen w-screen flex-col items-center justify-center gap-4 bg-background px-6 text-center">
+        <Wallet className="h-10 w-10 text-primary" />
+        <div>
+          <h1 className="text-base font-bold">Não foi possível carregar seus dados</h1>
+          <p className="mt-1 text-xs text-muted-foreground">Verifique sua conexão e tente novamente.</p>
+        </div>
+        <button
+          onClick={() => fetchData()}
+          className="rounded-xl bg-primary px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-primary-foreground"
+        >
+          Tentar novamente
+        </button>
+      </div>
+    );
   }
 
   const renderView = () => {

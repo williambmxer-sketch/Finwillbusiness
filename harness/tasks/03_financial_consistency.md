@@ -14,6 +14,7 @@
 - [x] Adicionar modos Realizado, Projetado e Comparativo ao Relatório.
 - [x] Projetar pendências de cartão pelo mês de vencimento da fatura.
 - [x] Tornar a baixa de fatura online-only, idempotente e reconciliável após falha de rede.
+- [x] Proteger a inicialização após login/F5 contra painel temporariamente zerado e repetir consultas iniciais transitórias.
 
 ## Próxima etapa recomendada
 
