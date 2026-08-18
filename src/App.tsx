@@ -9,8 +9,9 @@ import { useAuthStore } from './store/useAuthStore';
 import { useAppStore } from './store/useAppStore';
 import { useDataStore } from './store/useDataStore';
 import { AuthView } from './components/views/AuthView';
-import { Home, CreditCard, Receipt, Wallet, PieChart, Plus } from 'lucide-react';
+import { Home, CreditCard, Receipt, Wallet, PieChart, Plus, RefreshCw, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 import { seedDB } from './db/db';
 import { DashboardView } from './components/views/DashboardView';
 import { TransactionsView } from './components/views/TransactionsView';
@@ -33,6 +34,13 @@ export default function App() {
   const { session, setSession, isLoading } = useAuthStore();
   const { hasLoaded: hasLoadedData, isLoading: isLoadingData, error: dataError, fetchData, clearData } = useDataStore();
   const [isReady, setIsReady] = useState(false);
+  const { needRefresh: [needRefresh, setNeedRefresh], updateServiceWorker } = useRegisterSW();
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const handleUpdate = async () => {
+    setIsUpdating(true);
+    await updateServiceWorker(true);
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -176,6 +184,68 @@ export default function App() {
       <AccountModal />
       <ConfirmPaymentModal />
       <ConfirmationModal />
+      <AnimatePresence>
+        {needRefresh && (
+          <motion.div
+            className="fixed inset-0 z-[200] flex items-end justify-center bg-black/35 p-4 sm:items-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="update-available-title"
+          >
+            <motion.div
+              className="w-full max-w-sm rounded-[20px] border border-border bg-card p-5 shadow-2xl"
+              initial={{ opacity: 0, y: 24, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <RefreshCw className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 id="update-available-title" className="text-sm font-bold">Nova versão disponível</h2>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      Atualize para carregar as melhorias mais recentes do sistema.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setNeedRefresh(false)}
+                  disabled={isUpdating}
+                  className="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                  aria-label="Fechar aviso de atualização"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="mt-5 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNeedRefresh(false)}
+                  disabled={isUpdating}
+                  className="flex-1 rounded-xl border border-border px-3 py-2.5 text-xs font-bold text-muted-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                >
+                  Depois
+                </button>
+                <button
+                  type="button"
+                  onClick={handleUpdate}
+                  disabled={isUpdating}
+                  className="flex-1 rounded-xl bg-primary px-3 py-2.5 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-wait disabled:opacity-70"
+                >
+                  {isUpdating ? 'Atualizando...' : 'Atualizar agora'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

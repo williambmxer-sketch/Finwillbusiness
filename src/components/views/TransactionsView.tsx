@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { api } from '../../services/api';
 import { useDataStore } from '../../store/useDataStore';
 import { formatCurrency } from '../../utils/formatters';
-import { getTransactionCycle, getCycleId } from '../../utils/cycleUtils';
+import { getTransactionCycle, getCycleId, getInvoiceClosingDate } from '../../utils/cycleUtils';
 import { Plus, Filter, Search, TrendingUp, TrendingDown, Clock, Settings2, CheckCircle2, Pencil, CreditCard, ChevronDown, Check, ChevronLeft, ChevronRight, FileSpreadsheet, FileText } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Input } from '../ui/input';
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import * as XLSX from 'xlsx-js-style';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getCashImpact, isCashPaymentMethod, isInvoicePayment } from '../../utils/financialRules';
+import { getCashDate, getCashImpact, INVOICE_PAYMENT_PREFIX, isCashPaymentMethod, isInvoicePayment } from '../../utils/financialRules';
 
 export function TransactionsView() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -288,6 +288,7 @@ export function TransactionsView() {
             id: `invoice-${invoiceKey}`,
             isVirtualInvoice: true,
             cardId: t.cardId,
+            cycleId,
             description: `Fatura ${card ? card.name : 'Cartão'}`,
             amount: 0,
             date: dueDate,
@@ -296,6 +297,8 @@ export function TransactionsView() {
             outstandingAmount: 0,
             isPaid: false,
             isPartiallyPaid: false,
+            isPaidEarly: false,
+            paidAt: null,
             color: card?.color,
             brand: card?.brand
           });
@@ -319,6 +322,23 @@ export function TransactionsView() {
       }
     });
 
+    for (const invoice of cardInvoices.values()) {
+      const card = cards.find(currentCard => currentCard.id === invoice.cardId);
+      if (!card || !invoice.isPaid) continue;
+
+      const paymentDates = allTransactions
+        .filter(transaction => isInvoicePayment(transaction)
+          && (transaction.notes === `${INVOICE_PAYMENT_PREFIX}${invoice.cardId}-${invoice.cycleId}`
+            || transaction.notes?.startsWith(`${INVOICE_PAYMENT_PREFIX}${invoice.cardId}-${invoice.cycleId}:`)))
+        .map(transaction => getCashDate(transaction))
+        .filter((date): date is Date => Boolean(date))
+        .sort((a, b) => a.getTime() - b.getTime());
+
+      const closingDate = getInvoiceClosingDate(invoice.date, card.closingDay, card.dueDay);
+      invoice.paidAt = paymentDates[paymentDates.length - 1] || null;
+      invoice.isPaidEarly = paymentDates.some(paymentDate => paymentDate <= closingDate);
+    }
+
     const finalInvoices = Array.from(cardInvoices.values()).filter(inv => {
       if (inv.isPaid && !filters.paid) return false;
       if (!inv.isPaid && !filters.pending) return false;
@@ -327,7 +347,7 @@ export function TransactionsView() {
 
     items.push(...finalInvoices);
     return items.sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [filtered, cards, filters.paid, filters.pending]);
+  }, [filtered, allTransactions, cards, filters.paid, filters.pending]);
 
   const totals = React.useMemo(() => {
     let receitas = 0;
@@ -890,6 +910,11 @@ export function TransactionsView() {
                           {t.isPaid && t.paymentDate && (
                             <span className="text-emerald-600 dark:text-emerald-500 font-bold">Pago em: {new Date(t.paymentDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</span>
                           )}
+                          {isInvoice && t.paidAt && (
+                            <span className="text-emerald-600 dark:text-emerald-500 font-bold">
+                              {t.isPaidEarly ? 'Antecipada em: ' : 'Paga em: '}{t.paidAt.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                            </span>
+                          )}
                           {t.installments && t.installments > 1 && (
                             <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[9px] font-bold mt-0.5 self-start">
                               {t.currentInstallment}/{t.installments}
@@ -909,7 +934,11 @@ export function TransactionsView() {
                         {t.isPaid && !isInvoice && <div className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest mt-1">Pago</div>}
                         {isInvoice && !t.isPaid && !t.isPartiallyPaid && <div className="text-[9px] text-amber-500 font-bold uppercase tracking-widest mt-1">Fatura Aberta</div>}
                         {isInvoice && t.isPartiallyPaid && <div className="text-[9px] text-orange-500 font-bold uppercase tracking-widest mt-1">Pagamento parcial</div>}
-                        {isInvoice && t.isPaid && <div className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest mt-1">Fatura Paga</div>}
+                        {isInvoice && t.isPaid && (
+                          <div className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest mt-1">
+                            {t.isPaidEarly ? 'Fatura Paga antecipadamente' : 'Fatura Paga'}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

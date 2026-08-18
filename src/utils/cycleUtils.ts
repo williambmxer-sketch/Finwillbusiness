@@ -15,6 +15,39 @@ export interface CycleResult {
   monthName: string; // ex: "julho"
 }
 
+/** Retorna o último instante antes do fechamento da fatura que vence em dueDate. */
+export function getInvoiceClosingDate(
+  dueDateValue: Date | string,
+  closingDay: number = 10,
+  dueDay: number = 17
+): Date {
+  const dueDate = typeof dueDateValue === 'string' ? new Date(dueDateValue) : new Date(dueDateValue);
+  const safeDueDate = Number.isNaN(dueDate.getTime()) ? new Date() : dueDate;
+  let closingYear = safeDueDate.getFullYear();
+  let closingMonth = safeDueDate.getMonth();
+  const safeClosingDay = parseInt(closingDay.toString(), 10) || 10;
+  const safeDueDay = parseInt(dueDay.toString(), 10) || 17;
+
+  if (safeDueDay < safeClosingDay) {
+    closingMonth -= 1;
+    if (closingMonth < 0) {
+      closingMonth = 11;
+      closingYear -= 1;
+    }
+  }
+
+  const daysInMonth = new Date(closingYear, closingMonth + 1, 0).getDate();
+  return new Date(
+    closingYear,
+    closingMonth,
+    Math.min(safeClosingDay, daysInMonth) - 1,
+    23,
+    59,
+    59,
+    999
+  );
+}
+
 export function getCycleId(
   dateVal: Date | string,
   closingDay: number = 10,

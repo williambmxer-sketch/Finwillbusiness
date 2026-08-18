@@ -10,8 +10,8 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 import { useAppStore } from '../../store/useAppStore';
-import { getCycleId } from '../../utils/cycleUtils';
-import { INVOICE_PAYMENT_PREFIX } from '../../utils/financialRules';
+import { getCycleId, getInvoiceClosingDate } from '../../utils/cycleUtils';
+import { getCashDate, INVOICE_PAYMENT_PREFIX, isInvoicePayment } from '../../utils/financialRules';
 import { generateUUID } from '../../lib/utils';
 
 interface ComputedInvoice {
@@ -23,6 +23,8 @@ interface ComputedInvoice {
   transactions: Transaction[];
   yearMonth: string;
   outstandingAmount: number;
+  isPaidEarly?: boolean;
+  paidAt?: Date | null;
 }
 
 interface InvoicePaymentRecovery {
@@ -64,19 +66,9 @@ const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1
 /** Reconstitui as datas do ciclo usando a mesma regra de fechamento do cartão. */
 const getInvoicePeriod = (invoice: ComputedInvoice, card: Card) => {
   const dueDate = new Date(invoice.dueDate);
-  let closingYear = dueDate.getFullYear();
-  let closingMonth = dueDate.getMonth();
-
-  if (card.dueDay < card.closingDay) {
-    closingMonth -= 1;
-    if (closingMonth < 0) {
-      closingMonth = 11;
-      closingYear -= 1;
-    }
-  }
-
-  const closingDay = Math.min(card.closingDay, getDaysInMonth(closingYear, closingMonth)) - 1;
-  const closingDate = new Date(closingYear, closingMonth, closingDay);
+  const closingDate = getInvoiceClosingDate(dueDate, card.closingDay, card.dueDay);
+  const closingYear = closingDate.getFullYear();
+  const closingMonth = closingDate.getMonth();
 
   const previousClosingDate = new Date(closingYear, closingMonth - 1, Math.min(
     card.closingDay,
@@ -90,6 +82,12 @@ const getInvoicePeriod = (invoice: ComputedInvoice, card: Card) => {
 
   return { openingDate, closingDate, dueDate };
 };
+
+const getInvoicePaymentRecords = (transactions: Transaction[], invoiceId: string) => transactions.filter(transaction => {
+  if (!isInvoicePayment(transaction)) return false;
+  return transaction.notes === `${INVOICE_PAYMENT_PREFIX}${invoiceId}`
+    || transaction.notes?.startsWith(`${INVOICE_PAYMENT_PREFIX}${invoiceId}:`);
+});
 
 export function InvoicesView() {
   const { setCurrentView, setActiveContextCardId, setConfirmModal } = useAppStore();
@@ -201,6 +199,16 @@ export function InvoicesView() {
       } else {
         inv.status = 'open';
       }
+
+      const paymentRecords = getInvoicePaymentRecords(allTransactions, inv.id);
+      const paymentDates = paymentRecords
+        .map(payment => getCashDate(payment))
+        .filter((date): date is Date => Boolean(date))
+        .sort((a, b) => a.getTime() - b.getTime());
+      const closingDate = getInvoicePeriod(inv, card).closingDate;
+      inv.paidAt = paymentDates[paymentDates.length - 1] || null;
+      inv.isPaidEarly = inv.status === 'paid'
+        && paymentDates.some(paymentDate => paymentDate <= closingDate);
     }
 
     return Array.from(invoiceMap.values()).sort((a, b) => {
@@ -208,7 +216,7 @@ export function InvoicesView() {
       if (b.yearMonth === currentCycleId) return 1;
       return a.dueDate.getTime() - b.dueDate.getTime();
     });
-  }, [transactions, cards, selectedCardId, dbInvoices, currentCycleId]);
+  }, [transactions, allTransactions, cards, selectedCardId, dbInvoices, currentCycleId]);
 
   const cycles = useMemo(() => {
     const rawCycles = Array.from(new Set(computedInvoices.map(inv => inv.yearMonth))) as string[];
@@ -304,6 +312,13 @@ export function InvoicesView() {
     } finally {
       setIsExportingPdf(false);
     }
+  };
+
+  const isInvoiceBeforeClosing = (invoice: ComputedInvoice) => {
+    if (invoice.status !== 'open') return false;
+    const card = cards.find(currentCard => currentCard.id === selectedCardId);
+    if (!card) return false;
+    return new Date() <= getInvoicePeriod(invoice, card).closingDate;
   };
 
   const handlePayInvoice = async () => {
@@ -471,14 +486,12 @@ export function InvoicesView() {
       }
     };
 
-    const now = new Date();
-    const { cycleId: currentCycle } = getCycleId(now, card.closingDay, card.dueDay);
-    const closingDate = new Date(now.getFullYear(), now.getMonth(), card.closingDay, 23, 59, 59);
+    const isAdvance = isInvoiceBeforeClosing(selectedInvoice);
     
-    if (selectedInvoice.yearMonth === currentCycle && now < closingDate) {
+    if (isAdvance) {
       setConfirmModal({
-        title: 'Pagar Fatura Adiantada',
-        description: 'Você está pagando a fatura antes do fechamento. O limite do cartão será liberado, mas novas compras até o fechamento ainda serão lançadas nesta mesma fatura. Confirma o pagamento?',
+        title: 'Antecipar fatura',
+        description: 'A fatura ainda não fechou. O valor será debitado agora e novas compras até o fechamento continuarão pertencendo a esta mesma fatura. Confirma a antecipação?',
         onConfirm: executePayInvoice
       });
     } else {
@@ -536,6 +549,8 @@ export function InvoicesView() {
         <div className="flex flex-col gap-2.5">
           {filteredInvoices.map((inv, i) => {
             const isExpanded = expandedInvoiceId === inv.id;
+            const canAdvance = isInvoiceBeforeClosing(inv);
+            const paidStatusLabel = inv.isPaidEarly ? 'Paga antecipadamente' : 'Paga';
             return (
               <motion.div 
                 key={inv.id}
@@ -565,7 +580,7 @@ export function InvoicesView() {
                     <div>
                       <div className="text-xs font-bold tracking-tight">{formatCurrency(inv.amount)}</div>
                       <div className={`text-[8px] uppercase tracking-widest font-bold mt-0.5 ${inv.status === 'open' ? 'text-primary' : 'text-emerald-600 dark:text-emerald-500'}`}>
-                        {inv.status === 'open' ? 'Aberta' : 'Paga'}
+                        {inv.status === 'open' ? 'Aberta' : paidStatusLabel}
                       </div>
                     </div>
                     <ChevronDown className={`h-4 w-4 text-muted-foreground opacity-50 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
@@ -591,7 +606,7 @@ export function InvoicesView() {
                           disabled={inv.outstandingAmount <= 0}
                           className="flex-1 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest rounded-lg py-2.5 hover:bg-primary/90 transition-colors disabled:opacity-50"
                         >
-                          Pagar Fatura
+                          {canAdvance ? 'Antecipar fatura' : 'Pagar fatura'}
                         </button>
                         <button 
                           onClick={(e) => {
@@ -608,7 +623,7 @@ export function InvoicesView() {
                     ) : (
                       <>
                         <div className="flex-1 text-emerald-600 dark:text-emerald-500 font-bold text-xs flex items-center pl-1">
-                          Fatura Paga
+                          {inv.isPaidEarly ? 'Fatura paga antecipadamente' : 'Fatura paga'}
                         </div>
                         <button 
                           onClick={(e) => {
@@ -679,8 +694,15 @@ export function InvoicesView() {
                 <div className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mb-1 select-none">Total da Fatura</div>
                 <div className="text-3xl font-extrabold tracking-tight">{formatCurrency(selectedInvoice.amount)}</div>
                 <div className={`mt-2.5 text-[9px] uppercase tracking-widest font-bold px-2.5 py-1 rounded-full select-none ${selectedInvoice.status === 'open' ? 'bg-primary/15 text-primary border border-primary/25' : 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/25'}`}>
-                  {selectedInvoice.status === 'open' ? 'Fatura Aberta' : 'Fatura Paga'}
+                  {selectedInvoice.status === 'open'
+                    ? 'Fatura Aberta'
+                    : selectedInvoice.isPaidEarly ? 'Paga antecipadamente' : 'Fatura Paga'}
                 </div>
+                {selectedInvoice.paidAt && (
+                  <div className="mt-1 text-[9px] text-muted-foreground font-medium">
+                    Baixa em {selectedInvoice.paidAt.toLocaleDateString('pt-BR')}
+                  </div>
+                )}
               </div>
 
               <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-3.5">
@@ -732,7 +754,7 @@ export function InvoicesView() {
                     disabled={selectedInvoice.outstandingAmount <= 0}
                     className="w-full bg-primary text-primary-foreground text-sm font-bold rounded-xl h-11 flex items-center justify-center transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                    >
-                     Pagar Fatura
+                     {isInvoiceBeforeClosing(selectedInvoice) ? 'Antecipar fatura' : 'Pagar fatura'}
                    </button>
                 </div>
               )}
@@ -775,7 +797,7 @@ export function InvoicesView() {
                 </button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Selecione de qual conta bancária deseja debitar o valor de <strong className="text-foreground">{formatCurrency(selectedInvoice.outstandingAmount)}</strong> para pagar a fatura do cartão.
+                Selecione de qual conta bancária deseja debitar o valor de <strong className="text-foreground">{formatCurrency(selectedInvoice.outstandingAmount)}</strong> para {isInvoiceBeforeClosing(selectedInvoice) ? 'antecipar esta fatura' : 'pagar esta fatura'}.
               </p>
 
               {paymentError && (
@@ -820,7 +842,7 @@ export function InvoicesView() {
                   disabled={!payAccountId || isPaying}
                   className="flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest text-primary-foreground bg-primary hover:bg-primary/90 transition-colors disabled:opacity-50"
                 >
-                  {isPaying ? 'Processando...' : 'Confirmar'}
+                  {isPaying ? 'Processando...' : isInvoiceBeforeClosing(selectedInvoice) ? 'Confirmar antecipação' : 'Confirmar pagamento'}
                 </button>
               </div>
             </motion.div>

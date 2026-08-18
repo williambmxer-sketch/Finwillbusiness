@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { getCycleId } from '../../src/utils/cycleUtils';
+import { getCycleId, getInvoiceClosingDate } from '../../src/utils/cycleUtils';
 import {
   getCashPeriodId,
   isCardCharge,
@@ -70,6 +70,13 @@ assert.equal(
   getCycleId(new Date('2026-02-28T12:00:00'), 31, 31).dueDate.getDate(),
   31,
   'data de vencimento deve permanecer válida mesmo com dia 31'
+);
+
+const futureInvoiceClosing = getInvoiceClosingDate(new Date('2026-10-13T12:00:00'), 20, 13);
+assert.deepEqual(
+  [futureInvoiceClosing.getFullYear(), futureInvoiceClosing.getMonth() + 1, futureInvoiceClosing.getDate()],
+  [2026, 9, 19],
+  'fatura futura deve usar o fechamento do ciclo anterior ao vencimento'
 );
 
 assert.deepEqual(splitAmount(100, 3), [33.34, 33.33, 33.33], 'parcelamento deve fechar exatamente em centavos');

@@ -29,9 +29,15 @@
 - [x] Substituir o PDF-imagem do Relatório por PDF estruturado com resumo e tabelas legíveis.
 - [x] Melhorar o PDF do Relatório com hierarquia de saldo, percentuais, separadores arredondados
   e gráficos de pizza por categoria.
-- [x] Agrupar compras e baixas de cartão como `Cartões` na pizza e nas listas do Relatório.
+- [x] Manter compras de cartão nas categorias originais no Relatório e reservar `Cartões`
+  para a baixa técnica da fatura.
+- [x] Identificar nos detalhes expandidos se o lançamento veio de um cartão específico ou
+  de uma transação comum.
 - [x] Tornar categorias de despesas e receitas expansíveis, agrupando parcelas pelo período
   e exibindo detalhes específicos para cartões.
+- [x] Diferenciar antecipação de pagamento de fatura: antes do fechamento, usar “Antecipar
+  fatura”; depois do fechamento, usar “Pagar fatura”, mantendo o ciclo original e exibindo
+  a data real da baixa.
 
 ## Próxima etapa recomendada
 

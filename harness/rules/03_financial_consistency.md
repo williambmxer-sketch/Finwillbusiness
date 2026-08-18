@@ -64,12 +64,17 @@ Compras de cartão com `paymentDate` são excluídas do caixa realizado para evi
 - No modo projetado, o documento deve evidenciar a hierarquia saldo inicial + entradas
   previstas - saídas previstas = saldo projetado, com percentuais e gráficos de categoria
   quando houver dados.
-- No Relatório, compras de cartão e baixas técnicas de fatura devem ser agrupadas na
-  categoria gerencial `Cartões`; a categoria original permanece disponível nos detalhes
-  do lançamento e da fatura.
+- No Relatório, compras de cartão devem permanecer na categoria original, como
+  `Alimentação` ou `Combustível`, para permitir rastreamento. Quando a baixa técnica possui
+  vínculo com os lançamentos quitados, ela é distribuída nessas mesmas categorias sem
+  duplicar o valor; sem vínculo recuperável, fica em `Cartões` como fallback auditável.
+- Uma fatura aberta pode ser antecipada enquanto a data atual não ultrapassou seu
+  fechamento, inclusive quando o ciclo ainda é futuro. Depois do fechamento, a ação é
+  apresentada como pagamento normal.
 - As listas de categorias do Relatório começam recolhidas. Ao expandir, lançamentos
   parcelados do mesmo `parentId` são somados somente pelas parcelas dentro do período;
-  a categoria `Cartões` mostra apenas cartão, valor e vencimento da fatura.
+  a categoria `Cartões` mostra apenas cartão, valor e vencimento da fatura. Os detalhes
+  também identificam a origem como `Cartão <nome>` ou `Transações`.
 
 O modo não altera o filtro de mês ou período personalizado. Ele altera apenas a camada de dados exibida, mantendo a distinção explícita entre dinheiro já movimentado e compromisso previsto.
 

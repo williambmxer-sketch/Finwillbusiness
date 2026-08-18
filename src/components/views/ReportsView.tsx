@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useDataStore } from '../../store/useDataStore';
 import { getCycleId } from '../../utils/cycleUtils';
-import { getCashDate, getCashImpact, isInvoicePayment, isRealizedCashFlow, isTransfer, toDate } from '../../utils/financialRules';
+import { getCashDate, getCashImpact, isCardCharge, isInvoicePayment, isRealizedCashFlow, isTransfer, toDate } from '../../utils/financialRules';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { formatCurrency } from '../../utils/formatters';
 import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Download } from 'lucide-react';
@@ -15,7 +15,7 @@ const CARD_REPORT_CATEGORY = '__cartoes__';
 const COLOR_CARTAO = '#f97316';
 
 const getReportCategoryKey = (transaction: any) => (
-  (transaction.cardId && transaction.cardId !== 'money') || isInvoicePayment(transaction)
+  isInvoicePayment(transaction)
     ? CARD_REPORT_CATEGORY
     : (transaction.categoryId || 'outros')
 );
@@ -40,6 +40,45 @@ const getInvoicePaymentInfo = (transaction: any, cards: any[]) => {
   }
 
   return { cardId: cardId || 'unknown', cycleId: cycleId || 'unknown', cardName: 'Cartão', dueDate: new Date(transaction.date) };
+};
+
+/**
+ * Reapresenta a baixa da fatura pelas categorias dos lançamentos que ela
+ * quitou. O movimento técnico continua sendo usado para o caixa, mas a
+ * distribuição do relatório fica rastreável sem somar a fatura duas vezes.
+ */
+const expandInvoicePaymentsForReport = (transactions: any[], allTransactions: any[], cards: any[]) => (
+  transactions.flatMap(transaction => {
+    if (!isInvoicePayment(transaction)) return [transaction];
+
+    const paymentDate = getCashDate(transaction);
+    const invoiceInfo = getInvoicePaymentInfo(transaction, cards);
+    const card = cards.find(currentCard => currentCard.id === invoiceInfo.cardId);
+    if (!paymentDate || !card || invoiceInfo.cycleId === 'unknown') return [transaction];
+
+    const paidCharges = allTransactions.filter(charge => {
+      if (!isCardCharge(charge) || charge.type !== 'despesa' || !charge.isPaid) return false;
+      if (charge.cardId !== invoiceInfo.cardId) return false;
+      if (getCycleId(toDate(charge.date) || charge.date, card.closingDay, card.dueDay).cycleId !== invoiceInfo.cycleId) return false;
+      const chargePaymentDate = getCashDate(charge);
+      return Boolean(chargePaymentDate && chargePaymentDate.getTime() === paymentDate.getTime());
+    });
+
+    if (paidCharges.length === 0) return [transaction];
+
+    return paidCharges.map(charge => ({
+      ...charge,
+      id: `${transaction.id}:${charge.id}`,
+      date: paymentDate,
+      paymentDate,
+    }));
+  })
+);
+
+const getReportSourceLabel = (transaction: any, cards: any[]) => {
+  if (!transaction.cardId || transaction.cardId === 'money') return 'Transações';
+  const card = cards.find(currentCard => currentCard.id === transaction.cardId);
+  return card ? `Cartão ${card.name}` : 'Cartão';
 };
 
 export function ReportsView() {
@@ -229,7 +268,10 @@ export function ReportsView() {
   const prevProjectedTotals = calcTotals([...prevFiltered, ...prevPendingFiltered]);
   const currentTotals = reportMode === 'projected' ? projectedTotals : realizedTotals;
   const prevTotals = reportMode === 'projected' ? prevProjectedTotals : prevRealizedTotals;
-  const categoryTransactions = reportMode === 'realized' ? filtered : [...filtered, ...pendingFiltered];
+  const categoryTransactions = useMemo(() => {
+    const baseTransactions = reportMode === 'realized' ? filtered : [...filtered, ...pendingFiltered];
+    return expandInvoicePaymentsForReport(baseTransactions, allTransactions, cards);
+  }, [reportMode, filtered, pendingFiltered, allTransactions, cards]);
 
   const realizedSavingsRate = realizedTotals.receitas > 0 ? (realizedTotals.balanco / realizedTotals.receitas) * 100 : 0;
   const projectedSavingsRate = projectedTotals.receitas > 0 ? (projectedTotals.balanco / projectedTotals.receitas) * 100 : 0;
@@ -250,9 +292,10 @@ export function ReportsView() {
     const txs = categoryTransactions.filter(t => t.type === type && !t.notes?.startsWith('transferencia:'));
 
     txs.forEach(t => {
-      // Compras de cartão e o movimento técnico da baixa da fatura pertencem
-      // a uma única categoria gerencial no relatório. A categoria original
-      // (por exemplo, Avulso) continua preservada no lançamento e na fatura.
+      // Compras no cartão preservam a categoria original para que o relatório
+      // mostre, por exemplo, Alimentação e Combustível. A baixa técnica da
+      // fatura continua em Cartões para não misturar o débito da conta com a
+      // categoria da compra.
       const categoryKey = getReportCategoryKey(t);
       map.set(categoryKey, (map.get(categoryKey) || 0) + t.amount);
     });
@@ -307,12 +350,14 @@ export function ReportsView() {
         const installmentGroup = transaction.parentId || transaction.id;
         const detailKey = `${reportKey}:${installmentGroup}`;
         const existing = groups.get(detailKey);
+        const sourceLabel = getReportSourceLabel(transaction, cards);
         groups.set(detailKey, existing
           ? {
             ...existing,
             amount: existing.amount + transaction.amount,
             installmentCount: existing.installmentCount + 1,
             totalInstallments: Math.max(existing.totalInstallments, transaction.installments || 1),
+            sourceLabels: Array.from(new Set([...existing.sourceLabels, sourceLabel])),
           }
           : {
             reportKey,
@@ -322,6 +367,7 @@ export function ReportsView() {
             amount: transaction.amount,
             installmentCount: 1,
             totalInstallments: transaction.installments || 1,
+            sourceLabels: [sourceLabel],
           });
       });
 
@@ -385,6 +431,9 @@ export function ReportsView() {
                       <div className="min-w-0">
                         <div className="text-[10px] font-semibold truncate">{detail.cardName}</div>
                         <div className="text-[9px] text-muted-foreground">Vencimento: {detail.dueDate.toLocaleDateString('pt-BR')}</div>
+                        <span className="mt-1 inline-flex items-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-primary">
+                          Cartão {detail.cardName}
+                        </span>
                       </div>
                       <div className={`text-[10px] font-bold shrink-0 ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>
                         {isIncome ? '+' : '-'}{formatCurrency(detail.amount)}
@@ -398,6 +447,13 @@ export function ReportsView() {
                           {detail.totalInstallments > 1
                             ? `${detail.installmentCount === detail.totalInstallments ? detail.totalInstallments : `${detail.installmentCount} de ${detail.totalInstallments}`} parcela(s)`
                             : 'Lançamento avulso'}
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {(detail.sourceLabels || [`Cartão ${detail.cardName}`]).map((source: string) => (
+                            <span key={source} className="inline-flex items-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-primary">
+                              {source}
+                            </span>
+                          ))}
                         </div>
                       </div>
                       <div className={`text-[10px] font-bold shrink-0 ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>

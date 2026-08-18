@@ -18,3 +18,10 @@ A aplicação adota um conceito **Mobile-First focado em responsividade centrali
 - Utilizamos **Shadcn UI** (em `src/components/ui/`) para garantir consistência visual e acessibilidade.
 - Qualquer novo componente primitivo (botões, inputs, cards) deve preferencialmente usar a base gerada pela CLI do Shadcn (`npx shadcn@latest add <componente>`).
 - O utilitário `cn` (Tailwind Merge + Clsx) contido em `src/lib/utils.ts` é padrão para compor as classes dos componentes reutilizáveis.
+
+## Atualizações da aplicação
+
+- O PWA deve usar atualização em modo `prompt`: quando uma nova versão estiver disponível,
+  exibir um modal não destrutivo com as ações `Atualizar agora` e `Depois`.
+- `Atualizar agora` deve ativar o service worker pendente e recarregar a página; fechar o
+  aviso não pode alterar dados nem interromper operações financeiras em andamento.
