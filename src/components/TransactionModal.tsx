@@ -3,12 +3,12 @@ import { useAppStore } from '../store/useAppStore';
 import { useDataStore } from '../store/useDataStore';
 import { api } from '../services/api';
 import { generateUUID } from '../lib/utils';
-import { Transaction, Category, Account, Card } from '../db/db';
+import { Transaction, Category, Account, Card, CustomPaymentMethod } from '../db/db';
 import { X, Save, Trash, ChevronDown, ArrowRightLeft } from 'lucide-react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { formatCurrency } from '../utils/formatters';
-import { splitAmount } from '../utils/financialRules';
+import { isCashPaymentMethod, splitAmount } from '../utils/financialRules';
 
 interface DropdownOption {
   value: string;
@@ -83,12 +83,6 @@ function CustomSelect({
       )}
     </div>
   );
-}
-
-interface CustomPaymentMethod {
-  id: string;
-  name: string;
-  allowInstallments: boolean;
 }
 
 export function TransactionModal() {
@@ -229,8 +223,16 @@ export function TransactionModal() {
   }, [editingTransactionId, isTransactionModalOpen, accounts, defaultPaymentMethod, hasInitialized]);
 
   const selectedPaymentMethod = cardId.startsWith('custom-')
-    ? (customPaymentMethods.find(pm => `custom-${pm.id}` === cardId || `custom-${pm.name}` === cardId) || { name: cardId.replace('custom-', ''), debitFromAccount: true })
+    ? (customPaymentMethods.find(pm => `custom-${pm.id}` === cardId || `custom-${pm.name}` === cardId) || { id: '', name: cardId.replace('custom-', ''), debitFromAccount: true } as CustomPaymentMethod)
     : null;
+
+  const isCashPayment = isCashPaymentMethod(selectedPaymentMethod?.name);
+
+  useEffect(() => {
+    if (selectedPaymentMethod?.linkedAccountId) {
+      setAccountId(selectedPaymentMethod.linkedAccountId);
+    }
+  }, [cardId, selectedPaymentMethod?.linkedAccountId]);
 
   const showInstallments = type === 'receita' || type === 'despesa';
 
@@ -281,7 +283,24 @@ export function TransactionModal() {
 
     const txAmount = parseFloat(amount);
 
-    const requiresAccount = type === 'despesa' && isPaid && selectedPaymentMethod && selectedPaymentMethod.debitFromAccount;
+    const cashPaymentNeedsAccount = type === 'despesa' && isCashPayment && (
+      isPaid || (showInstallments && numInstallments > 1 && !firstInstallmentIn30Days && payFirstInstallmentToday)
+    );
+    if (cashPaymentNeedsAccount) {
+      const cashAccount = accounts.find(account => account.id === accountId);
+      if (!cashAccount || cashAccount.type !== 'carteira') {
+        setError('Pagamentos em Dinheiro só podem sair de uma conta do tipo Carteira.');
+        setIsSubmitting(false);
+        return;
+      }
+      if (selectedPaymentMethod?.linkedAccountId && selectedPaymentMethod.linkedAccountId !== cashAccount.id) {
+        setError('A forma Dinheiro está vinculada a outra Carteira.');
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    const requiresAccount = type === 'despesa' && isPaid && selectedPaymentMethod && (selectedPaymentMethod.debitFromAccount || isCashPayment);
 
     if (requiresAccount && (!accountId || accountId === 'none' || accountId === '')) {
       setError('Selecione a conta bancária para confirmar o pagamento.');
@@ -764,7 +783,7 @@ export function TransactionModal() {
   const showAccountSelector = 
     (type === 'receita') ||
     (type === 'transferencia') ||
-    (type === 'despesa' && isPaid && selectedPaymentMethod && selectedPaymentMethod.debitFromAccount) ||
+    (type === 'despesa' && isPaid && selectedPaymentMethod && (selectedPaymentMethod.debitFromAccount || isCashPayment)) ||
     (type === 'despesa' && showInstallments && numInstallments > 1 && !firstInstallmentIn30Days && payFirstInstallmentToday);
 
   return (
@@ -974,8 +993,11 @@ export function TransactionModal() {
                         <CustomSelect
                           value={accountId}
                           onValueChange={setAccountId}
-                          placeholder="Selecione a conta..."
-                          options={accounts.map(c => ({
+                          placeholder={isCashPayment ? 'Selecione a Carteira...' : 'Selecione a conta...'}
+                          options={(isCashPayment
+                            ? accounts.filter(account => account.type === 'carteira' && (!selectedPaymentMethod?.linkedAccountId || account.id === selectedPaymentMethod.linkedAccountId))
+                            : accounts
+                          ).map(c => ({
                             value: c.id,
                             label: `${c.name} • ${formatCurrency(c.balance)}`
                           }))}

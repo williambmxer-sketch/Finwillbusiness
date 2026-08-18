@@ -9,6 +9,7 @@
 - [x] Mapeadores entre o schema PT-BR do banco e os modelos do frontend.
 - [x] Assinatura de mudanças via Realtime.
 - [x] Fila offline parcial para transações.
+- [ ] Aplicar `supabase/migrations/20260817_add_linked_account_to_payment_methods.sql` para permitir o vínculo persistente entre Dinheiro e a Carteira.
 
 ## Pendências de infraestrutura
 

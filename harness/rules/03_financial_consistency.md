@@ -20,13 +20,27 @@ Compras de cartão com `paymentDate` são excluídas do caixa realizado para evi
 ## Faturas
 
 - O valor a pagar é o saldo em aberto, não necessariamente o total histórico da fatura.
-- Uma fatura paga deve ser idempotente: repetir a ação não pode criar outro débito para o mesmo ciclo.
+- Uma fatura paga deve ser idempotente: repetir a mesma tentativa não pode criar outro débito.
+- Se novas compras entrarem no ciclo depois de uma baixa antecipada, ou se houver pagamento
+  parcial, a nova baixa usa um registro técnico próprio e debita apenas o saldo ainda aberto.
+- Nas transações, cada cartão/ciclo aparece como uma única fatura virtual; uma baixa parcial
+  nunca pode fazer a mesma fatura aparecer duplicada.
 - O movimento de pagamento deve ficar disponível no histórico da conta e nos relatórios de caixa.
+
+## Dinheiro e Carteira
+
+- Conta do tipo `carteira` representa dinheiro em espécie.
+- A forma de pagamento `Dinheiro` deve apontar para uma conta do tipo `carteira`.
+- Uma despesa paga em Dinheiro só pode debitar a Carteira vinculada; banco, poupança,
+  investimento e cartão não são opções válidas.
+- Depósito na Carteira é uma transferência entre contas, com débito na origem e crédito
+  na Carteira, sem gerar receita consolidada.
 - A baixa exige conexão ativa e leitura atualizada do Supabase; não pode ser enfileirada
   silenciosamente para execução offline.
-- A baixa usa uma chave técnica por fatura (`pagamento_fatura:<cartão>-<ciclo>`), bloqueia
-  duplicidade e mantém um registro local temporário apenas para recuperar uma interrupção
-  entre a criação do movimento e o débito da conta.
+- A baixa usa uma chave técnica estável por fatura (`pagamento_fatura:<cartão>-<ciclo>`).
+  A primeira tentativa usa a chave exata; tentativas adicionais usam um sufixo único e
+  mantêm um registro local temporário para recuperar uma interrupção entre a criação do
+  movimento e o débito da conta.
 - Se o saldo não puder ser confirmado, a operação para e informa o usuário; não reprocessa
   automaticamente uma fatura nem altera lançamentos históricos.
 
@@ -35,6 +49,9 @@ Compras de cartão com `paymentDate` são excluídas do caixa realizado para evi
 - **Realizado**: somente entradas e saídas efetivamente pagas/recebidas.
 - **Projetado**: realizado mais transações pendentes dentro do período selecionado; compras de cartão pendentes usam o mês de vencimento da fatura.
 - **Comparativo**: exibe realizado e projetado lado a lado para o mesmo filtro.
+- **Saldo atual**: soma as contas `corrente`, `poupança` e `carteira`, exclui investimentos
+  do caixa disponível e permanece igual ao trocar o mês ou o modo do relatório.
+- **Resultado do período**: entradas menos saídas do filtro; não é o mesmo que saldo atual.
 
 O modo não altera o filtro de mês ou período personalizado. Ele altera apenas a camada de dados exibida, mantendo a distinção explícita entre dinheiro já movimentado e compromisso previsto.
 

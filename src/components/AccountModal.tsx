@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDataStore } from '../store/useDataStore';
+import { Account } from '../db/db';
 import { api } from '../services/api';
 import { X, Save, Trash } from 'lucide-react';
 import { Input } from './ui/input';
@@ -13,7 +14,7 @@ export function AccountModal() {
 
   const [name, setName] = useState('');
   const [balance, setBalance] = useState('');
-  const [type, setType] = useState<'corrente' | 'poupança'>('corrente');
+  const [type, setType] = useState<Account['type']>('corrente');
 
   const handleBalanceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
@@ -33,12 +34,12 @@ export function AccountModal() {
       if (account) {
         setName(account.name);
         setBalance(account.balance.toString());
-        setType((account.type as 'corrente' | 'poupança') || 'corrente');
+        setType(account.type || 'corrente');
       }
     } else if (!editingAccountId && isAccountModalOpen) {
       setName('');
       setBalance('');
-      setType('corrente');
+        setType('corrente');
     }
   }, [editingAccountId, isAccountModalOpen, accounts]);
 
@@ -120,7 +121,7 @@ export function AccountModal() {
 
               <div>
                 <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1.5 block ml-1">Tipo</Label>
-                <div className="flex w-full bg-muted/50 p-1.5 rounded-[16px]">
+                <div className="grid grid-cols-2 gap-1.5 w-full bg-muted/50 p-1.5 rounded-[16px]">
                   <button 
                     onClick={() => setType('corrente')}
                     className={`flex-1 py-2.5 rounded-[12px] text-[11px] font-bold uppercase tracking-widest transition-all ${type === 'corrente' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
@@ -129,6 +130,14 @@ export function AccountModal() {
                     onClick={() => setType('poupança')}
                     className={`flex-1 py-2.5 rounded-[12px] text-[11px] font-bold uppercase tracking-widest transition-all ${type === 'poupança' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                   >Poupança</button>
+                  <button
+                    onClick={() => setType('carteira')}
+                    className={`py-2.5 rounded-[12px] text-[11px] font-bold uppercase tracking-widest transition-all ${type === 'carteira' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  >Carteira</button>
+                  <button
+                    onClick={() => setType('investimento')}
+                    className={`py-2.5 rounded-[12px] text-[11px] font-bold uppercase tracking-widest transition-all ${type === 'investimento' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  >Investimento</button>
                 </div>
               </div>
             </div>

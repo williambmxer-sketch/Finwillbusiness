@@ -63,6 +63,7 @@ export interface CustomPaymentMethod {
   id: string;
   name: string;
   debitFromAccount: boolean;
+  linkedAccountId?: string;
 }
 
 export class FinanceDB extends Dexie {

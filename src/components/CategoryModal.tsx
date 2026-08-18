@@ -6,6 +6,7 @@ import { Category, CustomPaymentMethod } from '../db/db';
 import { generateUUID } from '../lib/utils';
 import { X, Trash, AlertCircle } from 'lucide-react';
 import { Input } from './ui/input';
+import { isCashPaymentMethod } from '../utils/financialRules';
 
 
 export function CategoryModal() {
@@ -13,6 +14,7 @@ export function CategoryModal() {
   const categories = useDataStore(state => state.categories);
   const paymentMethods = useDataStore(state => state.customPaymentMethods);
   const transactions = useDataStore(state => state.transactions);
+  const accounts = useDataStore(state => state.accounts);
 
   // Set of category IDs that are actually used in at least one transaction
   const usedCategoryIds = new Set(transactions.map(t => t.categoryId));
@@ -35,6 +37,8 @@ export function CategoryModal() {
   const [pmDebitFromAccount, setPmDebitFromAccount] = useState(true);
   const [editingPmId, setEditingPmId] = useState<string | null>(null);
   const [confirmDeletePmId, setConfirmDeletePmId] = useState<string | null>(null);
+  const [pmLinkedAccountId, setPmLinkedAccountId] = useState('');
+  const [paymentMethodError, setPaymentMethodError] = useState<string | null>(null);
 
   const handleEdit = (c: Category) => {
     setConfirmDeleteId(null);
@@ -89,12 +93,22 @@ export function CategoryModal() {
   };
 
   const handleSavePaymentMethod = async () => {
-    if (!pmName.trim()) return;
+    const trimmedName = pmName.trim();
+    if (!trimmedName) return;
+
+    const isCash = isCashPaymentMethod(trimmedName);
+    const linkedAccount = accounts.find(account => account.id === pmLinkedAccountId);
+    if (isCash && (!linkedAccount || linkedAccount.type !== 'carteira')) {
+      setPaymentMethodError('A forma Dinheiro precisa estar vinculada a uma conta do tipo Carteira. Crie ou selecione uma Carteira.');
+      return;
+    }
+
     try {
       const payload: Partial<CustomPaymentMethod> = {
-        name: pmName.trim(),
-        debitFromAccount: pmDebitFromAccount
+        name: trimmedName,
+        debitFromAccount: isCash ? true : pmDebitFromAccount
       };
+      if (isCash) payload.linkedAccountId = linkedAccount!.id;
 
       if (editingPmId) {
         await api.paymentMethods.update(editingPmId, payload);
@@ -106,8 +120,11 @@ export function CategoryModal() {
       setPmDebitFromAccount(true);
       setIsAddingPaymentMethod(false);
       setEditingPmId(null);
+      setPmLinkedAccountId('');
+      setPaymentMethodError(null);
     } catch (error) {
       console.error('Erro ao salvar forma de pagamento:', error);
+      setPaymentMethodError(error instanceof Error ? error.message : 'Não foi possível salvar a forma de pagamento.');
     }
   };
 
@@ -115,6 +132,8 @@ export function CategoryModal() {
     setEditingPmId(pm.id);
     setPmName(pm.name);
     setPmDebitFromAccount(pm.debitFromAccount ?? true);
+    setPmLinkedAccountId(pm.linkedAccountId || '');
+    setPaymentMethodError(null);
     setIsAddingPaymentMethod(true);
   };
 
@@ -123,6 +142,8 @@ export function CategoryModal() {
     setPmName('');
     setPmDebitFromAccount(true);
     setIsAddingPaymentMethod(false);
+    setPmLinkedAccountId('');
+    setPaymentMethodError(null);
   };
 
   const handleDeletePaymentMethod = async (id: string) => {
@@ -365,7 +386,12 @@ export function CategoryModal() {
                       placeholder="Nome da forma de pagamento... Ex: Crediário" 
                       className="rounded-[12px] h-9 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary shadow-none flex-1"
                       value={pmName}
-                      onChange={e => setPmName(e.target.value)}
+                      onChange={e => {
+                        const nextName = e.target.value;
+                        setPmName(nextName);
+                        if (isCashPaymentMethod(nextName)) setPmDebitFromAccount(true);
+                        setPaymentMethodError(null);
+                      }}
                     />
                     <button onClick={handleSavePaymentMethod} className="px-3 bg-primary text-primary-foreground font-bold text-[10px] h-9 rounded-[12px] hover:bg-primary/90 transition-all uppercase tracking-wider">
                       {editingPmId ? 'Salvar' : 'Add'}
@@ -374,13 +400,43 @@ export function CategoryModal() {
                       <X className="w-4 h-4" />
                     </button>
                   </div>
+                  {isCashPaymentMethod(pmName) && (
+                    <div className="space-y-2 pt-2 border-t">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground ml-1 block">
+                        Carteira usada pelo Dinheiro
+                      </label>
+                      <select
+                        value={pmLinkedAccountId}
+                        onChange={e => setPmLinkedAccountId(e.target.value)}
+                        className="w-full rounded-xl h-9 px-3 text-xs bg-muted/50 border border-transparent focus:ring-1 focus:ring-primary outline-none font-medium"
+                      >
+                        <option value="">Selecione a Carteira...</option>
+                        {accounts.filter(account => account.type === 'carteira').map(account => (
+                          <option key={account.id} value={account.id}>
+                            {account.name} ({account.balance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})
+                          </option>
+                        ))}
+                      </select>
+                      {accounts.every(account => account.type !== 'carteira') && (
+                        <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                          Crie primeiro uma conta com o tipo Carteira na tela Contas.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {paymentMethodError && (
+                    <p className="text-[10px] text-destructive font-medium">{paymentMethodError}</p>
+                  )}
                 <div className="space-y-4 pt-2 border-t">
                   <div className="flex items-center justify-between px-1">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none">Debitar da conta (Exige Saldo)</span>
                     <button
                       type="button"
-                      onClick={() => setPmDebitFromAccount(!pmDebitFromAccount)}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${pmDebitFromAccount ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                      onClick={() => {
+                        if (!isCashPaymentMethod(pmName)) setPmDebitFromAccount(!pmDebitFromAccount);
+                      }}
+                      disabled={isCashPaymentMethod(pmName)}
+                      className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${isCashPaymentMethod(pmName) ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'} ${pmDebitFromAccount ? 'bg-primary' : 'bg-muted-foreground/30'}`}
                     >
                       <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${pmDebitFromAccount ? 'translate-x-4' : 'translate-x-0'}`} />
                     </button>
@@ -402,6 +458,11 @@ export function CategoryModal() {
                             <div className="font-semibold leading-none mb-0.5">{pm.name}</div>
                             <div className="text-[8px] text-muted-foreground uppercase font-bold tracking-wider flex flex-wrap gap-1 items-center mt-1">
                               {pm.debitFromAccount && <span className="bg-orange-500/10 text-orange-600 px-1 py-0.5 rounded">Debita Conta</span>}
+                              {isCashPaymentMethod(pm.name) && (
+                                <span className="bg-emerald-500/10 text-emerald-600 px-1 py-0.5 rounded">
+                                  Carteira: {accounts.find(account => account.id === pm.linkedAccountId)?.name || 'não vinculada'}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>

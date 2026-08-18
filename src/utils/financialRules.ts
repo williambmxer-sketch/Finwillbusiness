@@ -1,5 +1,18 @@
 import { Transaction } from '../db/db';
 
+export function normalizePaymentMethodName(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+export function isCashPaymentMethod(name: string | null | undefined): boolean {
+  const normalized = normalizePaymentMethodName(name || '');
+  return normalized === 'dinheiro' || normalized.startsWith('dinheiro ');
+}
+
 /**
  * Marcadores técnicos usados para movimentos que não são lançamentos comuns.
  * Eles continuam sendo transações para manter auditoria e histórico, mas podem

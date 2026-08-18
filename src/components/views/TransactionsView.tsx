@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import * as XLSX from 'xlsx-js-style';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getCashImpact, isInvoicePayment } from '../../utils/financialRules';
+import { getCashImpact, isCashPaymentMethod, isInvoicePayment } from '../../utils/financialRules';
 
 export function TransactionsView() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,6 +35,7 @@ export function TransactionsView() {
   const allTransactions = useDataStore(state => state.transactions);
   const cards = useDataStore(state => state.cards);
   const categories = useDataStore(state => state.categories);
+  const customPaymentMethods = useDataStore(state => state.customPaymentMethods);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
   const [isCatFilterOpen, setIsCatFilterOpen] = useState(false);
@@ -164,6 +165,17 @@ export function TransactionsView() {
   const handleTogglePayment = async (t: any) => {
     const isNowPaid = !t.isPaid;
 
+    if (isNowPaid && !t.accountId && t.notes?.startsWith('paymentMethod:')) {
+      const paymentMethodName = t.notes.replace('paymentMethod:', '');
+      const paymentMethod = customPaymentMethods.find(pm => pm.name === paymentMethodName);
+      if (isCashPaymentMethod(paymentMethod?.name || paymentMethodName)) {
+        // Dinheiro precisa passar pela confirmação para escolher a Carteira;
+        // nunca pode ser marcado como pago sem uma conta de saída.
+        setConfirmPaymentTransactionId(t.id);
+        return;
+      }
+    }
+
     if (!isNowPaid) {
       setConfirmModal({
         title: t.type === 'receita' ? 'Estornar Recebimento' : 'Estornar Pagamento',
@@ -252,13 +264,16 @@ export function TransactionsView() {
 
   const displayItems = React.useMemo(() => {
     const items: any[] = [];
-    const cardInvoices = new Map<string, any>(); // cardId -> VirtualInvoice
+    const cardInvoices = new Map<string, any>(); // cardId + cycleId -> VirtualInvoice
 
     filtered.forEach(t => {
       // Se for transação de crédito, não coloca solta na lista. Agrupa na fatura.
       if (t.cardId && t.cardId !== 'money') {
         const cycleId = getEffectiveCycle(t);
-        const invoiceKey = `${t.cardId}-${cycleId}-${t.isPaid ? 'paid' : 'pending'}`;
+        // Uma fatura continua sendo uma única unidade mesmo quando parte dela
+        // já foi paga. Separar por status fazia a mesma fatura aparecer duas
+        // vezes na tela de transações.
+        const invoiceKey = `${t.cardId}-${cycleId}`;
 
         if (!cardInvoices.has(invoiceKey)) {
           const card = cards.find(c => c.id === t.cardId);
@@ -277,7 +292,10 @@ export function TransactionsView() {
             amount: 0,
             date: dueDate,
             type: 'despesa',
-            isPaid: t.isPaid,
+            paidAmount: 0,
+            outstandingAmount: 0,
+            isPaid: false,
+            isPartiallyPaid: false,
             color: card?.color,
             brand: card?.brand
           });
@@ -286,9 +304,16 @@ export function TransactionsView() {
         const inv = cardInvoices.get(invoiceKey);
         if (t.type === 'despesa') {
           inv.amount += t.amount;
+          if (t.isPaid) inv.paidAmount += t.amount;
+          else inv.outstandingAmount += t.amount;
         } else {
           inv.amount -= t.amount;
+          if (t.isPaid) inv.paidAmount -= t.amount;
+          else inv.outstandingAmount -= t.amount;
         }
+
+        inv.isPaid = inv.outstandingAmount <= 0.005;
+        inv.isPartiallyPaid = inv.paidAmount > 0.005 && inv.outstandingAmount > 0.005;
       } else {
         items.push(t);
       }
@@ -882,7 +907,8 @@ export function TransactionsView() {
                         </div>
                         {!t.isPaid && !isInvoice && <div className="text-[9px] text-amber-500 font-bold uppercase tracking-widest mt-1">Pendente</div>}
                         {t.isPaid && !isInvoice && <div className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest mt-1">Pago</div>}
-                        {isInvoice && !t.isPaid && <div className="text-[9px] text-amber-500 font-bold uppercase tracking-widest mt-1">Fatura Aberta</div>}
+                        {isInvoice && !t.isPaid && !t.isPartiallyPaid && <div className="text-[9px] text-amber-500 font-bold uppercase tracking-widest mt-1">Fatura Aberta</div>}
+                        {isInvoice && t.isPartiallyPaid && <div className="text-[9px] text-orange-500 font-bold uppercase tracking-widest mt-1">Pagamento parcial</div>}
                         {isInvoice && t.isPaid && <div className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest mt-1">Fatura Paga</div>}
                       </div>
                     </div>

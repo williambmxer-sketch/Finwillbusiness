@@ -18,6 +18,14 @@ export function ReportsView() {
   const allTransactions = useDataStore(state => state.transactions);
   const allCategories = useDataStore(state => state.categories);
   const cards = useDataStore(state => state.cards);
+  const accounts = useDataStore(state => state.accounts);
+
+  // Saldo disponível é uma fotografia do caixa atual e não deve mudar quando
+  // o usuário consulta outro mês ou alterna entre realizado e projetado.
+  // Investimentos permanecem separados porque não são caixa de uso imediato.
+  const currentBalance = useMemo(() => accounts
+    .filter(account => ['corrente', 'poupança', 'carteira'].includes(account.type))
+    .reduce((total, account) => total + (Number.isFinite(account.balance) ? account.balance : 0), 0), [accounts]);
 
   const [currentMonth, setCurrentMonth] = useState(() => {
     const d = new Date();
@@ -344,6 +352,17 @@ export function ReportsView() {
 
         {/* KPIs Grid */}
         <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col col-span-2">
+            <div className="flex justify-between items-center mb-1">
+              <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Saldo atual</div>
+              <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Contas + carteira</div>
+            </div>
+            <div className={`text-xl font-bold tracking-tight ${currentBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+              {formatCurrency(currentBalance)}
+            </div>
+            <div className="text-[9px] text-muted-foreground font-medium mt-1">Saldo real disponível, independente do período consultado.</div>
+          </div>
+
           <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col">
             <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">{reportMode === 'comparison' ? 'Entradas' : `Entradas ${modeLabel}`}</div>
             {reportMode === 'comparison' ? (
@@ -380,7 +399,7 @@ export function ReportsView() {
           <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col col-span-2">
             <div className="flex justify-between items-center mb-1">
               <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
-                {reportMode === 'realized' ? 'Balanço realizado' : reportMode === 'projected' ? 'Balanço projetado' : 'Balanço do período'}
+                {reportMode === 'realized' ? 'Resultado realizado' : reportMode === 'projected' ? 'Resultado projetado' : 'Resultado do período'}
               </div>
               <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Poupança</div>
             </div>

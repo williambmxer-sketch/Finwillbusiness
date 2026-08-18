@@ -5,6 +5,7 @@ import { useAppStore } from '../store/useAppStore';
 import { X, CheckCircle2 } from 'lucide-react';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { isCashPaymentMethod } from '../utils/financialRules';
 
 export function ConfirmPaymentModal() {
   const { confirmPaymentTransactionId, setConfirmPaymentTransactionId } = useAppStore();
@@ -23,8 +24,6 @@ export function ConfirmPaymentModal() {
   useEffect(() => {
     if (transaction) {
       setDate(new Date().toISOString().split('T')[0]); // Default to today
-      setAccountId(transaction.accountId || accounts[0]?.id || '');
-      
       let pmId = '';
       if (transaction.cardId) {
         pmId = transaction.cardId;
@@ -38,19 +37,37 @@ export function ConfirmPaymentModal() {
         }
       }
       setCardId(pmId);
+      const selectedMethod = customPaymentMethods.find(pm => `custom-${pm.id}` === pmId);
+      const cashAccounts = accounts.filter(account => account.type === 'carteira');
+      const defaultCashAccount = selectedMethod?.linkedAccountId
+        ? accounts.find(account => account.id === selectedMethod.linkedAccountId)
+        : cashAccounts[0];
+      setAccountId(transaction.accountId || defaultCashAccount?.id || accounts[0]?.id || '');
       setAmount(transaction.amount);
     }
-  }, [transaction, accounts]);
+  }, [transaction, accounts, customPaymentMethods]);
 
   if (!confirmPaymentTransactionId || !transaction) return null;
+
+  const selectedMethod = cardId.startsWith('custom-') ? customPaymentMethods.find(pm => `custom-${pm.id}` === cardId) : null;
+  const isCashPayment = isCashPaymentMethod(selectedMethod?.name);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const isCustom = cardId.startsWith('custom-');
     const isCard = !isCustom;
-    const selectedMethod = isCustom ? customPaymentMethods.find(pm => `custom-${pm.id}` === cardId) : null;
-    const requiresAccount = selectedMethod ? selectedMethod.debitFromAccount !== false : true;
+    const requiresAccount = selectedMethod ? (selectedMethod.debitFromAccount !== false || isCashPaymentMethod(selectedMethod.name)) : true;
+
+    const selectedAccount = accounts.find(account => account.id === accountId);
+    if (isCashPayment && (!selectedAccount || selectedAccount.type !== 'carteira')) {
+      alert('Pagamentos em Dinheiro só podem sair de uma conta do tipo Carteira.');
+      return;
+    }
+    if (isCashPayment && selectedMethod?.linkedAccountId && selectedMethod.linkedAccountId !== accountId) {
+      alert('A forma Dinheiro está vinculada a outra Carteira.');
+      return;
+    }
 
     if (requiresAccount && !accountId) {
       alert('Por favor, selecione uma conta.');
@@ -167,7 +184,10 @@ export function ConfirmPaymentModal() {
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent className="rounded-xl z-[200]">
-                    {accounts.map(a => (
+                    {(isCashPayment
+                      ? accounts.filter(a => a.type === 'carteira' && (!selectedMethod?.linkedAccountId || a.id === selectedMethod.linkedAccountId))
+                      : accounts
+                    ).map(a => (
                       <SelectItem key={a.id} value={a.id} className="font-medium">{a.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -197,4 +217,3 @@ export function ConfirmPaymentModal() {
     </div>
   );
 }
-

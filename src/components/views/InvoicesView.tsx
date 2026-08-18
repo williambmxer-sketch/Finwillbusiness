@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { useAppStore } from '../../store/useAppStore';
 import { getCycleId } from '../../utils/cycleUtils';
 import { INVOICE_PAYMENT_PREFIX } from '../../utils/financialRules';
+import { generateUUID } from '../../lib/utils';
 
 interface ComputedInvoice {
   id: string;
@@ -30,27 +31,27 @@ interface InvoicePaymentRecovery {
   paymentId?: string;
 }
 
-const paymentRecoveryKey = (paymentNote: string) => `invoice-payment-recovery:${paymentNote}`;
+const paymentRecoveryKey = (recoveryKey: string) => `invoice-payment-recovery:${recoveryKey}`;
 
-const readPaymentRecovery = (paymentNote: string): InvoicePaymentRecovery | null => {
+const readPaymentRecovery = (recoveryKey: string): InvoicePaymentRecovery | null => {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = window.localStorage.getItem(paymentRecoveryKey(paymentNote));
+    const raw = window.localStorage.getItem(paymentRecoveryKey(recoveryKey));
     return raw ? JSON.parse(raw) as InvoicePaymentRecovery : null;
   } catch {
     return null;
   }
 };
 
-const savePaymentRecovery = (recovery: InvoicePaymentRecovery) => {
+const savePaymentRecovery = (recovery: InvoicePaymentRecovery, recoveryKey = recovery.paymentNote) => {
   if (typeof window !== 'undefined') {
-    window.localStorage.setItem(paymentRecoveryKey(recovery.paymentNote), JSON.stringify(recovery));
+    window.localStorage.setItem(paymentRecoveryKey(recoveryKey), JSON.stringify(recovery));
   }
 };
 
-const clearPaymentRecovery = (paymentNote: string) => {
+const clearPaymentRecovery = (recoveryKey: string) => {
   if (typeof window !== 'undefined') {
-    window.localStorage.removeItem(paymentRecoveryKey(paymentNote));
+    window.localStorage.removeItem(paymentRecoveryKey(recoveryKey));
   }
 };
 
@@ -211,7 +212,7 @@ export function InvoicesView() {
       setIsPaying(true);
       setPaymentError(null);
 
-      const paymentNote = `${INVOICE_PAYMENT_PREFIX}${selectedInvoice.id}`;
+      const recoveryKey = `${INVOICE_PAYMENT_PREFIX}${selectedInvoice.id}`;
       const transactionIds = new Set(selectedInvoice.transactions.map(t => t.id));
 
       try {
@@ -236,8 +237,20 @@ export function InvoicesView() {
           throw new Error('A fatura já está quitada ou não possui saldo pendente. Atualize a tela para conferir.');
         }
 
+        const recovery = readPaymentRecovery(recoveryKey);
+        if (recovery && recovery.accountId !== payAccountId) {
+          throw new Error('Existe uma tentativa anterior de baixa desta fatura usando outra conta. Atualize a tela e confira o saldo antes de continuar.');
+        }
+
+        // Uma fatura pode receber compras depois de uma baixa antecipada ou
+        // ter sido paga em partes. Cada tentativa recebe seu próprio registro
+        // técnico, sem duplicar o débito da tentativa que foi interrompida.
+        const existingPayments = freshTransactions.filter(t =>
+          t.notes === recoveryKey || t.notes?.startsWith(`${recoveryKey}:`)
+        );
+        const paymentNote = recovery?.paymentNote
+          || (existingPayments.length === 0 ? recoveryKey : `${recoveryKey}:${generateUUID()}`);
         let existingPayment = freshTransactions.find(t => t.notes === paymentNote);
-        const recovery = readPaymentRecovery(paymentNote);
 
         // Se houve uma interrupção anterior, distinguimos com o saldo real se
         // o débito ocorreu. Só removemos um registro técnico criado por esta
@@ -254,7 +267,7 @@ export function InvoicesView() {
               await api.transactions.delete(existingPayment.id);
               existingPayment = undefined;
             }
-            clearPaymentRecovery(paymentNote);
+            clearPaymentRecovery(recoveryKey);
           } else {
             throw new Error('A operação anterior encontrou uma alteração no saldo. A fatura não foi reprocessada para evitar duplicidade.');
           }
@@ -287,7 +300,7 @@ export function InvoicesView() {
             amount: paymentAmount,
             balanceBefore: account.balance,
           };
-          savePaymentRecovery(nextRecovery);
+          savePaymentRecovery(nextRecovery, recoveryKey);
 
           const payment = await api.transactions.addStrict({
             description: `Pagamento da fatura ${card.name}`,
@@ -300,7 +313,7 @@ export function InvoicesView() {
             paymentDate,
             notes: paymentNote,
           });
-          savePaymentRecovery({ ...nextRecovery, paymentId: payment.id });
+          savePaymentRecovery({ ...nextRecovery, paymentId: payment.id }, recoveryKey);
           existingPayment = payment;
 
           try {
@@ -314,7 +327,7 @@ export function InvoicesView() {
               const verifiedAccount = verifiedAccounts.find(a => a.id === payAccountId);
               if (!verifiedAccount || !sameMoney(verifiedAccount.balance, account.balance - paymentAmount)) {
                 await api.transactions.delete(payment.id);
-                clearPaymentRecovery(paymentNote);
+                clearPaymentRecovery(recoveryKey);
                 throw new Error('Não foi possível confirmar o débito. O registro técnico foi removido e nenhum lançamento antigo foi alterado.');
               }
             } catch (verificationError) {
@@ -339,7 +352,7 @@ export function InvoicesView() {
           throw new Error('O débito foi confirmado, mas parte da fatura ainda não pôde ser marcada como paga. Atualize a tela e conclua a baixa.');
         }
 
-        clearPaymentRecovery(paymentNote);
+        clearPaymentRecovery(recoveryKey);
         await useDataStore.getState().fetchData();
         setPayModalOpen(false);
         setSelectedInvoice(null);

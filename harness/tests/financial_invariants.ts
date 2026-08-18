@@ -3,6 +3,7 @@ import { getCycleId } from '../../src/utils/cycleUtils';
 import {
   getCashPeriodId,
   isCardCharge,
+  isCashPaymentMethod,
   isRealizedCashFlow,
   splitAmount,
   sumRealizedCashFlow,
@@ -72,5 +73,10 @@ assert.equal(
 );
 
 assert.deepEqual(splitAmount(100, 3), [33.34, 33.33, 33.33], 'parcelamento deve fechar exatamente em centavos');
+
+assert.equal(isCashPaymentMethod('Dinheiro'), true, 'Dinheiro deve ser reconhecido sem acento');
+assert.equal(isCashPaymentMethod('DINHEIRO EM ESPÉCIE'), true, 'Dinheiro em espécie deve ser reconhecido');
+assert.equal(isCashPaymentMethod('Dinheiro espécie'), true, 'variações de nome de dinheiro devem ser reconhecidas');
+assert.equal(isCashPaymentMethod('Pix'), false, 'Pix não pode ser tratado como dinheiro');
 
 console.log('Financial invariants: OK');

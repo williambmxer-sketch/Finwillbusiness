@@ -116,11 +116,13 @@ export const mappers = {
       id: row.id,
       name: row.nome,
       debitFromAccount: row.debitar_conta,
+      linkedAccountId: row.conta_id || undefined,
     }),
     toDb: (obj: Partial<CustomPaymentMethod>) => {
       const payload: any = {};
       if (obj.name !== undefined) payload.nome = obj.name;
       if (obj.debitFromAccount !== undefined) payload.debitar_conta = obj.debitFromAccount;
+      if ('linkedAccountId' in obj) payload.conta_id = obj.linkedAccountId || null;
       return payload;
     }
   }
@@ -324,6 +326,17 @@ export const api = {
         }
         throw err;
       }
+    },
+    bulkAddStrict: async (transactions: Omit<Transaction, 'id'>[]) => {
+      const userId = await getUserId();
+      const payload = transactions.map(t => ({
+        ...mappers.transaction.toDb(t),
+        usuario_id: userId
+      }));
+      const { data, error } = await supabase.from('transacoes').insert(payload).select();
+      if (error) throw error;
+      notifyMutation();
+      return (data || []).map(mappers.transaction.toApp);
     },
     update: async (id: string, transaction: Partial<Transaction>) => {
       const { data, error } = await supabase.from('transacoes').update(mappers.transaction.toDb(transaction)).eq('id', id).select().single();

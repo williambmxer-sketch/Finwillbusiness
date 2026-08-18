@@ -15,6 +15,13 @@
 - [x] Projetar pendências de cartão pelo mês de vencimento da fatura.
 - [x] Tornar a baixa de fatura online-only, idempotente e reconciliável após falha de rede.
 - [x] Proteger a inicialização após login/F5 contra painel temporariamente zerado e repetir consultas iniciais transitórias.
+- [x] Adicionar conta tipo Carteira e restringir a forma Dinheiro à Carteira vinculada.
+- [x] Adicionar depósito para Carteira escolhendo a conta de origem, registrado como transferência.
+- [x] Exibir saldo atual de contas e carteira separado do resultado do período no Relatório.
+- [x] Manter o saldo atual independente do mês e do modo Realizado/Projetado/Comparativo.
+- [x] Agrupar cada fatura em uma única linha nas Transações, inclusive em pagamento parcial.
+- [x] Permitir novas baixas do saldo restante após baixa antecipada ou pagamento parcial,
+  sem duplicar o débito da tentativa anterior.
 
 ## Próxima etapa recomendada
 
