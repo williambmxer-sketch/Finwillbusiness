@@ -20,6 +20,9 @@ Compras de cartão com `paymentDate` são excluídas do caixa realizado para evi
 ## Faturas
 
 - O valor a pagar é o saldo em aberto, não necessariamente o total histórico da fatura.
+- A exportação PDF da fatura respeita o cartão e o ciclo selecionados e apresenta o período
+  de abertura, fechamento e vencimento, além de descrição, parcela, valor e data de cada
+  lançamento.
 - Uma fatura paga deve ser idempotente: repetir a mesma tentativa não pode criar outro débito.
 - Se novas compras entrarem no ciclo depois de uma baixa antecipada, ou se houver pagamento
   parcial, a nova baixa usa um registro técnico próprio e debita apenas o saldo ainda aberto.
@@ -56,6 +59,17 @@ Compras de cartão com `paymentDate` são excluídas do caixa realizado para evi
   movimentos previstos até o fim do período, sem repetir o que já foi realizado. Para
   períodos passados, usa o saldo histórico reconstruído pelos movimentos realizados após
   o fim do período.
+- A exportação PDF do relatório deve gerar um documento próprio, com resumo e tabelas
+  legíveis dos indicadores e categorias, sem depender de captura de tela da interface.
+- No modo projetado, o documento deve evidenciar a hierarquia saldo inicial + entradas
+  previstas - saídas previstas = saldo projetado, com percentuais e gráficos de categoria
+  quando houver dados.
+- No Relatório, compras de cartão e baixas técnicas de fatura devem ser agrupadas na
+  categoria gerencial `Cartões`; a categoria original permanece disponível nos detalhes
+  do lançamento e da fatura.
+- As listas de categorias do Relatório começam recolhidas. Ao expandir, lançamentos
+  parcelados do mesmo `parentId` são somados somente pelas parcelas dentro do período;
+  a categoria `Cartões` mostra apenas cartão, valor e vencimento da fatura.
 
 O modo não altera o filtro de mês ou período personalizado. Ele altera apenas a camada de dados exibida, mantendo a distinção explícita entre dinheiro já movimentado e compromisso previsto.
 

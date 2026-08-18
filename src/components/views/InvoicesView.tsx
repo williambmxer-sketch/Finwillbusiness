@@ -3,9 +3,11 @@ import { useDataStore } from '../../store/useDataStore';
 import { api } from '../../services/api';
 import { Transaction, Card } from '../../db/db';
 import { formatCurrency } from '../../utils/formatters';
-import { Receipt, ChevronRight, X, ArrowDown, ChevronDown, Eye } from 'lucide-react';
+import { Receipt, ChevronRight, X, ArrowDown, ChevronDown, Eye, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 import { useAppStore } from '../../store/useAppStore';
 import { getCycleId } from '../../utils/cycleUtils';
@@ -57,6 +59,38 @@ const clearPaymentRecovery = (recoveryKey: string) => {
 
 const sameMoney = (a: number, b: number) => Math.abs(a - b) < 0.005;
 
+const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+
+/** Reconstitui as datas do ciclo usando a mesma regra de fechamento do cartão. */
+const getInvoicePeriod = (invoice: ComputedInvoice, card: Card) => {
+  const dueDate = new Date(invoice.dueDate);
+  let closingYear = dueDate.getFullYear();
+  let closingMonth = dueDate.getMonth();
+
+  if (card.dueDay < card.closingDay) {
+    closingMonth -= 1;
+    if (closingMonth < 0) {
+      closingMonth = 11;
+      closingYear -= 1;
+    }
+  }
+
+  const closingDay = Math.min(card.closingDay, getDaysInMonth(closingYear, closingMonth)) - 1;
+  const closingDate = new Date(closingYear, closingMonth, closingDay);
+
+  const previousClosingDate = new Date(closingYear, closingMonth - 1, Math.min(
+    card.closingDay,
+    getDaysInMonth(closingYear, closingMonth - 1)
+  ) - 1);
+  const openingDate = new Date(
+    previousClosingDate.getFullYear(),
+    previousClosingDate.getMonth(),
+    previousClosingDate.getDate() + 1
+  );
+
+  return { openingDate, closingDate, dueDate };
+};
+
 export function InvoicesView() {
   const { setCurrentView, setActiveContextCardId, setConfirmModal } = useAppStore();
   const allTransactions = useDataStore(state => state.transactions);
@@ -72,6 +106,7 @@ export function InvoicesView() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   useEffect(() => {
     if (cards.length > 0 && !selectedCardId) {
@@ -200,6 +235,76 @@ export function InvoicesView() {
   }, [computedInvoices, selectedCycle]);
 
   const [selectedInvoice, setSelectedInvoice] = useState<ComputedInvoice | null>(null);
+
+  const handleExportInvoicePDF = (invoice: ComputedInvoice) => {
+    const card = cards.find(c => c.id === selectedCardId);
+    if (!card || isExportingPdf) return;
+
+    setIsExportingPdf(true);
+    try {
+      const period = getInvoicePeriod(invoice, card);
+      const formatDate = (date: Date) => date.toLocaleDateString('pt-BR');
+      const formatInstallment = (transaction: Transaction) => transaction.installments && transaction.installments > 1
+        ? `${transaction.currentInstallment || '?'} / ${transaction.installments}`
+        : 'Avulsa';
+      const formatAmount = (transaction: Transaction) => {
+        const prefix = transaction.type === 'receita' ? '+' : '-';
+        return `${prefix}${formatCurrency(transaction.amount)}`;
+      };
+      const sortedTransactions = [...invoice.transactions].sort((a, b) => b.date.getTime() - a.date.getTime());
+      const doc = new jsPDF();
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text(`Fatura - ${invoice.month}`, 14, 18);
+      doc.setFontSize(11);
+      doc.text(`${card.name} • ${card.brand} • final ${card.lastFour || '----'}`, 14, 26);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.text(`Abertura: ${formatDate(period.openingDate)}`, 14, 36);
+      doc.text(`Fechamento: ${formatDate(period.closingDate)}`, 80, 36);
+      doc.text(`Vencimento: ${formatDate(period.dueDate)}`, 145, 36);
+      doc.text(`Situação: ${invoice.status === 'open' ? 'Aberta' : 'Paga'}`, 14, 44);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Total da fatura: ${formatCurrency(invoice.amount)}`, 145, 44);
+
+      const tableRows: any[] = sortedTransactions.length > 0
+        ? sortedTransactions.map(transaction => [
+          transaction.description,
+          formatInstallment(transaction),
+          formatAmount(transaction),
+          formatDate(transaction.date),
+        ])
+        : [[{ content: 'Nenhum lançamento nesta fatura.', colSpan: 4, styles: { halign: 'center' } }]];
+
+      autoTable(doc, {
+        head: [['Descrição', 'Parcela', 'Valor', 'Data']],
+        body: tableRows,
+        startY: 52,
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [249, 115, 22], textColor: [255, 255, 255], fontStyle: 'bold' },
+        columnStyles: {
+          0: { cellWidth: 82 },
+          1: { cellWidth: 24, halign: 'center' },
+          2: { cellWidth: 32, halign: 'right' },
+          3: { cellWidth: 36, halign: 'right' },
+        },
+      });
+
+      const finalY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 52;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text(`Saldo em aberto: ${formatCurrency(invoice.outstandingAmount)}`, 14, finalY + 12);
+      doc.save(`fatura-${card.name}-${invoice.yearMonth}.pdf`.replace(/[^a-zA-Z0-9._-]/g, '-'));
+    } catch (error) {
+      console.error('Failed to export invoice PDF', error);
+      alert('Erro ao gerar PDF da fatura.');
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
 
   const handlePayInvoice = async () => {
     if (isPaying || !selectedInvoice || !selectedCardId || selectedInvoice.outstandingAmount <= 0 || !payAccountId) return;
@@ -552,12 +657,22 @@ export function InvoicesView() {
                   <h2 className="text-base font-bold capitalize">Fatura - {selectedInvoice.month}</h2>
                   <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">Vencimento: {selectedInvoice.dueDate.toLocaleDateString('pt-BR')}</p>
                 </div>
-                <button onClick={() => {
-                  setSelectedInvoice(null);
-                  setDetailsOpen(false);
-                }} className="p-1.5 rounded-full bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-                  <X className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleExportInvoicePDF(selectedInvoice)}
+                    disabled={isExportingPdf}
+                    className="p-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
+                    title="Baixar fatura em PDF"
+                  >
+                    <FileText className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => {
+                    setSelectedInvoice(null);
+                    setDetailsOpen(false);
+                  }} className="p-1.5 rounded-full bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               <div className="p-6 bg-gradient-to-br from-primary/10 via-background to-card border-b flex flex-col items-center justify-center">

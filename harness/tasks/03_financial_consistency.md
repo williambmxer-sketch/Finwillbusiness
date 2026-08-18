@@ -25,6 +25,13 @@
 - [x] Calcular saldo projetado a partir do saldo atual e dos movimentos previstos até o
   fim do período, sem dupla contagem das movimentações realizadas.
 - [x] Reconstruir saldo histórico para consulta de períodos passados.
+- [x] Adicionar exportação PDF da fatura com cartão, ciclo, datas do período e lançamentos.
+- [x] Substituir o PDF-imagem do Relatório por PDF estruturado com resumo e tabelas legíveis.
+- [x] Melhorar o PDF do Relatório com hierarquia de saldo, percentuais, separadores arredondados
+  e gráficos de pizza por categoria.
+- [x] Agrupar compras e baixas de cartão como `Cartões` na pizza e nas listas do Relatório.
+- [x] Tornar categorias de despesas e receitas expansíveis, agrupando parcelas pelo período
+  e exibindo detalhes específicos para cartões.
 
 ## Próxima etapa recomendada
 

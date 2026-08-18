@@ -1,18 +1,48 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useDataStore } from '../../store/useDataStore';
 import { getCycleId } from '../../utils/cycleUtils';
-import { getCashDate, getCashImpact, isRealizedCashFlow, isTransfer, toDate } from '../../utils/financialRules';
+import { getCashDate, getCashImpact, isInvoicePayment, isRealizedCashFlow, isTransfer, toDate } from '../../utils/financialRules';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { formatCurrency } from '../../utils/formatters';
-import { ChevronLeft, ChevronRight, CalendarDays, Download } from 'lucide-react';
-import { toPng } from 'html-to-image';
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Download } from 'lucide-react';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { AnimatePresence, motion } from 'motion/react';
 
 const COLOR_RECEITA = '#10b981';
 const COLOR_DESPESA = '#dc2626';
+const CARD_REPORT_CATEGORY = '__cartoes__';
+const COLOR_CARTAO = '#f97316';
+
+const getReportCategoryKey = (transaction: any) => (
+  (transaction.cardId && transaction.cardId !== 'money') || isInvoicePayment(transaction)
+    ? CARD_REPORT_CATEGORY
+    : (transaction.categoryId || 'outros')
+);
+
+const getInvoicePaymentInfo = (transaction: any, cards: any[]) => {
+  const note = transaction.notes || '';
+  const suffix = note.startsWith('pagamento_fatura:') ? note.replace('pagamento_fatura:', '') : '';
+  const match = suffix.match(/^(.*)-(\d{4}-\d{2})$/);
+  const cardId = match?.[1] || transaction.cardId;
+  const cycleId = match?.[2] || null;
+  const card = cards.find(c => c.id === cardId);
+
+  if (card && cycleId) {
+    const [year, month] = cycleId.split('-').map(Number);
+    const dueDate = new Date(year, month - 1, Math.min(card.dueDay, new Date(year, month, 0).getDate()));
+    return { cardId, cycleId, cardName: card.name, dueDate };
+  }
+
+  if (card) {
+    const cycle = getCycleId(new Date(transaction.date), card.closingDay, card.dueDay);
+    return { cardId, cycleId: cycle.cycleId, cardName: card.name, dueDate: cycle.dueDate };
+  }
+
+  return { cardId: cardId || 'unknown', cycleId: cycleId || 'unknown', cardName: 'Cartão', dueDate: new Date(transaction.date) };
+};
 
 export function ReportsView() {
-  const reportRef = React.useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
 
   const allTransactions = useDataStore(state => state.transactions);
@@ -104,28 +134,33 @@ export function ReportsView() {
   // Para o mês atual ou um mês futuro, o saldo projetado parte do saldo real
   // de hoje e considera somente movimentos posteriores a hoje. Assim, uma
   // entrada já recebida não é somada novamente ao saldo atual.
-  const projectedBalance = useMemo(() => {
+  const projectedBalanceFlow = useMemo(() => {
     const now = new Date();
     if (end < now) return null;
 
-    const forecastDelta = allTransactions.reduce((total, transaction) => {
+    return allTransactions.reduce((flow, transaction) => {
       const date = transaction.isPaid ? getCashDate(transaction) : getForecastDate(transaction);
-      if (!date || date <= now || date > end) return total;
+      if (!date || date <= now || date > end) return flow;
 
       if (transaction.isPaid) {
         // Compras de cartão com paymentDate não são saída de conta; a saída
         // futura já está representada pela baixa técnica da fatura.
-        if (!isRealizedCashFlow(transaction)) return total;
-        if (!transaction.accountId || !cashAccountIds.has(transaction.accountId)) return total;
+        if (!isRealizedCashFlow(transaction)) return flow;
+        if (!transaction.accountId || !cashAccountIds.has(transaction.accountId)) return flow;
       } else if (isTransfer(transaction)) {
-        return total;
+        return flow;
       }
 
-      return total + getCashImpact(transaction);
-    }, 0);
-
-    return currentBalance + forecastDelta;
+      if (transaction.type === 'receita') {
+        return { receitas: flow.receitas + transaction.amount, despesas: flow.despesas };
+      }
+      return { receitas: flow.receitas, despesas: flow.despesas + transaction.amount };
+    }, { receitas: 0, despesas: 0 });
   }, [allTransactions, cards, cashAccountIds, currentBalance, end]);
+
+  const projectedBalance = projectedBalanceFlow === null
+    ? null
+    : currentBalance + projectedBalanceFlow.receitas - projectedBalanceFlow.despesas;
 
   // Para períodos passados, o saldo atual não pode ser usado como se fosse o
   // saldo daquele mês. Reconstituímos o fechamento retirando do saldo atual
@@ -214,20 +249,170 @@ export function ReportsView() {
     const map = new Map<string, number>();
     const txs = categoryTransactions.filter(t => t.type === type && !t.notes?.startsWith('transferencia:'));
 
-    txs.forEach(t => map.set(t.categoryId, (map.get(t.categoryId) || 0) + t.amount));
+    txs.forEach(t => {
+      // Compras de cartão e o movimento técnico da baixa da fatura pertencem
+      // a uma única categoria gerencial no relatório. A categoria original
+      // (por exemplo, Avulso) continua preservada no lançamento e na fatura.
+      const categoryKey = getReportCategoryKey(t);
+      map.set(categoryKey, (map.get(categoryKey) || 0) + t.amount);
+    });
     const total = txs.reduce((s, t) => s + t.amount, 0);
     if (total === 0) return [];
 
     return Array.from(map.entries())
       .map(([catId, amount]) => {
+        if (catId === CARD_REPORT_CATEGORY) {
+          return { categoryKey: catId, name: 'Cartões', percentage: (amount / total) * 100, amount, color: COLOR_CARTAO };
+        }
         const cat = allCategories.find(c => c.id === catId);
-        return { name: cat?.name || 'Outros', percentage: (amount / total) * 100, amount, color: cat?.color || (type === 'receita' ? COLOR_RECEITA : '#888888') };
+        return { categoryKey: catId, name: cat?.name || 'Outros', percentage: (amount / total) * 100, amount, color: cat?.color || (type === 'receita' ? COLOR_RECEITA : '#888888') };
       })
       .sort((a, b) => b.amount - a.amount);
   };
 
   const incomeCategories = useMemo(() => getCategories('receita'), [categoryTransactions, allCategories]);
   const expenseCategories = useMemo(() => getCategories('despesa'), [categoryTransactions, allCategories]);
+  const [expandedCategoryKey, setExpandedCategoryKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    setExpandedCategoryKey(null);
+  }, [currentMonth, customStart, customEnd, isCustomMode, reportMode]);
+
+  const categoryDetailsByKey = useMemo(() => {
+    const groups = new Map<string, any>();
+
+    categoryTransactions
+      .filter(transaction => !isTransfer(transaction))
+      .forEach(transaction => {
+        const categoryKey = getReportCategoryKey(transaction);
+        const reportKey = `${transaction.type}:${categoryKey}`;
+
+        if (categoryKey === CARD_REPORT_CATEGORY) {
+          const cardInfo = getInvoicePaymentInfo(transaction, cards);
+          const detailKey = `${reportKey}:${cardInfo.cardId}:${cardInfo.cycleId}`;
+          const existing = groups.get(detailKey);
+          groups.set(detailKey, existing
+            ? { ...existing, amount: existing.amount + transaction.amount }
+            : {
+              reportKey,
+              detailKey,
+              isCard: true,
+              cardName: cardInfo.cardName,
+              amount: transaction.amount,
+              dueDate: cardInfo.dueDate,
+            });
+          return;
+        }
+
+        const installmentGroup = transaction.parentId || transaction.id;
+        const detailKey = `${reportKey}:${installmentGroup}`;
+        const existing = groups.get(detailKey);
+        groups.set(detailKey, existing
+          ? {
+            ...existing,
+            amount: existing.amount + transaction.amount,
+            installmentCount: existing.installmentCount + 1,
+            totalInstallments: Math.max(existing.totalInstallments, transaction.installments || 1),
+          }
+          : {
+            reportKey,
+            detailKey,
+            isCard: false,
+            description: transaction.description,
+            amount: transaction.amount,
+            installmentCount: 1,
+            totalInstallments: transaction.installments || 1,
+          });
+      });
+
+    const result = new Map<string, any[]>();
+    Array.from(groups.values()).forEach(detail => {
+      const current = result.get(detail.reportKey) || [];
+      current.push(detail);
+      result.set(detail.reportKey, current);
+    });
+    result.forEach(details => details.sort((a, b) => b.amount - a.amount));
+    return result;
+  }, [categoryTransactions, cards]);
+
+  const renderCategoryCard = (category: any, type: 'receita' | 'despesa') => {
+    const reportKey = `${type}:${category.categoryKey}`;
+    const expanded = expandedCategoryKey === reportKey;
+    const details = categoryDetailsByKey.get(reportKey) || [];
+    const isIncome = type === 'receita';
+
+    return (
+      <div key={reportKey} className="bg-card border border-border/50 shadow-sm rounded-[12px] overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setExpandedCategoryKey(expanded ? null : reportKey)}
+          className="w-full text-left p-3 hover:bg-muted/30 transition-colors"
+          aria-expanded={expanded}
+        >
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: category.color }} />
+              <span className="text-xs font-semibold truncate">{category.name}</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="text-right">
+                <span className={`text-xs font-bold ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>{formatCurrency(category.amount)}</span>
+                <span className="text-[9px] text-muted-foreground ml-1.5 font-bold uppercase">{category.percentage.toFixed(0)}%</span>
+              </div>
+              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
+            </div>
+          </div>
+          <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+            <div className="h-full rounded-full" style={{ width: `${category.percentage}%`, backgroundColor: category.color }} />
+          </div>
+        </button>
+
+        <AnimatePresence initial={false}>
+          {expanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+              className="overflow-hidden"
+            >
+              <div className="border-t border-border/50 bg-muted/10 px-3 pb-3 pt-1.5 flex flex-col gap-1.5">
+                {details.length === 0 ? (
+                  <div className="text-[10px] text-muted-foreground py-2">Nenhum lançamento encontrado no período.</div>
+                ) : details.map(detail => (
+                  detail.isCard ? (
+                    <div key={detail.detailKey} className="rounded-lg bg-background border border-border/50 px-2.5 py-2 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-semibold truncate">{detail.cardName}</div>
+                        <div className="text-[9px] text-muted-foreground">Vencimento: {detail.dueDate.toLocaleDateString('pt-BR')}</div>
+                      </div>
+                      <div className={`text-[10px] font-bold shrink-0 ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>
+                        {isIncome ? '+' : '-'}{formatCurrency(detail.amount)}
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={detail.detailKey} className="rounded-lg bg-background border border-border/50 px-2.5 py-2 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-semibold truncate">{detail.description}</div>
+                        <div className="text-[9px] text-muted-foreground">
+                          {detail.totalInstallments > 1
+                            ? `${detail.installmentCount === detail.totalInstallments ? detail.totalInstallments : `${detail.installmentCount} de ${detail.totalInstallments}`} parcela(s)`
+                            : 'Lançamento avulso'}
+                        </div>
+                      </div>
+                      <div className={`text-[10px] font-bold shrink-0 ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>
+                        {isIncome ? '+' : '-'}{formatCurrency(detail.amount)}
+                      </div>
+                    </div>
+                  )
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
 
   const modeDescription = reportMode === 'realized'
     ? 'Somente o que já foi pago ou recebido.'
@@ -256,49 +441,303 @@ export function ReportsView() {
     );
   };
 
-  const handleExportPDF = async () => {
-    if (!reportRef.current) return;
+  const handleExportPDF = () => {
     setIsExporting(true);
-    // Add a slight delay to allow React state to reflect any necessary pre-render changes
-    setTimeout(async () => {
-      try {
-        const imgData = await toPng(reportRef.current as HTMLElement, {
-          pixelRatio: 2,
-          backgroundColor: '#ffffff', // Ensures a white background for the PDF
-          filter: (node: any) => {
-            if (node && node.classList && node.classList.contains('hide-in-pdf')) {
-              return false;
-            }
-            return true;
+
+    try {
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const margin = 16;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const contentWidth = pageWidth - (margin * 2);
+      let cursorY = 18;
+      const generatedAt = new Date().toLocaleString('pt-BR');
+      const modeTitle = reportMode === 'realized' ? 'Realizado' : reportMode === 'projected' ? 'Projetado' : 'Comparativo';
+
+      const addPageHeader = () => {
+        doc.setFillColor(249, 115, 22);
+        doc.roundedRect(margin, cursorY, 30, 2.2, 1.1, 1.1, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(19);
+        doc.setTextColor(31, 41, 55);
+        doc.text('Relatório financeiro', margin, cursorY + 10);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9.5);
+        doc.setTextColor(107, 114, 128);
+        doc.text(`${periodLabel.replace('–', '-')}  |  ${modeTitle}`, margin, cursorY + 17);
+        doc.text(`Gerado em ${generatedAt}`, pageWidth - margin, cursorY + 17, { align: 'right' });
+        cursorY += 27;
+      };
+
+      const ensureSpace = (height: number) => {
+        if (cursorY + height > 280) {
+          doc.addPage();
+          cursorY = 18;
+          addPageHeader();
+        }
+      };
+
+      const addSectionTitle = (title: string) => {
+        ensureSpace(15);
+        doc.setDrawColor(249, 115, 22);
+        doc.setLineWidth(0.8);
+        doc.line(margin, cursorY + 1, margin + 9, cursorY + 1);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(55, 65, 81);
+        doc.text(title, margin + 13, cursorY + 4);
+        cursorY += 12;
+      };
+
+      const addSummaryCards = (items: Array<{ label: string; value: string; hint?: string; tone?: 'default' | 'positive' | 'negative' | 'projected' }>) => {
+        const gap = 5;
+        const cardWidth = (contentWidth - gap) / 2;
+        const cardHeight = 29;
+        ensureSpace((cardHeight * 2) + gap + 4);
+
+        const getValueColor = (tone: 'default' | 'positive' | 'negative' | 'projected') => {
+          if (tone === 'positive') return [5, 150, 105] as [number, number, number];
+          if (tone === 'negative') return [225, 29, 72] as [number, number, number];
+          if (tone === 'projected') return [234, 88, 12] as [number, number, number];
+          return [31, 41, 55] as [number, number, number];
+        };
+
+        items.forEach((item, index) => {
+          const x = margin + ((index % 2) * (cardWidth + gap));
+          const y = cursorY + (Math.floor(index / 2) * (cardHeight + gap));
+          doc.setFillColor(250, 250, 249);
+          doc.setDrawColor(229, 231, 235);
+          doc.setLineWidth(0.4);
+          doc.roundedRect(x, y, cardWidth, cardHeight, 3, 3, 'FD');
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7.5);
+          doc.setTextColor(107, 114, 128);
+          doc.text(item.label.toUpperCase(), x + 5, y + 7);
+          doc.setFontSize(12);
+          doc.setTextColor(...getValueColor(item.tone || 'default'));
+          doc.text(item.value, x + 5, y + 18);
+          if (item.hint) {
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7.1);
+            doc.setTextColor(156, 163, 175);
+            doc.text(item.hint, x + 5, y + 24);
           }
         });
 
-        const padding = 24;
-        const contentWidth = reportRef.current!.offsetWidth;
-        const contentHeight = reportRef.current!.offsetHeight;
-        const pdfWidth = contentWidth + (padding * 2);
-        const pdfHeight = contentHeight + (padding * 2);
+        cursorY += (cardHeight * 2) + gap + 10;
+      };
 
-        const pdf = new jsPDF({
-          orientation: 'portrait',
-          unit: 'px',
-          format: [pdfWidth, pdfHeight]
+      const addTable = (head: string[], body: any[][], widths?: number[]) => {
+        autoTable(doc, {
+          head: [head],
+          body,
+          startY: cursorY,
+          margin: { left: margin, right: margin },
+          theme: 'plain',
+          styles: { fontSize: 8.5, cellPadding: { top: 3, right: 4, bottom: 3, left: 4 }, textColor: [55, 65, 81], lineColor: [229, 231, 235], lineWidth: 0.2 },
+          headStyles: { fillColor: [249, 115, 22], textColor: [255, 255, 255], fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: [250, 250, 249] },
+          bodyStyles: { lineColor: [229, 231, 235], lineWidth: 0.2 },
+          columnStyles: widths?.reduce((styles, width, index) => {
+            styles[index] = { cellWidth: width };
+            return styles;
+          }, {} as Record<number, { cellWidth: number }>)
+        });
+        const finalY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || cursorY;
+        cursorY = finalY + 10;
+      };
+
+      const addFlowCard = (rows: Array<[string, string]>, note?: string) => {
+        const rowHeight = 9;
+        const cardHeight = (rows.length * rowHeight) + (note ? 15 : 8);
+        ensureSpace(cardHeight + 6);
+        doc.setFillColor(255, 247, 237);
+        doc.setDrawColor(253, 186, 116);
+        doc.setLineWidth(0.5);
+        doc.roundedRect(margin, cursorY, contentWidth, cardHeight, 3, 3, 'FD');
+
+        rows.forEach(([label, value], index) => {
+          const rowY = cursorY + 7 + (index * rowHeight);
+          if (index > 0) {
+            doc.setDrawColor(254, 215, 170);
+            doc.setLineWidth(0.25);
+            doc.line(margin + 5, rowY - 4.5, pageWidth - margin - 5, rowY - 4.5);
+          }
+          doc.setFont('helvetica', index === rows.length - 1 ? 'bold' : 'normal');
+          doc.setFontSize(index === rows.length - 1 ? 10 : 9);
+          doc.setTextColor(index === rows.length - 1 ? 31 : 75, index === rows.length - 1 ? 41 : 85, index === rows.length - 1 ? 55 : 99);
+          doc.text(label, margin + 6, rowY);
+          doc.text(value, pageWidth - margin - 6, rowY, { align: 'right' });
         });
 
-        pdf.addImage(imgData, 'PNG', padding, padding, contentWidth, contentHeight);
-        pdf.save(`relatorio-${periodLabel.replace(/\s+/g, '-').replace(/\//g, '-')}.pdf`);
-      } catch (err: any) {
-        console.error('Failed to export PDF', err);
-        alert('Erro ao gerar PDF: ' + (err?.message || String(err)));
-      } finally {
-        setIsExporting(false);
+        if (note) {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7.2);
+          doc.setTextColor(107, 114, 128);
+          doc.text(note, margin + 6, cursorY + cardHeight - 5);
+        }
+        cursorY += cardHeight + 10;
+      };
+
+      const hexToRgb = (hex: string): [number, number, number] => {
+        const normalized = hex.replace('#', '');
+        const value = normalized.length === 3
+          ? normalized.split('').map(char => char + char).join('')
+          : normalized;
+        const parsed = Number.parseInt(value, 16);
+        return Number.isNaN(parsed)
+          ? [156, 163, 175]
+          : [(parsed >> 16) & 255, (parsed >> 8) & 255, parsed & 255];
+      };
+
+      const addPieChart = (categories: Array<{ name: string; amount: number; percentage: number; color: string }>) => {
+        if (categories.length === 0) return;
+
+        const chartItems = categories.length > 7
+          ? [
+            ...categories.slice(0, 6),
+            {
+              name: 'Outros',
+              amount: categories.slice(6).reduce((sum, category) => sum + category.amount, 0),
+              percentage: categories.slice(6).reduce((sum, category) => sum + category.percentage, 0),
+              color: '#9ca3af',
+            },
+          ]
+          : categories;
+        const canvas = document.createElement('canvas');
+        canvas.width = 360;
+        canvas.height = 360;
+        const context = canvas.getContext('2d');
+        if (!context) return;
+
+        const center = 180;
+        const radius = 150;
+        let startAngle = -Math.PI / 2;
+        chartItems.forEach(category => {
+          const sliceAngle = (category.percentage / 100) * Math.PI * 2;
+          context.beginPath();
+          context.moveTo(center, center);
+          context.arc(center, center, radius, startAngle, startAngle + sliceAngle);
+          context.closePath();
+          context.fillStyle = category.color || '#9ca3af';
+          context.fill();
+          startAngle += sliceAngle;
+        });
+        context.beginPath();
+        context.arc(center, center, radius * 0.58, 0, Math.PI * 2);
+        context.fillStyle = '#ffffff';
+        context.fill();
+
+        const chartCardStartY = cursorY;
+        const chartCardHeight = 64;
+        doc.setFillColor(250, 250, 249);
+        doc.setDrawColor(229, 231, 235);
+        doc.setLineWidth(0.4);
+        doc.roundedRect(margin, chartCardStartY, contentWidth, chartCardHeight, 3, 3, 'FD');
+        doc.addImage(canvas.toDataURL('image/png'), 'PNG', margin + 4, cursorY + 7, 48, 48);
+        let legendY = cursorY + 10;
+        const legendX = margin + 64;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        chartItems.forEach(category => {
+          doc.setFillColor(...hexToRgb(category.color || '#9ca3af'));
+          doc.roundedRect(legendX, legendY - 3, 3, 3, 1, 1, 'F');
+          doc.setTextColor(55, 65, 81);
+          doc.text(category.name, legendX + 6, legendY);
+          doc.setTextColor(107, 114, 128);
+          doc.text(`${formatCurrency(category.amount)} - ${category.percentage.toFixed(1)}%`, pageWidth - margin - 5, legendY, { align: 'right' });
+          legendY += 7;
+        });
+        cursorY += chartCardHeight + 10;
+      };
+
+      addPageHeader();
+      addSectionTitle('Resumo do período');
+
+      const formatSigned = (value: number) => `${value >= 0 ? '+' : ''}${formatCurrency(value)}`;
+      const summaryCards = reportMode === 'comparison'
+        ? [
+          { label: 'Saldo atual', value: formatCurrency(currentBalance), hint: 'Contas + carteira', tone: currentBalance >= 0 ? 'positive' as const : 'negative' as const },
+          { label: 'Saldo projetado', value: formatCurrency(closingBalance), hint: 'Fechamento do período', tone: 'projected' as const },
+          { label: 'Resultado realizado', value: formatSigned(realizedTotals.balanco), hint: `${realizedSavingsRate.toFixed(1)}% de poupança`, tone: realizedTotals.balanco >= 0 ? 'positive' as const : 'negative' as const },
+          { label: 'Resultado projetado', value: formatSigned(projectedTotals.balanco), hint: `${projectedSavingsRate.toFixed(1)}% de poupança`, tone: 'projected' as const },
+        ]
+        : [
+          { label: closingBalanceLabel, value: formatCurrency(reportMode === 'projected' ? closingBalance : currentBalance), hint: closingBalanceDescription, tone: reportMode === 'projected' ? 'projected' as const : currentBalance >= 0 ? 'positive' as const : 'negative' as const },
+          { label: `Entradas ${modeLabel}`, value: formatCurrency(currentTotals.receitas), hint: 'No período selecionado', tone: 'positive' as const },
+          { label: `Saídas ${modeLabel}`, value: formatCurrency(currentTotals.despesas), hint: 'No período selecionado', tone: 'negative' as const },
+          { label: `Resultado ${modeTitle.toLowerCase()}`, value: formatSigned(currentTotals.balanco), hint: `${savingsRate.toFixed(1)}% de poupança`, tone: currentTotals.balanco >= 0 ? 'positive' as const : 'negative' as const },
+        ];
+      addSummaryCards(summaryCards);
+
+      if (reportMode === 'projected' && projectedBalance !== null && projectedBalanceFlow) {
+        addSectionTitle('Como o saldo projetado é formado');
+        addFlowCard([
+          ['Saldo inicial (saldo atual)', formatCurrency(currentBalance)],
+          ['+ Entradas previstas até o fechamento', formatCurrency(projectedBalanceFlow.receitas)],
+          ['- Saídas previstas até o fechamento', formatCurrency(projectedBalanceFlow.despesas)],
+          ['= Saldo projetado', formatCurrency(projectedBalance)],
+        ], 'Esta é a mesma base matemática usada no card de saldo projetado da tela.');
       }
-    }, 150);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.2);
+      doc.setTextColor(107, 114, 128);
+      const descriptionLines = doc.splitTextToSize(modeDescription, pageWidth - (margin * 2));
+      doc.text(descriptionLines, margin, cursorY);
+      cursorY += (descriptionLines.length * 4) + 9;
+
+      if (expenseCategories.length > 0) {
+        const tableHeight = 18 + Math.min(expenseCategories.length, 15) * 8;
+        ensureSpace(12 + 74 + tableHeight + 10);
+        addSectionTitle(`Despesas ${reportMode === 'realized' ? 'realizadas' : 'projetadas'}`);
+        addPieChart(expenseCategories);
+        addTable(
+          ['Categoria', 'Valor', 'Participação'],
+          expenseCategories.map(category => [category.name, formatCurrency(category.amount), `${category.percentage.toFixed(1)}%`]),
+          [105, 42, 35]
+        );
+      }
+
+      if (incomeCategories.length > 0) {
+        ensureSpace(12 + 18 + Math.min(incomeCategories.length, 18) * 8 + 10);
+        addSectionTitle(`Fontes de renda ${reportMode === 'realized' ? 'realizadas' : 'projetadas'}`);
+        addTable(
+          ['Categoria', 'Valor', 'Participação'],
+          incomeCategories.map(category => [category.name, formatCurrency(category.amount), `${category.percentage.toFixed(1)}%`]),
+          [105, 42, 35]
+        );
+      }
+
+      if (expenseCategories.length === 0 && incomeCategories.length === 0) {
+        addSectionTitle('Detalhamento');
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(107, 114, 128);
+        doc.text('Nenhum lançamento no período selecionado.', margin, cursorY + 3);
+      }
+
+      const totalPages = doc.getNumberOfPages();
+      for (let page = 1; page <= totalPages; page += 1) {
+        doc.setPage(page);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(156, 163, 175);
+        doc.text(`FinWill - Página ${page} de ${totalPages}`, pageWidth - margin, 289, { align: 'right' });
+      }
+
+      const safePeriod = periodLabel.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+      doc.save(`relatorio-${safePeriod || 'periodo'}.pdf`);
+    } catch (error) {
+      console.error('Failed to export PDF', error);
+      alert('Erro ao gerar PDF do relatório.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
     <div className="flex flex-col h-full bg-background relative pt-6 px-4 max-w-lg mx-auto w-full pb-16 overflow-y-auto">
-      <div ref={reportRef} className="bg-background pb-8 pt-2">
+      <div className="bg-background pb-8 pt-2">
         {/* Header and Fast Navigation */}
         <header className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 gap-3 relative px-1">
           <div>
@@ -412,7 +851,7 @@ export function ReportsView() {
         </div>
 
         {/* KPIs Grid */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
+        <div className="grid grid-cols-2 gap-4 mb-8">
           <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col col-span-2">
             <div className="flex justify-between items-center mb-1">
               <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">{closingBalanceLabel}</div>
@@ -503,7 +942,7 @@ export function ReportsView() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-8">
           {/* Donut Chart for Expenses */}
           {expenseCategories.length > 0 && (
             <section>
@@ -549,25 +988,9 @@ export function ReportsView() {
           {/* Expense categories Details */}
           {expenseCategories.length > 0 && (
             <section>
-              <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 px-1">Maiores Gastos</h2>
-              <div className="flex flex-col gap-2">
-                {expenseCategories.map((cat, i) => (
-                  <div key={i} className="bg-card border border-border/50 shadow-sm rounded-[12px] p-3">
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
-                        <span className="text-xs font-semibold">{cat.name}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-xs font-bold">{formatCurrency(cat.amount)}</span>
-                        <span className="text-[9px] text-muted-foreground ml-1.5 font-bold uppercase">{cat.percentage.toFixed(0)}%</span>
-                      </div>
-                    </div>
-                    <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${cat.percentage}%`, backgroundColor: cat.color }} />
-                    </div>
-                  </div>
-                ))}
+              <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3 px-1">Maiores Gastos</h2>
+              <div className="flex flex-col gap-3">
+                {expenseCategories.map(category => renderCategoryCard(category, 'despesa'))}
               </div>
             </section>
           )}
@@ -575,25 +998,9 @@ export function ReportsView() {
           {/* Income categories Details */}
           {incomeCategories.length > 0 && (
             <section>
-              <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 px-1">Fontes de Renda</h2>
-              <div className="flex flex-col gap-2">
-                {incomeCategories.map((cat, i) => (
-                  <div key={i} className="bg-card border border-border/50 shadow-sm rounded-[12px] p-3">
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
-                        <span className="text-xs font-semibold">{cat.name}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(cat.amount)}</span>
-                        <span className="text-[9px] text-muted-foreground ml-1.5 font-bold uppercase">{cat.percentage.toFixed(0)}%</span>
-                      </div>
-                    </div>
-                    <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${cat.percentage}%`, backgroundColor: cat.color }} />
-                    </div>
-                  </div>
-                ))}
+              <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3 px-1">Fontes de Renda</h2>
+              <div className="flex flex-col gap-3">
+                {incomeCategories.map(category => renderCategoryCard(category, 'receita'))}
               </div>
             </section>
           )}
