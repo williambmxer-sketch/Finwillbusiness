@@ -22,6 +22,9 @@
 - [x] Agrupar cada fatura em uma única linha nas Transações, inclusive em pagamento parcial.
 - [x] Permitir novas baixas do saldo restante após baixa antecipada ou pagamento parcial,
   sem duplicar o débito da tentativa anterior.
+- [x] Calcular saldo projetado a partir do saldo atual e dos movimentos previstos até o
+  fim do período, sem dupla contagem das movimentações realizadas.
+- [x] Reconstruir saldo histórico para consulta de períodos passados.
 
 ## Próxima etapa recomendada
 

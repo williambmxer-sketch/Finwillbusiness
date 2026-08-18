@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useDataStore } from '../../store/useDataStore';
 import { getCycleId } from '../../utils/cycleUtils';
-import { getCashDate, isRealizedCashFlow, isTransfer, toDate } from '../../utils/financialRules';
+import { getCashDate, getCashImpact, isRealizedCashFlow, isTransfer, toDate } from '../../utils/financialRules';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { formatCurrency } from '../../utils/formatters';
 import { ChevronLeft, ChevronRight, CalendarDays, Download } from 'lucide-react';
@@ -23,9 +23,11 @@ export function ReportsView() {
   // Saldo disponível é uma fotografia do caixa atual e não deve mudar quando
   // o usuário consulta outro mês ou alterna entre realizado e projetado.
   // Investimentos permanecem separados porque não são caixa de uso imediato.
-  const currentBalance = useMemo(() => accounts
-    .filter(account => ['corrente', 'poupança', 'carteira'].includes(account.type))
-    .reduce((total, account) => total + (Number.isFinite(account.balance) ? account.balance : 0), 0), [accounts]);
+  const cashAccounts = useMemo(() => accounts
+    .filter(account => ['corrente', 'poupança', 'carteira'].includes(account.type)), [accounts]);
+  const cashAccountIds = useMemo(() => new Set(cashAccounts.map(account => account.id)), [cashAccounts]);
+  const currentBalance = useMemo(() => cashAccounts
+    .reduce((total, account) => total + (Number.isFinite(account.balance) ? account.balance : 0), 0), [cashAccounts]);
 
   const [currentMonth, setCurrentMonth] = useState(() => {
     const d = new Date();
@@ -98,6 +100,65 @@ export function ReportsView() {
     }),
     [allTransactions, start, end, cards]
   );
+
+  // Para o mês atual ou um mês futuro, o saldo projetado parte do saldo real
+  // de hoje e considera somente movimentos posteriores a hoje. Assim, uma
+  // entrada já recebida não é somada novamente ao saldo atual.
+  const projectedBalance = useMemo(() => {
+    const now = new Date();
+    if (end < now) return null;
+
+    const forecastDelta = allTransactions.reduce((total, transaction) => {
+      const date = transaction.isPaid ? getCashDate(transaction) : getForecastDate(transaction);
+      if (!date || date <= now || date > end) return total;
+
+      if (transaction.isPaid) {
+        // Compras de cartão com paymentDate não são saída de conta; a saída
+        // futura já está representada pela baixa técnica da fatura.
+        if (!isRealizedCashFlow(transaction)) return total;
+        if (!transaction.accountId || !cashAccountIds.has(transaction.accountId)) return total;
+      } else if (isTransfer(transaction)) {
+        return total;
+      }
+
+      return total + getCashImpact(transaction);
+    }, 0);
+
+    return currentBalance + forecastDelta;
+  }, [allTransactions, cards, cashAccountIds, currentBalance, end]);
+
+  // Para períodos passados, o saldo atual não pode ser usado como se fosse o
+  // saldo daquele mês. Reconstituímos o fechamento retirando do saldo atual
+  // os movimentos realizados depois do fim do período, apenas nas contas de
+  // caixa. Isso mantém a consulta histórica coerente sem criar snapshots.
+  const historicalBalance = useMemo(() => {
+    const now = new Date();
+    if (end >= now) return null;
+
+    const movementsAfterPeriod = allTransactions.reduce((total, transaction) => {
+      const date = getCashDate(transaction);
+      if (!date || date <= end || !isRealizedCashFlow(transaction)) return total;
+      if (!transaction.accountId || !cashAccountIds.has(transaction.accountId)) return total;
+      return total + getCashImpact(transaction);
+    }, 0);
+
+    return currentBalance - movementsAfterPeriod;
+  }, [allTransactions, cashAccountIds, currentBalance, end]);
+
+  const closingBalance = projectedBalance ?? historicalBalance ?? currentBalance;
+  const isProjectedClosingBalance = reportMode === 'projected';
+  const closingBalanceLabel = reportMode === 'comparison'
+    ? 'Saldos'
+    : isProjectedClosingBalance
+    ? (projectedBalance !== null ? 'Saldo projetado' : 'Saldo histórico')
+    : 'Saldo atual';
+  const closingBalanceDescription = reportMode === 'comparison'
+    ? 'Saldo atual comparado ao fechamento previsto.'
+    : isProjectedClosingBalance
+    ? (projectedBalance !== null
+      ? 'Saldo atual + entradas e saídas previstas até o fim do período.'
+      : 'Saldo reconstruído a partir dos movimentos realizados após o período.')
+    : 'Saldo real disponível, independente do período consultado.';
 
   const prevFiltered = useMemo(
     () => allTransactions.filter(t => {
@@ -354,13 +415,20 @@ export function ReportsView() {
         <div className="grid grid-cols-2 gap-3 mb-6">
           <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col col-span-2">
             <div className="flex justify-between items-center mb-1">
-              <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Saldo atual</div>
+              <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">{closingBalanceLabel}</div>
               <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Contas + carteira</div>
             </div>
-            <div className={`text-xl font-bold tracking-tight ${currentBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-              {formatCurrency(currentBalance)}
-            </div>
-            <div className="text-[9px] text-muted-foreground font-medium mt-1">Saldo real disponível, independente do período consultado.</div>
+            {reportMode === 'comparison' ? (
+              <div className="flex flex-col gap-0.5 text-[11px] font-bold">
+                <span className={currentBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>Atual: {formatCurrency(currentBalance)}</span>
+                <span className={closingBalance >= 0 ? 'text-sky-600 dark:text-sky-400' : 'text-orange-600 dark:text-orange-400'}>Proj.: {formatCurrency(closingBalance)}</span>
+              </div>
+            ) : (
+              <div className={`text-xl font-bold tracking-tight ${closingBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                {formatCurrency(isProjectedClosingBalance ? closingBalance : currentBalance)}
+              </div>
+            )}
+            <div className="text-[9px] text-muted-foreground font-medium mt-1">{closingBalanceDescription}</div>
           </div>
 
           <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col">
