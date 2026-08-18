@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import { motion } from 'motion/react';
-import { Wallet, Mail, Lock, ArrowRight, Loader2, User } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Loader2, User } from 'lucide-react';
 import { Input } from '../ui/input';
 
 export function AuthView() {
@@ -57,8 +57,8 @@ export function AuthView() {
         className="w-full max-w-[340px] bg-card/65 backdrop-blur-xl border border-border/40 rounded-[24px] p-6 shadow-xl relative z-10"
       >
         <div className="flex flex-col items-center mb-6">
-          <div className="w-12 h-12 bg-primary/10 rounded-[14px] flex items-center justify-center mb-3">
-            <Wallet className="w-6 h-6 text-primary" />
+          <div className="w-12 h-12 bg-primary/10 rounded-[14px] flex items-center justify-center mb-3 overflow-hidden">
+            <img src="/icone-financas-pwa.svg" alt="FinWill" className="w-10 h-10 object-contain" />
           </div>
           <h1 className="text-xl font-bold tracking-tight">FinWill</h1>
           <p className="text-xs text-muted-foreground mt-1 text-center">

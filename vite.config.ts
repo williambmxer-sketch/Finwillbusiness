@@ -11,7 +11,7 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'prompt',
-        includeAssets: ['icon-192x192.png', 'icon-512x512.png'],
+        includeAssets: ['icone-financas-pwa.svg'],
         workbox: {
           maximumFileSizeToCacheInBytes: 5000000
         },
@@ -24,15 +24,10 @@ export default defineConfig(() => {
           display: 'standalone',
           icons: [
             {
-              src: 'icon-192x192.png',
-              sizes: '192x192',
-              type: 'image/png'
-            },
-            {
-              src: 'icon-512x512.png',
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'any maskable'
+              src: 'icone-financas-pwa.svg',
+              sizes: 'any',
+              type: 'image/svg+xml',
+              purpose: 'any'
             }
           ]
         }

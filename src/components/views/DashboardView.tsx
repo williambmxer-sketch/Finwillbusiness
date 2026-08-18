@@ -363,14 +363,15 @@ export function DashboardView() {
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Evolução de Gastos</h2>
         <div className="p-3 bg-card border rounded-[11px] shadow-sm h-48">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))', textTransform: 'capitalize' }} dy={10} />
               <YAxis
                 axisLine={false}
                 tickLine={false}
                 tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
                 tickFormatter={(val) => val >= 1000 ? `R$ ${val / 1000}k` : `R$ ${val}`}
-                width={45}
+                width={62}
+                tickMargin={6}
               />
               <Tooltip
                 cursor={{ fill: 'transparent' }}

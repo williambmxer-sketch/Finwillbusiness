@@ -25,3 +25,8 @@ A aplicação adota um conceito **Mobile-First focado em responsividade centrali
   exibir um modal não destrutivo com as ações `Atualizar agora` e `Depois`.
 - `Atualizar agora` deve ativar o service worker pendente e recarregar a página; fechar o
   aviso não pode alterar dados nem interromper operações financeiras em andamento.
+
+## Identidade do aplicativo
+
+- O arquivo `icone-financas-pwa.svg` é a fonte única do ícone da aplicação: deve ser usado
+  no manifesto do PWA, favicon, tela de carregamento e identificação visual de autenticação.
