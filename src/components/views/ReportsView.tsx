@@ -537,53 +537,55 @@ export function ReportsView() {
 
     try {
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const margin = 16;
+      const margin = 12;
       const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
       const contentWidth = pageWidth - (margin * 2);
-      let cursorY = 18;
+      const contentBottom = pageHeight - 14;
+      let cursorY = 12;
       const generatedAt = new Date().toLocaleString('pt-BR');
       const modeTitle = reportMode === 'realized' ? 'Realizado' : reportMode === 'projected' ? 'Projetado' : 'Comparativo';
 
       const addPageHeader = () => {
         doc.setFillColor(249, 115, 22);
-        doc.roundedRect(margin, cursorY, 30, 2.2, 1.1, 1.1, 'F');
+        doc.roundedRect(margin, cursorY, 24, 1.8, 0.9, 0.9, 'F');
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(19);
+        doc.setFontSize(15);
         doc.setTextColor(31, 41, 55);
-        doc.text('Relatório financeiro', margin, cursorY + 10);
+        doc.text('Relatório financeiro', margin, cursorY + 8.5);
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9.5);
+        doc.setFontSize(8);
         doc.setTextColor(107, 114, 128);
-        doc.text(`${periodLabel.replace('–', '-')}  |  ${modeTitle}`, margin, cursorY + 17);
-        doc.text(`Gerado em ${generatedAt}`, pageWidth - margin, cursorY + 17, { align: 'right' });
-        cursorY += 27;
+        doc.text(`${periodLabel.replace('–', '-')}  |  ${modeTitle}`, margin, cursorY + 15);
+        doc.text(`Gerado em ${generatedAt}`, pageWidth - margin, cursorY + 15, { align: 'right' });
+        cursorY += 21;
       };
 
       const ensureSpace = (height: number) => {
-        if (cursorY + height > 280) {
+        if (cursorY + height > contentBottom) {
           doc.addPage();
-          cursorY = 18;
+          cursorY = 12;
           addPageHeader();
         }
       };
 
       const addSectionTitle = (title: string) => {
-        ensureSpace(15);
+        ensureSpace(8);
         doc.setDrawColor(249, 115, 22);
-        doc.setLineWidth(0.8);
-        doc.line(margin, cursorY + 1, margin + 9, cursorY + 1);
+        doc.setLineWidth(0.7);
+        doc.line(margin, cursorY + 0.5, margin + 8, cursorY + 0.5);
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10.5);
+        doc.setFontSize(9.5);
         doc.setTextColor(55, 65, 81);
-        doc.text(title, margin + 13, cursorY + 4);
-        cursorY += 12;
+        doc.text(title, margin + 11, cursorY + 3.5);
+        cursorY += 8;
       };
 
       const addSummaryCards = (items: Array<{ label: string; value: string; hint?: string; tone?: 'default' | 'positive' | 'negative' | 'projected' }>) => {
-        const gap = 5;
-        const cardWidth = (contentWidth - gap) / 2;
-        const cardHeight = 29;
-        ensureSpace((cardHeight * 2) + gap + 4);
+        const gap = 3;
+        const cardWidth = (contentWidth - (gap * 3)) / 4;
+        const cardHeight = 22;
+        ensureSpace(cardHeight + 4);
 
         const getValueColor = (tone: 'default' | 'positive' | 'negative' | 'projected') => {
           if (tone === 'positive') return [5, 150, 105] as [number, number, number];
@@ -593,28 +595,29 @@ export function ReportsView() {
         };
 
         items.forEach((item, index) => {
-          const x = margin + ((index % 2) * (cardWidth + gap));
-          const y = cursorY + (Math.floor(index / 2) * (cardHeight + gap));
+          const x = margin + (index * (cardWidth + gap));
+          const y = cursorY;
           doc.setFillColor(250, 250, 249);
           doc.setDrawColor(229, 231, 235);
           doc.setLineWidth(0.4);
           doc.roundedRect(x, y, cardWidth, cardHeight, 3, 3, 'FD');
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7.5);
+          doc.setFontSize(6.1);
           doc.setTextColor(107, 114, 128);
-          doc.text(item.label.toUpperCase(), x + 5, y + 7);
-          doc.setFontSize(12);
+          doc.text(item.label.toUpperCase(), x + 4, y + 6);
+          doc.setFontSize(8.4);
           doc.setTextColor(...getValueColor(item.tone || 'default'));
-          doc.text(item.value, x + 5, y + 18);
+          doc.text(item.value, x + 4, y + 14.5);
           if (item.hint) {
             doc.setFont('helvetica', 'normal');
-            doc.setFontSize(7.1);
+            doc.setFontSize(5.5);
             doc.setTextColor(156, 163, 175);
-            doc.text(item.hint, x + 5, y + 24);
+            const hint = doc.splitTextToSize(item.hint, cardWidth - 8)[0];
+            doc.text(hint, x + 4, y + 19.5);
           }
         });
 
-        cursorY += (cardHeight * 2) + gap + 10;
+        cursorY += cardHeight + 7;
       };
 
       const addTable = (head: string[], body: any[][], widths?: number[]) => {
@@ -624,22 +627,25 @@ export function ReportsView() {
           startY: cursorY,
           margin: { left: margin, right: margin },
           theme: 'plain',
-          styles: { fontSize: 8.5, cellPadding: { top: 3, right: 4, bottom: 3, left: 4 }, textColor: [55, 65, 81], lineColor: [229, 231, 235], lineWidth: 0.2 },
+          pageBreak: 'auto',
+          rowPageBreak: 'avoid',
+          showHead: 'everyPage',
+          styles: { fontSize: 7.3, cellPadding: { top: 1.8, right: 3, bottom: 1.8, left: 3 }, textColor: [55, 65, 81], lineColor: [229, 231, 235], lineWidth: 0.2 },
           headStyles: { fillColor: [249, 115, 22], textColor: [255, 255, 255], fontStyle: 'bold' },
           alternateRowStyles: { fillColor: [250, 250, 249] },
           bodyStyles: { lineColor: [229, 231, 235], lineWidth: 0.2 },
           columnStyles: widths?.reduce((styles, width, index) => {
-            styles[index] = { cellWidth: width };
+            styles[index] = { cellWidth: width, ...(index > 0 ? { halign: 'right' as const } : {}) };
             return styles;
-          }, {} as Record<number, { cellWidth: number }>)
+          }, {} as Record<number, { cellWidth?: number; halign?: 'left' | 'right' | 'center' }>)
         });
         const finalY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || cursorY;
-        cursorY = finalY + 10;
+        cursorY = finalY + 5;
       };
 
       const addFlowCard = (rows: Array<[string, string]>, note?: string) => {
-        const rowHeight = 9;
-        const cardHeight = (rows.length * rowHeight) + (note ? 15 : 8);
+        const rowHeight = 6.5;
+        const cardHeight = (rows.length * rowHeight) + (note ? 11 : 6);
         ensureSpace(cardHeight + 6);
         doc.setFillColor(255, 247, 237);
         doc.setDrawColor(253, 186, 116);
@@ -647,14 +653,14 @@ export function ReportsView() {
         doc.roundedRect(margin, cursorY, contentWidth, cardHeight, 3, 3, 'FD');
 
         rows.forEach(([label, value], index) => {
-          const rowY = cursorY + 7 + (index * rowHeight);
+          const rowY = cursorY + 5.5 + (index * rowHeight);
           if (index > 0) {
             doc.setDrawColor(254, 215, 170);
             doc.setLineWidth(0.25);
-            doc.line(margin + 5, rowY - 4.5, pageWidth - margin - 5, rowY - 4.5);
+            doc.line(margin + 5, rowY - 3.2, pageWidth - margin - 5, rowY - 3.2);
           }
           doc.setFont('helvetica', index === rows.length - 1 ? 'bold' : 'normal');
-          doc.setFontSize(index === rows.length - 1 ? 10 : 9);
+          doc.setFontSize(index === rows.length - 1 ? 8.2 : 7.3);
           doc.setTextColor(index === rows.length - 1 ? 31 : 75, index === rows.length - 1 ? 41 : 85, index === rows.length - 1 ? 55 : 99);
           doc.text(label, margin + 6, rowY);
           doc.text(value, pageWidth - margin - 6, rowY, { align: 'right' });
@@ -662,11 +668,11 @@ export function ReportsView() {
 
         if (note) {
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(7.2);
+          doc.setFontSize(6.2);
           doc.setTextColor(107, 114, 128);
-          doc.text(note, margin + 6, cursorY + cardHeight - 5);
+          doc.text(doc.splitTextToSize(note, contentWidth - 12)[0], margin + 6, cursorY + cardHeight - 4);
         }
-        cursorY += cardHeight + 10;
+        cursorY += cardHeight + 6;
       };
 
       const hexToRgb = (hex: string): [number, number, number] => {
@@ -700,8 +706,8 @@ export function ReportsView() {
         const context = canvas.getContext('2d');
         if (!context) return;
 
-        const center = 180;
-        const radius = 150;
+        const center = 150;
+        const radius = 124;
         let startAngle = -Math.PI / 2;
         chartItems.forEach(category => {
           const sliceAngle = (category.percentage / 100) * Math.PI * 2;
@@ -718,27 +724,31 @@ export function ReportsView() {
         context.fillStyle = '#ffffff';
         context.fill();
 
+        const chartCardHeight = 48;
+        const chartSize = 38;
+        ensureSpace(chartCardHeight + 4);
         const chartCardStartY = cursorY;
-        const chartCardHeight = 64;
         doc.setFillColor(250, 250, 249);
         doc.setDrawColor(229, 231, 235);
         doc.setLineWidth(0.4);
         doc.roundedRect(margin, chartCardStartY, contentWidth, chartCardHeight, 3, 3, 'FD');
-        doc.addImage(canvas.toDataURL('image/png'), 'PNG', margin + 4, cursorY + 7, 48, 48);
-        let legendY = cursorY + 10;
-        const legendX = margin + 64;
+        doc.addImage(canvas.toDataURL('image/png'), 'PNG', margin + 4, cursorY + 5, chartSize, chartSize);
+        const legendLineHeight = 5.5;
+        const legendHeight = chartItems.length * legendLineHeight;
+        let legendY = cursorY + ((chartCardHeight - legendHeight) / 2) + 3.5;
+        const legendX = margin + 53;
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8.5);
+        doc.setFontSize(6.9);
         chartItems.forEach(category => {
           doc.setFillColor(...hexToRgb(category.color || '#9ca3af'));
-          doc.roundedRect(legendX, legendY - 3, 3, 3, 1, 1, 'F');
+          doc.roundedRect(legendX, legendY - 2.4, 2.5, 2.5, 0.8, 0.8, 'F');
           doc.setTextColor(55, 65, 81);
           doc.text(category.name, legendX + 6, legendY);
           doc.setTextColor(107, 114, 128);
-          doc.text(`${formatCurrency(category.amount)} - ${category.percentage.toFixed(1)}%`, pageWidth - margin - 5, legendY, { align: 'right' });
-          legendY += 7;
+          doc.text(`${formatCurrency(category.amount)} · ${category.percentage.toFixed(1)}%`, pageWidth - margin - 5, legendY, { align: 'right' });
+          legendY += legendLineHeight;
         });
-        cursorY += chartCardHeight + 10;
+        cursorY += chartCardHeight + 5;
       };
 
       addPageHeader();
@@ -748,15 +758,15 @@ export function ReportsView() {
       const summaryCards = reportMode === 'comparison'
         ? [
           { label: 'Saldo atual', value: formatCurrency(currentBalance), hint: 'Contas + carteira', tone: currentBalance >= 0 ? 'positive' as const : 'negative' as const },
-          { label: 'Saldo projetado', value: formatCurrency(closingBalance), hint: 'Fechamento do período', tone: 'projected' as const },
-          { label: 'Fluxo realizado', value: formatSigned(realizedTotals.balanco), hint: `${realizedSavingsRate.toFixed(1)}% de poupança no período`, tone: realizedTotals.balanco >= 0 ? 'positive' as const : 'negative' as const },
-          { label: 'Fluxo total do período', value: formatSigned(projectedTotals.balanco), hint: `${projectedSavingsRate.toFixed(1)}% de poupança no período`, tone: 'projected' as const },
+          { label: 'Saldo projetado', value: formatCurrency(closingBalance), hint: 'Fechamento', tone: 'projected' as const },
+          { label: 'Fluxo realizado', value: formatSigned(realizedTotals.balanco), hint: `${realizedSavingsRate.toFixed(1)}% poupança`, tone: realizedTotals.balanco >= 0 ? 'positive' as const : 'negative' as const },
+          { label: 'Fluxo projetado', value: formatSigned(projectedTotals.balanco), hint: `${projectedSavingsRate.toFixed(1)}% poupança`, tone: 'projected' as const },
         ]
         : [
-          { label: closingBalanceLabel, value: formatCurrency(reportMode === 'projected' ? closingBalance : currentBalance), hint: closingBalanceDescription, tone: reportMode === 'projected' ? 'projected' as const : currentBalance >= 0 ? 'positive' as const : 'negative' as const },
-          { label: `Entradas ${modeLabel}`, value: formatCurrency(currentTotals.receitas), hint: 'No período selecionado', tone: 'positive' as const },
-          { label: `Saídas ${modeLabel}`, value: formatCurrency(currentTotals.despesas), hint: 'No período selecionado', tone: 'negative' as const },
-          { label: periodFlowTitle, value: formatSigned(currentTotals.balanco), hint: getPeriodFlowDescription(currentTotals.balanco), tone: currentTotals.balanco >= 0 ? 'positive' as const : 'negative' as const },
+          { label: reportMode === 'projected' ? 'Saldo projetado' : 'Saldo atual', value: formatCurrency(reportMode === 'projected' ? closingBalance : currentBalance), hint: reportMode === 'projected' ? 'Fechamento' : 'Contas + carteira', tone: reportMode === 'projected' ? 'projected' as const : currentBalance >= 0 ? 'positive' as const : 'negative' as const },
+          { label: 'Entradas', value: formatCurrency(currentTotals.receitas), hint: modeLabel || 'período', tone: 'positive' as const },
+          { label: 'Saídas', value: formatCurrency(currentTotals.despesas), hint: modeLabel || 'período', tone: 'negative' as const },
+          { label: 'Resultado', value: formatSigned(currentTotals.balanco), hint: `${savingsRate.toFixed(1)}% poupança`, tone: currentTotals.balanco >= 0 ? 'positive' as const : 'negative' as const },
         ];
       addSummaryCards(summaryCards);
 
@@ -767,35 +777,33 @@ export function ReportsView() {
           ['+ Entradas previstas até o fechamento', formatCurrency(projectedBalanceFlow.receitas)],
           ['- Saídas previstas até o fechamento', formatCurrency(projectedBalanceFlow.despesas)],
           ['= Saldo projetado', formatCurrency(projectedBalance)],
-        ], 'Esta é a mesma base matemática usada no card de saldo projetado da tela.');
+        ]);
       }
 
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8.2);
+      doc.setFontSize(6.8);
       doc.setTextColor(107, 114, 128);
-      const descriptionLines = doc.splitTextToSize(modeDescription, pageWidth - (margin * 2));
-      doc.text(descriptionLines, margin, cursorY);
-      cursorY += (descriptionLines.length * 4) + 9;
+      doc.text(doc.splitTextToSize(modeDescription, contentWidth)[0], margin, cursorY);
+      cursorY += 6;
 
       if (expenseCategories.length > 0) {
-        const tableHeight = 18 + Math.min(expenseCategories.length, 15) * 8;
-        ensureSpace(12 + 74 + tableHeight + 10);
+        ensureSpace(8 + 48 + 5);
         addSectionTitle(`Despesas ${reportMode === 'realized' ? 'realizadas' : 'projetadas'}`);
         addPieChart(expenseCategories);
         addTable(
           ['Categoria', 'Valor', 'Participação'],
           expenseCategories.map(category => [category.name, formatCurrency(category.amount), `${category.percentage.toFixed(1)}%`]),
-          [105, 42, 35]
+          [contentWidth - 58, 31, 27]
         );
       }
 
       if (incomeCategories.length > 0) {
-        ensureSpace(12 + 18 + Math.min(incomeCategories.length, 18) * 8 + 10);
+        ensureSpace(8 + 11);
         addSectionTitle(`Fontes de renda ${reportMode === 'realized' ? 'realizadas' : 'projetadas'}`);
         addTable(
           ['Categoria', 'Valor', 'Participação'],
           incomeCategories.map(category => [category.name, formatCurrency(category.amount), `${category.percentage.toFixed(1)}%`]),
-          [105, 42, 35]
+          [contentWidth - 58, 31, 27]
         );
       }
 
@@ -813,7 +821,7 @@ export function ReportsView() {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
         doc.setTextColor(156, 163, 175);
-        doc.text(`FinWill - Página ${page} de ${totalPages}`, pageWidth - margin, 289, { align: 'right' });
+        doc.text(`FinWill · Página ${page} de ${totalPages}`, pageWidth - margin, pageHeight - 7, { align: 'right' });
       }
 
       const safePeriod = periodLabel.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
@@ -828,7 +836,7 @@ export function ReportsView() {
 
   return (
     <div className="flex flex-col h-full bg-background relative pt-6 px-4 max-w-lg mx-auto w-full pb-16 overflow-y-auto">
-      <div className="bg-background pb-8 pt-2">
+      <div className="bg-background pb-6 pt-2">
         {/* Header and Fast Navigation */}
         <header className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 gap-3 relative px-1">
           <div>
@@ -942,8 +950,8 @@ export function ReportsView() {
         </div>
 
         {/* KPIs Grid */}
-        <div className="grid grid-cols-2 gap-4 mb-8">
-          <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col col-span-2">
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="bg-card border rounded-[14px] p-2.5 shadow-sm flex flex-col col-span-2">
             <div className="flex justify-between items-center mb-1">
               <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">{closingBalanceLabel}</div>
               <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Contas + carteira</div>
@@ -954,7 +962,7 @@ export function ReportsView() {
                 <span className={closingBalance >= 0 ? 'text-sky-600 dark:text-sky-400' : 'text-orange-600 dark:text-orange-400'}>Proj.: {formatCurrency(closingBalance)}</span>
               </div>
             ) : (
-              <div className={`text-xl font-bold tracking-tight ${closingBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+              <div className={`text-lg font-bold tracking-tight ${closingBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                 {formatCurrency(isProjectedClosingBalance ? closingBalance : currentBalance)}
               </div>
             )}
@@ -1020,7 +1028,7 @@ export function ReportsView() {
             )}
           </div>
 
-          <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col">
+          <div className="bg-card border rounded-[14px] p-2.5 shadow-sm flex flex-col">
             <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">{reportMode === 'comparison' ? 'Entradas' : `Entradas ${modeLabel}`}</div>
             {reportMode === 'comparison' ? (
               <div className="flex flex-col gap-0.5 text-[10px] font-bold">
@@ -1036,7 +1044,7 @@ export function ReportsView() {
               </div>
             )}
           </div>
-          <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col">
+          <div className="bg-card border rounded-[14px] p-2.5 shadow-sm flex flex-col">
             <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">{reportMode === 'comparison' ? 'Saídas' : `Saídas ${modeLabel}`}</div>
             {reportMode === 'comparison' ? (
               <div className="flex flex-col gap-0.5 text-[10px] font-bold">
@@ -1053,7 +1061,7 @@ export function ReportsView() {
             )}
           </div>
 
-          <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col col-span-2">
+          <div className="bg-card border rounded-[14px] p-2.5 shadow-sm flex flex-col col-span-2">
             <div className="flex justify-between items-center mb-1">
               <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
                 {periodFlowTitle}
@@ -1067,7 +1075,7 @@ export function ReportsView() {
                   <span className={projectedTotals.balanco >= 0 ? 'text-sky-600 dark:text-sky-400' : 'text-orange-600 dark:text-orange-400'}>Proj.: {projectedTotals.balanco >= 0 ? '+' : ''}{formatCurrency(projectedTotals.balanco)}</span>
                 </div>
               ) : (
-                <div className={`text-xl font-bold tracking-tight ${currentTotals.balanco >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                <div className={`text-lg font-bold tracking-tight ${currentTotals.balanco >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                   {currentTotals.balanco >= 0 ? '+' : ''}{formatCurrency(currentTotals.balanco)}
                 </div>
               )}
@@ -1097,13 +1105,13 @@ export function ReportsView() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-6">
           {/* Donut Chart for Expenses */}
           {expenseCategories.length > 0 && (
             <section>
               <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3 px-1">Distribuição de Despesas {reportMode === 'realized' ? 'Realizadas' : 'Projetadas'}</h2>
-              <div className="p-4 bg-card border rounded-[16px] shadow-sm flex items-center justify-between">
-                <div className="w-32 h-32 shrink-0">
+              <div className="p-3.5 bg-card border border-border/60 rounded-[16px] shadow-sm flex items-center justify-center gap-4">
+                <div className="w-36 h-36 shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -1125,7 +1133,7 @@ export function ReportsView() {
                   </ResponsiveContainer>
                 </div>
 
-                <div className="flex-1 pl-4 flex flex-col gap-2 pr-1">
+                <div className="flex-1 min-w-0 flex flex-col justify-center gap-2.5 pr-1">
                   {expenseCategories.map((cat, i) => (
                     <div key={i} className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2 truncate">
@@ -1144,7 +1152,7 @@ export function ReportsView() {
           {expenseCategories.length > 0 && (
             <section>
               <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3 px-1">Maiores Gastos</h2>
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2.5">
                 {expenseCategories.map(category => renderCategoryCard(category, 'despesa'))}
               </div>
             </section>
@@ -1154,7 +1162,7 @@ export function ReportsView() {
           {incomeCategories.length > 0 && (
             <section>
               <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3 px-1">Fontes de Renda</h2>
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2.5">
                 {incomeCategories.map(category => renderCategoryCard(category, 'receita'))}
               </div>
             </section>
