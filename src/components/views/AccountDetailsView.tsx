@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { useDataStore } from '../../store/useDataStore';
 import { api } from '../../services/api';
 import { formatCurrency } from '../../utils/formatters';
-import { Plus, ChevronLeft, Landmark, TrendingUp, TrendingDown, Clock, CheckCircle2, ChevronRight, ChevronDown, Check } from 'lucide-react';
+import { ChevronLeft, Landmark, TrendingUp, TrendingDown, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAppStore } from '../../store/useAppStore';
 import { getCashDate, getCashPeriodId } from '../../utils/financialRules';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 export function AccountDetailsView() {
-  const { setCurrentView, activeAccountId, setEditingAccountId, setAccountModalOpen, setEditingTransactionId, setTransactionModalOpen } = useAppStore();
+  const { setCurrentView, activeAccountId, setEditingAccountId, setAccountModalOpen } = useAppStore();
   
   const accounts = useDataStore(state => state.accounts);
   const account = accounts.find(a => a.id === activeAccountId);
@@ -192,17 +192,12 @@ export function AccountDetailsView() {
             </div>
           ) : (
             filteredTransactions.map((t, i) => (
-              <motion.div 
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  setEditingTransactionId(t.id);
-                  setTransactionModalOpen(true);
-                }}
+              <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
                 key={t.id} 
-                className="flex items-center justify-between p-3 bg-card shadow-sm rounded-[11px] border cursor-pointer hover:border-primary/50 transition-colors"
+                className="flex items-center justify-between p-3 bg-card shadow-sm rounded-[11px] border"
               >
                  <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-[11px] ${

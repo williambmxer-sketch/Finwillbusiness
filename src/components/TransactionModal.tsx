@@ -893,7 +893,7 @@ export function TransactionModal() {
               </div>
 
               {type === 'transferencia' ? (
-                <div className="grid grid-cols-[1fr_auto_1fr] gap-2 p-2.5 bg-muted/30 rounded-xl border border-border items-end">
+                <div className="flex flex-col gap-1 p-2.5 bg-muted/30 rounded-xl border border-border">
                   <div>
                     <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Conta de Origem</Label>
                     <CustomSelect
@@ -909,7 +909,7 @@ export function TransactionModal() {
                       }))}
                     />
                   </div>
-                  <div className="flex items-center justify-center pb-1">
+                  <div className="flex items-center justify-center -my-0.5">
                     <button
                       type="button"
                       onClick={() => {
