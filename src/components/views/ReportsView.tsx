@@ -23,7 +23,9 @@ const getReportCategoryKey = (transaction: any) => (
 const getInvoicePaymentInfo = (transaction: any, cards: any[]) => {
   const note = transaction.notes || '';
   const suffix = note.startsWith('pagamento_fatura:') ? note.replace('pagamento_fatura:', '') : '';
-  const match = suffix.match(/^(.*)-(\d{4}-\d{2})$/);
+  // Baixas repetidas podem receber um sufixo técnico após o ciclo
+  // (`cartao-ciclo:uuid`). O ciclo continua sendo a parte YYYY-MM.
+  const match = suffix.match(/^(.*)-(\d{4}-\d{2})(?::.*)?$/);
   const cardId = match?.[1] || transaction.cardId;
   const cycleId = match?.[2] || null;
   const card = cards.find(c => c.id === cardId);
@@ -56,15 +58,34 @@ const expandInvoicePaymentsForReport = (transactions: any[], allTransactions: an
     const card = cards.find(currentCard => currentCard.id === invoiceInfo.cardId);
     if (!paymentDate || !card || invoiceInfo.cycleId === 'unknown') return [transaction];
 
-    const paidCharges = allTransactions.filter(charge => {
+    const cycleCharges = allTransactions.filter(charge => {
       if (!isCardCharge(charge) || charge.type !== 'despesa' || !charge.isPaid) return false;
       if (charge.cardId !== invoiceInfo.cardId) return false;
       if (getCycleId(toDate(charge.date) || charge.date, card.closingDay, card.dueDay).cycleId !== invoiceInfo.cycleId) return false;
+      return true;
+    });
+
+    const paidCharges = cycleCharges.filter(charge => {
       const chargePaymentDate = getCashDate(charge);
       return Boolean(chargePaymentDate && chargePaymentDate.getTime() === paymentDate.getTime());
     });
 
-    if (paidCharges.length === 0) return [transaction];
+    if (paidCharges.length === 0) {
+      // Compatibilidade com faturas quitadas antes de existir paymentDate nas
+      // compras: se o valor da baixa fecha exatamente com o ciclo, podemos
+      // reapresentar as categorias sem criar uma saída duplicada.
+      const cycleTotal = cycleCharges.reduce((total, charge) => total + charge.amount, 0);
+      if (Math.round(cycleTotal * 100) === Math.round(transaction.amount * 100)) {
+        return cycleCharges.map(charge => ({
+          ...charge,
+          id: `${transaction.id}:${charge.id}`,
+          date: paymentDate,
+          paymentDate,
+        }));
+      }
+
+      return [transaction];
+    }
 
     return paidCharges.map(charge => ({
       ...charge,
