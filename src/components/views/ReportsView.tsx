@@ -482,6 +482,24 @@ export function ReportsView() {
       ? 'projetadas'
       : '';
 
+  const periodFlowTitle = reportMode === 'realized'
+    ? 'Fluxo realizado do período'
+    : reportMode === 'projected'
+      ? 'Fluxo projetado do período'
+      : 'Fluxo do período';
+
+  const getPeriodFlowDescription = (flow: number) => {
+    if (flow < 0) {
+      return `Saídas superaram as entradas em ${formatCurrency(Math.abs(flow))}. Isso não representa saldo negativo; saldo atual: ${formatCurrency(currentBalance)}.`;
+    }
+
+    if (flow > 0) {
+      return `Entradas superaram as saídas em ${formatCurrency(flow)} no período. Saldo atual: ${formatCurrency(currentBalance)}.`;
+    }
+
+    return `Entradas e saídas ficaram equilibradas no período. Saldo atual: ${formatCurrency(currentBalance)}.`;
+  };
+
   const CustomPieTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.length) return null;
     const data = payload[0].payload;
@@ -714,14 +732,14 @@ export function ReportsView() {
         ? [
           { label: 'Saldo atual', value: formatCurrency(currentBalance), hint: 'Contas + carteira', tone: currentBalance >= 0 ? 'positive' as const : 'negative' as const },
           { label: 'Saldo projetado', value: formatCurrency(closingBalance), hint: 'Fechamento do período', tone: 'projected' as const },
-          { label: 'Resultado realizado', value: formatSigned(realizedTotals.balanco), hint: `${realizedSavingsRate.toFixed(1)}% de poupança`, tone: realizedTotals.balanco >= 0 ? 'positive' as const : 'negative' as const },
-          { label: 'Resultado projetado', value: formatSigned(projectedTotals.balanco), hint: `${projectedSavingsRate.toFixed(1)}% de poupança`, tone: 'projected' as const },
+          { label: 'Fluxo realizado', value: formatSigned(realizedTotals.balanco), hint: `${realizedSavingsRate.toFixed(1)}% de poupança no período`, tone: realizedTotals.balanco >= 0 ? 'positive' as const : 'negative' as const },
+          { label: 'Fluxo projetado', value: formatSigned(projectedTotals.balanco), hint: `${projectedSavingsRate.toFixed(1)}% de poupança no período`, tone: 'projected' as const },
         ]
         : [
           { label: closingBalanceLabel, value: formatCurrency(reportMode === 'projected' ? closingBalance : currentBalance), hint: closingBalanceDescription, tone: reportMode === 'projected' ? 'projected' as const : currentBalance >= 0 ? 'positive' as const : 'negative' as const },
           { label: `Entradas ${modeLabel}`, value: formatCurrency(currentTotals.receitas), hint: 'No período selecionado', tone: 'positive' as const },
           { label: `Saídas ${modeLabel}`, value: formatCurrency(currentTotals.despesas), hint: 'No período selecionado', tone: 'negative' as const },
-          { label: `Resultado ${modeTitle.toLowerCase()}`, value: formatSigned(currentTotals.balanco), hint: `${savingsRate.toFixed(1)}% de poupança`, tone: currentTotals.balanco >= 0 ? 'positive' as const : 'negative' as const },
+          { label: periodFlowTitle, value: formatSigned(currentTotals.balanco), hint: getPeriodFlowDescription(currentTotals.balanco), tone: currentTotals.balanco >= 0 ? 'positive' as const : 'negative' as const },
         ];
       addSummaryCards(summaryCards);
 
@@ -962,9 +980,9 @@ export function ReportsView() {
           <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col col-span-2">
             <div className="flex justify-between items-center mb-1">
               <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
-                {reportMode === 'realized' ? 'Resultado realizado' : reportMode === 'projected' ? 'Resultado projetado' : 'Resultado do período'}
+                {periodFlowTitle}
               </div>
-              <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Poupança</div>
+              <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Poupança no período</div>
             </div>
             <div className="flex justify-between items-end">
               {reportMode === 'comparison' ? (
@@ -990,6 +1008,11 @@ export function ReportsView() {
                 )}
               </div>
             </div>
+            {reportMode !== 'comparison' && (
+              <div className="text-[9px] text-muted-foreground font-medium mt-2">
+                {getPeriodFlowDescription(currentTotals.balanco)}
+              </div>
+            )}
             {savingsRate > 0 && (
               <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden mt-3">
                 <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(savingsRate, 100)}%` }} />
