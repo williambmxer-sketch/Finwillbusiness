@@ -56,7 +56,8 @@ Compras de cartão com `paymentDate` são excluídas do caixa realizado para evi
   do caixa disponível e permanece igual ao trocar o mês ou o modo do relatório.
 - **Resultado do período**: entradas menos saídas do filtro; não é o mesmo que saldo atual.
 - **Saldo projetado**: para o mês atual/futuro, parte do saldo atual e soma somente os
-  movimentos previstos até o fim do período, sem repetir o que já foi realizado. Para
+  movimentos pendentes previstos até o fim do período, sem repetir o que já foi realizado;
+  transações com `isPaid === true` nunca entram novamente por causa de horário ou fuso. Para
   períodos passados, usa o saldo histórico reconstruído pelos movimentos realizados após
   o fim do período.
 - A exportação PDF do relatório deve gerar um documento próprio, com resumo e tabelas

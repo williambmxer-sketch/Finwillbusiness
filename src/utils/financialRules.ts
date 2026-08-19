@@ -61,6 +61,17 @@ export function isRealizedCashFlow(transaction: Transaction): boolean {
   return true;
 }
 
+/**
+ * Movimentos que ainda podem alterar um saldo já materializado hoje.
+ * O saldo projetado parte do saldo atual, portanto transações pagas nunca
+ * podem ser somadas novamente, mesmo quando o timestamp está no futuro.
+ */
+export function isPendingProjectedCashFlow(
+  transaction: Pick<Transaction, 'isPaid' | 'notes'>
+): boolean {
+  return !transaction.isPaid && !isTransfer(transaction);
+}
+
 export function getCashImpact(transaction: Pick<Transaction, 'type' | 'amount'>): number {
   return transaction.type === 'receita' ? transaction.amount : -transaction.amount;
 }

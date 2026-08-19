@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useDataStore } from '../../store/useDataStore';
 import { getCycleId } from '../../utils/cycleUtils';
-import { getCashDate, getCashImpact, isCardCharge, isInvoicePayment, isRealizedCashFlow, isTransfer, toDate } from '../../utils/financialRules';
+import { getCashDate, getCashImpact, isCardCharge, isInvoicePayment, isPendingProjectedCashFlow, isRealizedCashFlow, isTransfer, toDate } from '../../utils/financialRules';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { formatCurrency } from '../../utils/formatters';
 import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Download } from 'lucide-react';
@@ -192,31 +192,25 @@ export function ReportsView() {
   );
 
   // Para o mês atual ou um mês futuro, o saldo projetado parte do saldo real
-  // de hoje e considera somente movimentos posteriores a hoje. Assim, uma
-  // entrada já recebida não é somada novamente ao saldo atual.
+  // de hoje e considera somente pendências posteriores a hoje. Transações
+  // pagas já estão materializadas no saldo e nunca podem ser somadas de novo,
+  // mesmo quando seu timestamp está à frente do relógio atual.
   const projectedBalanceFlow = useMemo(() => {
     const now = new Date();
     if (end < now) return null;
 
     return allTransactions.reduce((flow, transaction) => {
-      const date = transaction.isPaid ? getCashDate(transaction) : getForecastDate(transaction);
-      if (!date || date <= now || date > end) return flow;
+      if (!isPendingProjectedCashFlow(transaction)) return flow;
 
-      if (transaction.isPaid) {
-        // Compras de cartão com paymentDate não são saída de conta; a saída
-        // futura já está representada pela baixa técnica da fatura.
-        if (!isRealizedCashFlow(transaction)) return flow;
-        if (!transaction.accountId || !cashAccountIds.has(transaction.accountId)) return flow;
-      } else if (isTransfer(transaction)) {
-        return flow;
-      }
+      const date = getForecastDate(transaction);
+      if (!date || date <= now || date > end) return flow;
 
       if (transaction.type === 'receita') {
         return { receitas: flow.receitas + transaction.amount, despesas: flow.despesas };
       }
       return { receitas: flow.receitas, despesas: flow.despesas + transaction.amount };
     }, { receitas: 0, despesas: 0 });
-  }, [allTransactions, cards, cashAccountIds, currentBalance, end]);
+  }, [allTransactions, cards, end]);
 
   const projectedBalance = projectedBalanceFlow === null
     ? null
@@ -251,7 +245,7 @@ export function ReportsView() {
     ? 'Saldo atual comparado ao fechamento previsto.'
     : isProjectedClosingBalance
     ? (projectedBalance !== null
-      ? 'Saldo atual + entradas e saídas previstas até o fim do período.'
+      ? 'Saldo atual + movimentos restantes até o fim do período.'
       : 'Saldo reconstruído a partir dos movimentos realizados após o período.')
     : 'Saldo real disponível, independente do período consultado.';
 
@@ -337,9 +331,11 @@ export function ReportsView() {
   const incomeCategories = useMemo(() => getCategories('receita'), [categoryTransactions, allCategories]);
   const expenseCategories = useMemo(() => getCategories('despesa'), [categoryTransactions, allCategories]);
   const [expandedCategoryKey, setExpandedCategoryKey] = useState<string | null>(null);
+  const [isProjectedBalanceBreakdownOpen, setIsProjectedBalanceBreakdownOpen] = useState(false);
 
   useEffect(() => {
     setExpandedCategoryKey(null);
+    setIsProjectedBalanceBreakdownOpen(false);
   }, [currentMonth, customStart, customEnd, isCustomMode, reportMode]);
 
   const categoryDetailsByKey = useMemo(() => {
@@ -494,7 +490,7 @@ export function ReportsView() {
   const modeDescription = reportMode === 'realized'
     ? 'Somente o que já foi pago ou recebido.'
     : reportMode === 'projected'
-      ? `Realizado + ${pendingFiltered.length} pendência(s) prevista(s) no período.`
+      ? `Realizado + ${pendingFiltered.length} pendência(s) prevista(s) no período. O saldo projetado considera somente o que ainda falta.`
       : 'Compare o realizado com o fechamento esperado do período.';
 
   const modeLabel = reportMode === 'realized'
@@ -506,7 +502,7 @@ export function ReportsView() {
   const periodFlowTitle = reportMode === 'realized'
     ? 'Fluxo realizado do período'
     : reportMode === 'projected'
-      ? 'Fluxo projetado do período'
+      ? 'Fluxo total do período'
       : 'Fluxo do período';
 
   const getPeriodFlowDescription = (flow: number) => {
@@ -754,7 +750,7 @@ export function ReportsView() {
           { label: 'Saldo atual', value: formatCurrency(currentBalance), hint: 'Contas + carteira', tone: currentBalance >= 0 ? 'positive' as const : 'negative' as const },
           { label: 'Saldo projetado', value: formatCurrency(closingBalance), hint: 'Fechamento do período', tone: 'projected' as const },
           { label: 'Fluxo realizado', value: formatSigned(realizedTotals.balanco), hint: `${realizedSavingsRate.toFixed(1)}% de poupança no período`, tone: realizedTotals.balanco >= 0 ? 'positive' as const : 'negative' as const },
-          { label: 'Fluxo projetado', value: formatSigned(projectedTotals.balanco), hint: `${projectedSavingsRate.toFixed(1)}% de poupança no período`, tone: 'projected' as const },
+          { label: 'Fluxo total do período', value: formatSigned(projectedTotals.balanco), hint: `${projectedSavingsRate.toFixed(1)}% de poupança no período`, tone: 'projected' as const },
         ]
         : [
           { label: closingBalanceLabel, value: formatCurrency(reportMode === 'projected' ? closingBalance : currentBalance), hint: closingBalanceDescription, tone: reportMode === 'projected' ? 'projected' as const : currentBalance >= 0 ? 'positive' as const : 'negative' as const },
@@ -962,7 +958,66 @@ export function ReportsView() {
                 {formatCurrency(isProjectedClosingBalance ? closingBalance : currentBalance)}
               </div>
             )}
-            <div className="text-[9px] text-muted-foreground font-medium mt-1">{closingBalanceDescription}</div>
+            {!(reportMode === 'projected' && projectedBalance !== null) && (
+              <div className="text-[9px] text-muted-foreground font-medium mt-1">{closingBalanceDescription}</div>
+            )}
+
+            {reportMode === 'projected' && projectedBalance !== null && projectedBalanceFlow && (
+              <div className="mt-3 overflow-hidden rounded-xl border border-sky-500/20 bg-sky-500/5">
+                <button
+                  type="button"
+                  onClick={() => setIsProjectedBalanceBreakdownOpen(open => !open)}
+                  className="flex w-full items-center justify-between px-2.5 py-2 text-left transition-colors hover:bg-sky-500/10"
+                  aria-expanded={isProjectedBalanceBreakdownOpen}
+                  aria-controls="projected-balance-breakdown"
+                >
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-sky-700 dark:text-sky-300">
+                    Ver composição do saldo
+                  </span>
+                  <ChevronDown className={`h-4 w-4 text-sky-700 transition-transform dark:text-sky-300 ${isProjectedBalanceBreakdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                <AnimatePresence initial={false}>
+                  {isProjectedBalanceBreakdownOpen && (
+                    <motion.div
+                      id="projected-balance-breakdown"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.22, ease: 'easeOut' }}
+                      className="border-t border-sky-500/20"
+                    >
+                      <div className="px-2.5 pb-2.5 pt-2">
+                        <div className="mb-2 text-[9px] font-bold uppercase tracking-widest text-sky-700 dark:text-sky-300">
+                          Como o saldo projetado é formado
+                        </div>
+                        <div className="flex flex-col gap-1 text-[10px] font-semibold">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-muted-foreground">Saldo atual</span>
+                            <span>{formatCurrency(currentBalance)}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-emerald-600 dark:text-emerald-400">+ Entradas restantes</span>
+                            <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(projectedBalanceFlow.receitas)}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-rose-600 dark:text-rose-400">− Saídas restantes</span>
+                            <span className="text-rose-600 dark:text-rose-400">{formatCurrency(projectedBalanceFlow.despesas)}</span>
+                          </div>
+                          <div className="mt-1 flex items-center justify-between gap-3 border-t border-sky-500/20 pt-1.5 font-bold">
+                            <span className="text-sky-700 dark:text-sky-300">= Saldo projetado</span>
+                            <span className="text-sky-700 dark:text-sky-300">{formatCurrency(projectedBalance)}</span>
+                          </div>
+                        </div>
+                        <div className="mt-2 text-[9px] font-medium leading-relaxed text-muted-foreground">
+                          O fluxo do período abaixo inclui valores já realizados; este quadro mostra apenas o que falta até o fim.
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
           </div>
 
           <div className="bg-card border rounded-[16px] p-3 shadow-sm flex flex-col">

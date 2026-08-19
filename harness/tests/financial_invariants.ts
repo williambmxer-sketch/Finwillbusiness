@@ -4,6 +4,7 @@ import {
   getCashPeriodId,
   isCardCharge,
   isCashPaymentMethod,
+  isPendingProjectedCashFlow,
   isRealizedCashFlow,
   splitAmount,
   sumRealizedCashFlow,
@@ -29,6 +30,13 @@ const paidLater = transaction({
   accountId: 'account-id',
   paymentDate: new Date('2026-02-03T12:00:00'),
 });
+const paidWithFutureTimestamp = transaction({
+  isPaid: true,
+  accountId: 'account-id',
+  paymentDate: new Date('2026-02-03T23:59:00'),
+});
+assert.equal(isPendingProjectedCashFlow(paidWithFutureTimestamp), false, 'transação paga não pode voltar ao saldo projetado por causa do horário');
+assert.equal(isPendingProjectedCashFlow(pending), true, 'pendência deve poder compor o saldo projetado');
 assert.equal(getCashPeriodId(paidLater), '2026-02', 'o período deve usar a data efetiva do pagamento');
 assert.equal(isRealizedCashFlow(paidLater), true, 'despesa paga em conta deve entrar no caixa realizado');
 
