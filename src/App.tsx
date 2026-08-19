@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from './lib/supabase';
 import { useAuthStore } from './store/useAuthStore';
 import { useAppStore } from './store/useAppStore';
@@ -36,10 +36,47 @@ export default function App() {
   const [isReady, setIsReady] = useState(false);
   const { needRefresh: [needRefresh, setNeedRefresh], updateServiceWorker } = useRegisterSW();
   const [isUpdating, setIsUpdating] = useState(false);
+  const updateReloadTimer = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (updateReloadTimer.current !== null) {
+      window.clearTimeout(updateReloadTimer.current);
+    }
+  }, []);
 
   const handleUpdate = async () => {
     setIsUpdating(true);
-    await updateServiceWorker(true);
+    // Esconde o aviso imediatamente. Se o evento `controlling` do Workbox
+    // não chegar, a recarga de segurança evita deixar o modal travado.
+    setNeedRefresh(false);
+
+    const reloadPage = () => {
+      if (updateReloadTimer.current !== null) {
+        window.clearTimeout(updateReloadTimer.current);
+        updateReloadTimer.current = null;
+      }
+      window.location.reload();
+    };
+
+    // O Workbox normalmente faz isso por updateServiceWorker(), mas o envio
+    // direto cobre browsers que mantêm o worker novo em `waiting` após um
+    // refresh forçado.
+    updateReloadTimer.current = window.setTimeout(reloadPage, 3000);
+
+    try {
+      await updateServiceWorker(true);
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.getRegistration();
+        registration?.waiting?.postMessage({ type: 'SKIP_WAITING' });
+      }
+    } catch (error) {
+      if (updateReloadTimer.current !== null) {
+        window.clearTimeout(updateReloadTimer.current);
+        updateReloadTimer.current = null;
+      }
+      setIsUpdating(false);
+      console.error('Não foi possível aplicar a atualização do sistema.', error);
+    }
   };
 
   useEffect(() => {
