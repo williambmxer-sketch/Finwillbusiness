@@ -70,6 +70,8 @@ export const mappers = {
       balance: Number(row.saldo),
       color: row.cor,
       icon: row.icone,
+      showInPayments: row.mostrar_em_pagamentos ?? true,
+      showInReceipts: row.mostrar_em_recebimentos ?? true,
     }),
     toDb: (obj: Partial<Account>) => {
       const payload: any = {};
@@ -78,6 +80,8 @@ export const mappers = {
       if (obj.balance !== undefined) payload.saldo = obj.balance;
       if (obj.color !== undefined) payload.cor = obj.color;
       if (obj.icon !== undefined) payload.icone = obj.icon;
+      if (obj.showInPayments !== undefined) payload.mostrar_em_pagamentos = obj.showInPayments;
+      if (obj.showInReceipts !== undefined) payload.mostrar_em_recebimentos = obj.showInReceipts;
       return payload;
     }
   },

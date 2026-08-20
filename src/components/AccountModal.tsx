@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useDataStore } from '../store/useDataStore';
 import { Account } from '../db/db';
 import { api } from '../services/api';
-import { X, Save, Trash } from 'lucide-react';
+import { Loader2, X, Trash } from 'lucide-react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { useAppStore } from '../store/useAppStore';
@@ -15,6 +15,10 @@ export function AccountModal() {
   const [name, setName] = useState('');
   const [balance, setBalance] = useState('');
   const [type, setType] = useState<Account['type']>('corrente');
+  const [showInPayments, setShowInPayments] = useState(true);
+  const [showInReceipts, setShowInReceipts] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const handleBalanceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
@@ -35,32 +39,51 @@ export function AccountModal() {
         setName(account.name);
         setBalance(account.balance.toString());
         setType(account.type || 'corrente');
+        setShowInPayments(account.showInPayments ?? true);
+        setShowInReceipts(account.showInReceipts ?? true);
       }
     } else if (!editingAccountId && isAccountModalOpen) {
       setName('');
       setBalance('');
-        setType('corrente');
+      setType('corrente');
+      setShowInPayments(true);
+      setShowInReceipts(true);
     }
   }, [editingAccountId, isAccountModalOpen, accounts]);
 
   const handleSave = async () => {
-    if (!name) return;
-
-    if (editingAccountId) {
-      // O saldo é derivado dos lançamentos. Alterá-lo diretamente quebraria o
-      // histórico; ajustes são registrados como uma transação na tela de contas.
-      await api.accounts.update(editingAccountId, { name, type });
-    } else {
-      await api.accounts.add({
-        name,
-        balance: balance ? parseFloat(balance) : 0,
-        type,
-        color: '#1a1a1a',
-        icon: 'wallet'
-      });
+    if (saving) return;
+    if (!name.trim()) {
+      setSaveError('Informe o nome da conta para continuar.');
+      return;
     }
 
-    closeModal();
+    setSaving(true);
+    setSaveError('');
+
+    try {
+      if (editingAccountId) {
+        // O saldo é derivado dos lançamentos. Alterá-lo diretamente quebraria o
+        // histórico; ajustes são registrados como uma transação na tela de contas.
+        await api.accounts.update(editingAccountId, { name: name.trim(), type, showInPayments, showInReceipts });
+      } else {
+        await api.accounts.add({
+          name: name.trim(),
+          balance: balance ? parseFloat(balance) : 0,
+          type,
+          color: '#1a1a1a',
+          icon: 'wallet',
+          showInPayments,
+          showInReceipts,
+        });
+      }
+
+      closeModal();
+    } catch (error: any) {
+      setSaveError(error?.message || 'Não foi possível salvar a conta. Tente novamente.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -71,6 +94,7 @@ export function AccountModal() {
   };
 
   const closeModal = () => {
+    setSaveError('');
     setAccountModalOpen(false);
     setTimeout(() => setEditingAccountId(null), 200);
   };
@@ -146,21 +170,57 @@ export function AccountModal() {
                   >Investimento</button>
                 </div>
               </div>
+
+              <div>
+                <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1.5 block ml-1">Disponibilidade nos lançamentos</Label>
+                <div className="space-y-2 rounded-2xl border border-border/50 bg-background/70 p-3">
+                  <AccountVisibilityToggle
+                    label="Aparecer em pagamentos"
+                    description="Despesas, pró-labore, retiradas e faturas"
+                    checked={showInPayments}
+                    onChange={() => setShowInPayments(value => !value)}
+                  />
+                  <AccountVisibilityToggle
+                    label="Aparecer em recebimentos"
+                    description="Vendas, receitas e aportes"
+                    checked={showInReceipts}
+                    onChange={() => setShowInReceipts(value => !value)}
+                  />
+                </div>
+                {!showInPayments && !showInReceipts && (
+                  <p className="mt-2 px-1 text-[10px] leading-relaxed text-muted-foreground">Esta conta continuará disponível em Contas e caixa e poderá ser usada em transferências, mas não aparecerá nos lançamentos de rotina.</p>
+                )}
+              </div>
             </div>
           </div>
         </div>
         
         <div className="flex gap-3 p-4 border-t pb-8 sm:pb-4 bg-background">
           {editingAccountId && (
-            <button onClick={handleDelete} className="p-3 w-12 border border-destructive/20 text-destructive rounded-xl flex items-center justify-center hover:bg-destructive/10 transition-colors">
+            <button type="button" onClick={handleDelete} disabled={saving} className="p-3 w-12 border border-destructive/20 text-destructive rounded-xl flex items-center justify-center transition-all hover:bg-destructive/10 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50">
               <Trash className="w-5 h-5" />
             </button>
           )}
-          <button onClick={handleSave} className="flex-1 bg-primary text-primary-foreground text-sm font-bold rounded-xl h-11 flex items-center justify-center transition-all">
-            Salvar
+          <button type="button" onClick={handleSave} disabled={saving} aria-busy={saving} className="flex-1 bg-primary text-primary-foreground text-sm font-bold rounded-xl h-11 flex items-center justify-center gap-2 shadow-sm transition-all duration-150 hover:brightness-105 active:scale-[0.98] active:shadow-inner disabled:cursor-wait disabled:opacity-80">
+            {saving ? <><Loader2 className="h-4 w-4 animate-spin" />Salvando...</> : 'Salvar'}
           </button>
         </div>
+        {saveError && <p role="alert" className="px-4 pb-3 text-center text-xs font-semibold text-destructive">{saveError}</p>}
       </div>
     </div>
+  );
+}
+
+function AccountVisibilityToggle({ label, description, checked, onChange }: { label: string; description: string; checked: boolean; onChange: () => void }) {
+  return (
+    <button type="button" onClick={onChange} className="flex w-full items-center justify-between gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-muted/60">
+      <span className="min-w-0">
+        <span className="block text-xs font-semibold">{label}</span>
+        <span className="mt-0.5 block text-[10px] leading-relaxed text-muted-foreground">{description}</span>
+      </span>
+      <span className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${checked ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+        <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-background shadow-lg transition-transform ${checked ? 'translate-x-4' : 'translate-x-0'}`} />
+      </span>
+    </button>
   );
 }

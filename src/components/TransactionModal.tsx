@@ -223,7 +223,7 @@ export function TransactionModal() {
       const todayString = today.toISOString().split('T')[0];
       const future = new Date(today);
       future.setDate(future.getDate() + 7);
-      const presetType = transactionPreset === 'income_received' || transactionPreset === 'income_pending' || transactionPreset === 'contribution'
+      const presetType = ['income', 'income_received', 'income_pending', 'contribution'].includes(transactionPreset || '')
         ? 'receita'
         : transactionPreset === 'transfer' ? 'transferencia' : 'despesa';
       const presetPaid = ['income_received', 'expense_paid', 'prolabore', 'withdrawal', 'contribution'].includes(transactionPreset || '');
@@ -728,7 +728,16 @@ export function TransactionModal() {
     (type === 'despesa' && isPaid && selectedPaymentMethod && (selectedPaymentMethod.debitFromAccount || isCashPayment)) ||
     (type === 'despesa' && showInstallments && numInstallments > 1 && !firstInstallmentIn30Days && payFirstInstallmentToday);
 
+  const routineAccounts = type === 'receita'
+    ? accounts.filter(account => account.showInReceipts !== false || account.id === accountId)
+    : accounts.filter(account => account.showInPayments !== false || account.id === accountId);
+  const paymentAccounts = isCashPayment
+    ? routineAccounts.filter(account => account.type === 'carteira' && (!selectedPaymentMethod?.linkedAccountId || account.id === selectedPaymentMethod.linkedAccountId))
+    : routineAccounts;
+
   const presetTitle = transactionPreset ? {
+    income: 'Nova receita',
+    expense: 'Nova despesa',
     income_received: 'Registrar venda recebida',
     income_pending: 'Registrar venda a receber',
     expense_paid: 'Registrar despesa paga',
@@ -999,10 +1008,7 @@ export function TransactionModal() {
                           value={accountId}
                           onValueChange={setAccountId}
                           placeholder={isCashPayment ? 'Selecione a Carteira...' : 'Selecione a conta...'}
-                          options={(isCashPayment
-                            ? accounts.filter(account => account.type === 'carteira' && (!selectedPaymentMethod?.linkedAccountId || account.id === selectedPaymentMethod.linkedAccountId))
-                            : accounts
-                          ).map(c => ({
+                          options={paymentAccounts.map(c => ({
                             value: c.id,
                             label: `${c.name} • ${formatCurrency(c.balance)}`
                           }))}

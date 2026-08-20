@@ -6,7 +6,7 @@ import { Category, CustomPaymentMethod } from '../db/db';
 import { generateUUID } from '../lib/utils';
 import { X, Trash, AlertCircle } from 'lucide-react';
 import { Input } from './ui/input';
-import { isCashPaymentMethod } from '../utils/financialRules';
+import { isBankAccount, isCashPaymentMethod } from '../utils/financialRules';
 
 
 export function CategoryModal() {
@@ -98,17 +98,24 @@ export function CategoryModal() {
 
     const isCash = isCashPaymentMethod(trimmedName);
     const linkedAccount = accounts.find(account => account.id === pmLinkedAccountId);
-    if (isCash && (!linkedAccount || linkedAccount.type !== 'carteira')) {
-      setPaymentMethodError('A forma Dinheiro precisa estar vinculada a uma conta do tipo Carteira. Crie ou selecione uma Carteira.');
-      return;
+    const debitFromAccount = isCash || pmDebitFromAccount;
+    if (debitFromAccount) {
+      if (isCash && (!linkedAccount || linkedAccount.type !== 'carteira')) {
+        setPaymentMethodError('A forma Dinheiro precisa estar vinculada a uma conta caixa/carteira. Crie ou selecione uma Carteira.');
+        return;
+      }
+      if (!isCash && !isBankAccount(linkedAccount)) {
+        setPaymentMethodError('Selecione uma conta bancária (Corrente ou Poupança) para esta forma de pagamento.');
+        return;
+      }
     }
 
     try {
       const payload: Partial<CustomPaymentMethod> = {
         name: trimmedName,
-        debitFromAccount: isCash ? true : pmDebitFromAccount
+        debitFromAccount,
+        linkedAccountId: debitFromAccount ? linkedAccount?.id : undefined,
       };
-      if (isCash) payload.linkedAccountId = linkedAccount!.id;
 
       if (editingPmId) {
         await api.paymentMethods.update(editingPmId, payload);
@@ -400,30 +407,30 @@ export function CategoryModal() {
                       <X className="w-4 h-4" />
                     </button>
                   </div>
-                  {isCashPaymentMethod(pmName) && (
+                  {((isCashPaymentMethod(pmName) || pmDebitFromAccount) && (
                     <div className="space-y-2 pt-2 border-t">
                       <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground ml-1 block">
-                        Carteira usada pelo Dinheiro
+                        {isCashPaymentMethod(pmName) ? 'Conta caixa / carteira usada pelo Dinheiro' : 'Conta bancária padrão'}
                       </label>
                       <select
                         value={pmLinkedAccountId}
                         onChange={e => setPmLinkedAccountId(e.target.value)}
                         className="w-full rounded-xl h-9 px-3 text-xs bg-muted/50 border border-transparent focus:ring-1 focus:ring-primary outline-none font-medium"
                       >
-                        <option value="">Selecione a Carteira...</option>
-                        {accounts.filter(account => account.type === 'carteira').map(account => (
+                        <option value="">{isCashPaymentMethod(pmName) ? 'Selecione a conta caixa...' : 'Selecione a conta bancária...'}</option>
+                        {accounts.filter(account => isCashPaymentMethod(pmName) ? account.type === 'carteira' : isBankAccount(account)).map(account => (
                           <option key={account.id} value={account.id}>
                             {account.name} ({account.balance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})
                           </option>
                         ))}
                       </select>
-                      {accounts.every(account => account.type !== 'carteira') && (
+                      {accounts.every(account => isCashPaymentMethod(pmName) ? account.type !== 'carteira' : !isBankAccount(account)) && (
                         <p className="text-[10px] text-amber-600 dark:text-amber-400">
-                          Crie primeiro uma conta com o tipo Carteira na tela Contas.
+                          {isCashPaymentMethod(pmName) ? 'Crie primeiro uma conta com o tipo Carteira na tela Contas.' : 'Crie primeiro uma conta Corrente ou Poupança na tela Contas.'}
                         </p>
                       )}
                     </div>
-                  )}
+                  ))}
                   {paymentMethodError && (
                     <p className="text-[10px] text-destructive font-medium">{paymentMethodError}</p>
                   )}
@@ -449,6 +456,7 @@ export function CategoryModal() {
               <div className="flex-1 overflow-y-auto p-2 space-y-1.5 pb-8 sm:pb-2">
                 {paymentMethods.map(pm => {
                   const isConfirmingPm = confirmDeletePmId === pm.id;
+                  const linkedAccount = accounts.find(account => account.id === pm.linkedAccountId);
                   return (
                     <div key={pm.id} className="rounded-lg bg-card border border-border/50 shadow-sm hover:border-primary/30 transition-colors text-xs overflow-hidden">
                       <div className="flex items-center justify-between p-1.5 px-2">
@@ -458,9 +466,9 @@ export function CategoryModal() {
                             <div className="font-semibold leading-none mb-0.5">{pm.name}</div>
                             <div className="text-[8px] text-muted-foreground uppercase font-bold tracking-wider flex flex-wrap gap-1 items-center mt-1">
                               {pm.debitFromAccount && <span className="bg-orange-500/10 text-orange-600 px-1 py-0.5 rounded">Debita Conta</span>}
-                              {isCashPaymentMethod(pm.name) && (
+                              {pm.debitFromAccount && (
                                 <span className="bg-emerald-500/10 text-emerald-600 px-1 py-0.5 rounded">
-                                  Carteira: {accounts.find(account => account.id === pm.linkedAccountId)?.name || 'não vinculada'}
+                                  {isCashPaymentMethod(pm.name) ? 'Caixa' : 'Banco'}: {linkedAccount?.name || 'não vinculada'}
                                 </span>
                               )}
                             </div>

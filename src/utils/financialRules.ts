@@ -1,4 +1,4 @@
-import { Transaction } from '../db/db';
+import { Account, Transaction } from '../db/db';
 
 export function normalizePaymentMethodName(name: string): string {
   return name
@@ -11,6 +11,11 @@ export function normalizePaymentMethodName(name: string): string {
 export function isCashPaymentMethod(name: string | null | undefined): boolean {
   const normalized = normalizePaymentMethodName(name || '');
   return normalized === 'dinheiro' || normalized.startsWith('dinheiro ');
+}
+
+/** Contas usadas normalmente para pagamentos eletrônicos e transferências bancárias. */
+export function isBankAccount(account: Pick<Account, 'type'> | null | undefined): boolean {
+  return account?.type === 'corrente' || account?.type === 'poupança';
 }
 
 /**

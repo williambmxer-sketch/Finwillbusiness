@@ -19,7 +19,7 @@ import { getCashPeriodId, isRealizedCashFlow } from '../../utils/financialRules'
 
 
 export function DashboardView() {
-  const { setCurrentView } = useAppStore();
+  const { setCurrentView, setActiveContextCardId } = useAppStore();
   const accounts = useDataStore(state => state.accounts);
   const cards = useDataStore(state => state.cards);
   const allTransactions = useDataStore(state => state.transactions);
@@ -254,10 +254,16 @@ export function DashboardView() {
                 .reduce((acc, t) => acc + t.amount, 0);
 
               return (
-                <motion.div
+                <motion.button
                   whileTap={{ scale: 0.98 }}
                   key={card.id}
-                  className="flex-none w-[85%] sm:w-[300px] snap-center p-4 rounded-[11px] flex flex-col justify-between relative overflow-hidden"
+                  type="button"
+                  onClick={() => {
+                    setActiveContextCardId(card.id);
+                    setCurrentView('cardDetails');
+                  }}
+                  aria-label={`Abrir cartão ${card.name}`}
+                  className="flex-none w-[85%] sm:w-[300px] snap-center p-4 rounded-[11px] flex flex-col justify-between relative overflow-hidden text-left cursor-pointer outline-none ring-offset-2 transition-shadow hover:shadow-lg focus-visible:ring-2 focus-visible:ring-white/80"
                   style={{ backgroundColor: card.color }}
                 >
                   <div className="absolute right-0 top-1/2 -translate-y-1/2 p-4 opacity-10">
@@ -279,7 +285,7 @@ export function DashboardView() {
                       </div>
                     </div>
                   </div>
-                </motion.div>
+                </motion.button>
               );
             })
           )}

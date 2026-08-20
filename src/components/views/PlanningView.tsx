@@ -1052,7 +1052,7 @@ export function PlanningView() {
                       className="w-full text-xs p-1.5 rounded-lg border border-border/40 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
                     >
                       <option value="">Qualquer Conta</option>
-                      {accounts.map(a => (
+                      {accounts.filter(a => (type === 'receita' ? a.showInReceipts !== false : a.showInPayments !== false) || a.id === accountId).map(a => (
                         <option key={a.id} value={a.id}>{a.name}</option>
                       ))}
                     </select>

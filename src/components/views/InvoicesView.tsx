@@ -94,6 +94,7 @@ export function InvoicesView() {
   const allTransactions = useDataStore(state => state.transactions);
   const cards = useDataStore(state => state.cards);
   const accounts = useDataStore(state => state.accounts);
+  const paymentAccounts = accounts.filter(account => account.showInPayments !== false);
   const categories = useDataStore(state => state.categories);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [selectedCycle, setSelectedCycle] = useState<string>('all');
@@ -581,7 +582,7 @@ export function InvoicesView() {
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
-                            setPayAccountId(accounts[0]?.id || '');
+                            setPayAccountId(paymentAccounts[0]?.id || '');
                             setPaymentError(null);
                             setSelectedInvoice(inv);
                             setPayModalOpen(true);
@@ -730,7 +731,7 @@ export function InvoicesView() {
                 <div className="p-4 border-t bg-background">
                    <button 
                     onClick={() => {
-                      setPayAccountId(accounts[0]?.id || '');
+                      setPayAccountId(paymentAccounts[0]?.id || '');
                       setPaymentError(null);
                       setPayModalOpen(true);
                     }}
@@ -798,7 +799,7 @@ export function InvoicesView() {
                     className="w-full rounded-xl h-11 px-3 text-sm bg-muted/50 border border-transparent focus:ring-1 focus:ring-primary focus:bg-background outline-none font-medium appearance-none"
                   >
                     <option value="" disabled>Selecione a conta...</option>
-                    {accounts.map(acc => (
+                    {paymentAccounts.map(acc => (
                       <option key={acc.id} value={acc.id}>
                         {acc.name} (Saldo: {formatCurrency(acc.balance)})
                       </option>

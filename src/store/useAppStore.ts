@@ -17,6 +17,8 @@ export type AppView =
   | 'company';
 
 export type TransactionPreset =
+  | 'income'
+  | 'expense'
   | 'income_received'
   | 'income_pending'
   | 'expense_paid'

@@ -19,6 +19,8 @@ export interface Account {
   balance: number;
   color: string;
   icon: string;
+  showInPayments?: boolean;
+  showInReceipts?: boolean;
 }
 
 export interface Category {

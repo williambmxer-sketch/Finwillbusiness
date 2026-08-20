@@ -5,7 +5,8 @@ import { useAppStore } from '../store/useAppStore';
 import { X, CheckCircle2 } from 'lucide-react';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { isCashPaymentMethod } from '../utils/financialRules';
+import { isBankAccount, isCashPaymentMethod } from '../utils/financialRules';
+import { formatCurrency } from '../utils/formatters';
 
 export function ConfirmPaymentModal() {
   const { confirmPaymentTransactionId, setConfirmPaymentTransactionId } = useAppStore();
@@ -20,6 +21,14 @@ export function ConfirmPaymentModal() {
   const [accountId, setAccountId] = useState('');
   const [cardId, setCardId] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
+
+  const eligibleAccounts = transaction
+    ? accounts.filter(account => (
+      transaction.type === 'receita'
+        ? account.showInReceipts !== false
+        : account.showInPayments !== false
+    ) || account.id === transaction.accountId)
+    : accounts;
 
   useEffect(() => {
     if (transaction) {
@@ -38,11 +47,18 @@ export function ConfirmPaymentModal() {
       }
       setCardId(pmId);
       const selectedMethod = customPaymentMethods.find(pm => `custom-${pm.id}` === pmId);
-      const cashAccounts = accounts.filter(account => account.type === 'carteira');
-      const defaultCashAccount = selectedMethod?.linkedAccountId
+      const linkedAccount = selectedMethod?.linkedAccountId
         ? accounts.find(account => account.id === selectedMethod.linkedAccountId)
-        : cashAccounts[0];
-      setAccountId(transaction.accountId || defaultCashAccount?.id || accounts[0]?.id || '');
+        : undefined;
+      const availableAccounts = linkedAccount && !eligibleAccounts.some(account => account.id === linkedAccount.id)
+        ? [...eligibleAccounts, linkedAccount]
+        : eligibleAccounts;
+      const defaultAccounts = isCashPaymentMethod(selectedMethod?.name)
+        ? availableAccounts.filter(account => account.type === 'carteira')
+        : availableAccounts.filter(isBankAccount);
+      setAccountId(linkedAccount?.id || (transaction.accountId && availableAccounts.some(account => account.id === transaction.accountId)
+        ? transaction.accountId
+        : defaultAccounts[0]?.id || availableAccounts[0]?.id || ''));
       setAmount(transaction.amount);
     }
   }, [transaction, accounts, customPaymentMethods]);
@@ -51,6 +67,37 @@ export function ConfirmPaymentModal() {
 
   const selectedMethod = cardId.startsWith('custom-') ? customPaymentMethods.find(pm => `custom-${pm.id}` === cardId) : null;
   const isCashPayment = isCashPaymentMethod(selectedMethod?.name);
+  const linkedAccount = selectedMethod?.linkedAccountId
+    ? accounts.find(account => account.id === selectedMethod.linkedAccountId)
+    : undefined;
+  const eligibleAccountsWithLinked = linkedAccount && !eligibleAccounts.some(account => account.id === linkedAccount.id)
+    ? [...eligibleAccounts, linkedAccount]
+    : eligibleAccounts;
+  const accountOptions = isCashPayment
+    ? eligibleAccountsWithLinked.filter(account => account.type === 'carteira' && (!selectedMethod?.linkedAccountId || account.id === selectedMethod.linkedAccountId))
+    : (cardId || selectedMethod || transaction.type === 'receita')
+      ? eligibleAccountsWithLinked.filter(isBankAccount)
+      : eligibleAccountsWithLinked;
+
+  const handlePaymentMethodChange = (nextPaymentMethodId: string) => {
+    setCardId(nextPaymentMethodId);
+    const nextMethod = nextPaymentMethodId.startsWith('custom-')
+      ? customPaymentMethods.find(pm => `custom-${pm.id}` === nextPaymentMethodId)
+      : null;
+    const nextIsCash = isCashPaymentMethod(nextMethod?.name);
+    const nextLinkedAccount = nextMethod?.linkedAccountId
+      ? accounts.find(account => account.id === nextMethod.linkedAccountId)
+      : undefined;
+    const nextAccounts = nextLinkedAccount && !eligibleAccounts.some(account => account.id === nextLinkedAccount.id)
+      ? [...eligibleAccounts, nextLinkedAccount]
+      : eligibleAccounts;
+    const nextOptions = nextIsCash
+      ? nextAccounts.filter(account => account.type === 'carteira' && (!nextMethod?.linkedAccountId || account.id === nextMethod.linkedAccountId))
+      : nextPaymentMethodId || nextMethod || transaction.type === 'receita'
+        ? nextAccounts.filter(isBankAccount)
+        : nextAccounts;
+    setAccountId(nextLinkedAccount?.id || (nextOptions.some(account => account.id === accountId) ? accountId : nextOptions[0]?.id || ''));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,9 +115,12 @@ export function ConfirmPaymentModal() {
       alert('A forma Dinheiro está vinculada a outra Carteira.');
       return;
     }
-
     if (requiresAccount && !accountId) {
       alert('Por favor, selecione uma conta.');
+      return;
+    }
+    if (requiresAccount && !isCashPayment && !isBankAccount(selectedAccount)) {
+      alert('Esta forma de pagamento deve sair de uma conta bancária Corrente ou Poupança.');
       return;
     }
 
@@ -146,7 +196,7 @@ export function ConfirmPaymentModal() {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Forma de {transaction.type === 'receita' ? 'Recebimento' : 'Pagamento'}</label>
-                <Select value={cardId} onValueChange={setCardId}>
+                <Select value={cardId} onValueChange={handlePaymentMethodChange}>
                   <SelectTrigger className="w-full h-10 bg-muted/50 border-transparent focus:ring-1 focus:ring-primary shadow-none rounded-[12px] font-medium">
                     <SelectValue placeholder="Selecione...">
                       {cards.find(c => c.id === cardId) ? `🛒 Cartão ${cards.find(c => c.id === cardId)?.name}` : (
@@ -154,7 +204,7 @@ export function ConfirmPaymentModal() {
                       )}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent className="rounded-xl z-[200]">
+                  <SelectContent side="bottom" align="start" alignItemWithTrigger={false} sideOffset={6} className="max-h-56 rounded-xl z-[200]">
                     {cards.map(c => (
                       <SelectItem key={c.id} value={c.id} className="font-medium">🛒 Cartão {c.name}</SelectItem>
                     ))}
@@ -171,15 +221,15 @@ export function ConfirmPaymentModal() {
                   <Select value={accountId} onValueChange={setAccountId} required>
                     <SelectTrigger className="w-full h-10 bg-muted/50 border-transparent focus:ring-1 focus:ring-primary shadow-none rounded-[12px] font-medium">
                     <SelectValue placeholder="Selecione a conta...">
-                      {accountId ? accounts.find(a => a.id === accountId)?.name : 'Selecione a conta...'}
+                      {accountId ? (() => {
+                        const account = accounts.find(a => a.id === accountId);
+                        return account ? `${account.name} • ${formatCurrency(account.balance)}` : 'Selecione a conta...';
+                      })() : 'Selecione a conta...'}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent className="rounded-xl z-[200]">
-                    {(isCashPayment
-                      ? accounts.filter(a => a.type === 'carteira' && (!selectedMethod?.linkedAccountId || a.id === selectedMethod.linkedAccountId))
-                      : accounts
-                    ).map(a => (
-                      <SelectItem key={a.id} value={a.id} className="font-medium">{a.name}</SelectItem>
+                  <SelectContent side="bottom" align="start" alignItemWithTrigger={false} sideOffset={6} className="max-h-56 rounded-xl z-[200]">
+                    {accountOptions.map(a => (
+                      <SelectItem key={a.id} value={a.id} className="font-medium">{a.name} • {formatCurrency(a.balance)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
