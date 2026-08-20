@@ -49,7 +49,7 @@ export function TopNavigation() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { currentView, isCategoryModalOpen, setCurrentView, setCategoryModalOpen, setTransactionModalOpen, setEditingTransactionId, setTransactionPreset } = useAppStore();
+  const { currentView, isCategoryModalOpen, setCurrentView, setCategoryModalOpen, setTransactionModalOpen, setEditingTransactionId, setTransactionPreset, setActiveContextCardId } = useAppStore();
   const { organizations, currentOrganization, switchOrganization } = useOrganizationStore();
   const signOut = useAuthStore(state => state.signOut);
   const transactions = useDataStore(state => state.transactions);
@@ -97,12 +97,12 @@ export function TopNavigation() {
     agenda: [
       { label: 'Contas a pagar', view: 'agendaPayable', icon: TrendingDown, badge: payableTotal ? formatCurrency(payableTotal) : undefined, alertCount: payableAlertCount },
       { label: 'Contas a receber', view: 'agendaReceivable', icon: TrendingUp, badge: receivableTotal ? formatCurrency(receivableTotal) : undefined, alertCount: receivableAlertCount },
+      { label: 'Lançamentos', view: 'transactions', icon: WalletCards },
     ],
     treasury: [
       { label: 'Contas e caixa', view: 'accounts', icon: Landmark },
       { label: 'Cartões', view: 'cards', icon: CreditCard },
       { label: 'Faturas', view: 'invoices', icon: ReceiptText },
-      { label: 'Extrato consolidado', view: 'transactions', icon: WalletCards },
     ],
     management: [
       { label: 'Relatórios', view: 'reports', icon: BarChart3 },
@@ -146,6 +146,8 @@ export function TopNavigation() {
     if (item.view) setCurrentView(item.view);
     if (item.action === 'categories') setCategoryModalOpen(true);
     if (item.preset && canEdit) {
+      if (currentView === 'cardDetails') setCurrentView('transactions');
+      setActiveContextCardId(null);
       setEditingTransactionId(null);
       setTransactionPreset(item.preset);
       setTransactionModalOpen(true);
@@ -156,6 +158,10 @@ export function TopNavigation() {
 
   const openQuickCreate = () => {
     if (!canEdit) return;
+    if (currentView === 'cardDetails') setCurrentView('transactions');
+    // O + global nunca herda o cartão aberto. O lançamento do cartão é feito
+    // somente pelo formulário contextual da tela de detalhes do cartão.
+    setActiveContextCardId(null);
     setEditingTransactionId(null);
     setTransactionPreset('expense');
     setTransactionModalOpen(true);
@@ -165,7 +171,7 @@ export function TopNavigation() {
 
   const mobileMenuGroups: Array<{ label: string; items: MenuItem[] }> = [
     { label: 'Financeiro', items: menus.agenda },
-    { label: 'Tesouraria', items: [menus.treasury[0]] },
+    { label: 'Contas', items: menus.treasury },
     { label: 'Cadastros', items: menus.records },
   ];
 
@@ -212,7 +218,7 @@ export function TopNavigation() {
         <nav className="hidden min-w-0 flex-1 items-center gap-0.5 lg:flex">
           <button type="button" aria-label="Visão geral" onClick={() => setCurrentView('dashboard')} className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${currentView === 'dashboard' ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}><Home className="h-4 w-4" />Visão geral</button>
           <div className="relative"><MenuButton label="Financeiro" active={openMenu === 'agenda'} onClick={() => toggle('agenda')} badge={financialAlertCount || undefined} />{openMenu === 'agenda' && renderDropdown('agenda', true)}</div>
-          <div className="relative"><MenuButton label="Tesouraria" active={openMenu === 'treasury'} onClick={() => toggle('treasury')} />{openMenu === 'treasury' && renderDropdown('treasury')}</div>
+          <div className="relative"><MenuButton label="Contas" active={openMenu === 'treasury'} onClick={() => toggle('treasury')} />{openMenu === 'treasury' && renderDropdown('treasury')}</div>
           <div className="relative"><MenuButton label="Gestão" active={openMenu === 'management'} onClick={() => toggle('management')} />{openMenu === 'management' && renderDropdown('management')}</div>
           <div className="relative"><MenuButton label="Cadastros" active={openMenu === 'records'} onClick={() => toggle('records')} />{openMenu === 'records' && renderDropdown('records')}</div>
         </nav>

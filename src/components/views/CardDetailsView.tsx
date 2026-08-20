@@ -287,7 +287,7 @@ export function CardDetailsView() {
               <div className="p-1.5 bg-primary/15 text-primary rounded-lg border border-primary/20">
                 <Plus className="w-4 h-4" />
               </div>
-              <span className="font-bold text-sm tracking-tight text-foreground">Nova Transação</span>
+              <span className="font-bold text-sm tracking-tight text-foreground">Nova despesa no cartão</span>
             </div>
             <ChevronDown className={`w-4 h-4 text-foreground/70 transition-transform duration-300 ${isQuickAddExpanded ? 'rotate-180' : ''}`} />
           </button>

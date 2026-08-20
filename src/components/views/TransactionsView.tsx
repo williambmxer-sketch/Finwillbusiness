@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import * as XLSX from 'xlsx-js-style';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getCashDate, INVOICE_PAYMENT_PREFIX, isCashPaymentMethod, isInvoicePayment } from '../../utils/financialRules';
+import { getCashDate, INVOICE_PAYMENT_PREFIX, isInvoicePayment } from '../../utils/financialRules';
 
 export function TransactionsView() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,7 +35,6 @@ export function TransactionsView() {
   const allTransactions = useDataStore(state => state.transactions);
   const cards = useDataStore(state => state.cards);
   const categories = useDataStore(state => state.categories);
-  const customPaymentMethods = useDataStore(state => state.customPaymentMethods);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
   const [isCatFilterOpen, setIsCatFilterOpen] = useState(false);
@@ -165,15 +164,11 @@ export function TransactionsView() {
   const handleTogglePayment = async (t: any) => {
     const isNowPaid = !t.isPaid;
 
-    if (isNowPaid && !t.accountId && t.notes?.startsWith('paymentMethod:')) {
-      const paymentMethodName = t.notes.replace('paymentMethod:', '');
-      const paymentMethod = customPaymentMethods.find(pm => pm.name === paymentMethodName);
-      if (isCashPaymentMethod(paymentMethod?.name || paymentMethodName)) {
-        // Dinheiro precisa passar pela confirmação para escolher a Carteira;
-        // nunca pode ser marcado como pago sem uma conta de saída.
-        setConfirmPaymentTransactionId(t.id);
-        return;
-      }
+    if (isNowPaid) {
+      // O mesmo título precisa ser baixado pelo mesmo modal em todas as telas.
+      // Isso garante forma de pagamento, conta e baixa integral antes de gravar.
+      setConfirmPaymentTransactionId(t.id);
+      return;
     }
 
     if (!isNowPaid) {
@@ -958,7 +953,7 @@ export function TransactionsView() {
                               }`}
                           >
                             {t.isPaid ? (
-                              <><Clock className="w-4 h-4" /> Tornar Pendente</>
+                              <><Clock className="w-4 h-4" /> Estornar</>
                             ) : t.type === 'receita' ? (
                               <><CheckCircle2 className="w-4 h-4" /> Confirmar Recebimento</>
                             ) : (
@@ -966,17 +961,19 @@ export function TransactionsView() {
                             )}
                           </button>
 
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingTransactionId(t.id);
-                              setTransactionModalOpen(true);
-                            }}
-                            className="px-4 bg-primary/10 text-primary hover:bg-primary/20 rounded-lg flex items-center justify-center transition-colors"
-                            title="Editar"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
+                          {!t.isPaid && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingTransactionId(t.id);
+                                setTransactionModalOpen(true);
+                              }}
+                              className="px-4 bg-primary/10 text-primary hover:bg-primary/20 rounded-lg flex items-center justify-center transition-colors"
+                              title="Editar"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                          )}
                         </>
                       )}
                     </motion.div>
