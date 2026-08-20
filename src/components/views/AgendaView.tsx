@@ -19,19 +19,6 @@ function getCurrentMonthPeriod() {
   };
 }
 
-function formatDateLabel(value: string) {
-  if (!value) return '';
-  const date = new Date(`${value}T12:00:00`);
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString('pt-BR');
-}
-
-function formatPeriodLabel(start: string, end: string) {
-  if (!start && !end) return 'Todo o período';
-  if (start && end) return `${formatDateLabel(start)} a ${formatDateLabel(end)}`;
-  if (start) return `A partir de ${formatDateLabel(start)}`;
-  return `Até ${formatDateLabel(end)}`;
-}
-
 export function AgendaView({ mode }: { mode: 'payable' | 'receivable' }) {
   const transactions = useDataStore(state => state.transactions);
   const categories = useDataStore(state => state.categories);
@@ -146,20 +133,18 @@ export function AgendaView({ mode }: { mode: 'payable' | 'receivable' }) {
         <SummaryCard label="Vencidos" value={totalOverdue} icon={CalendarClock} tone={totalOverdue ? 'danger' : 'muted'} />
       </div>
 
-      <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 shadow-sm sm:flex-nowrap">
-        <div className="min-w-[150px] flex-1">
-          <div className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Período</div>
-          <div className="truncate text-xs font-black">{formatPeriodLabel(periodStart, periodEnd)}</div>
+      <div className="mb-3 flex flex-wrap items-start gap-2 rounded-xl border border-border bg-card px-3 py-2 shadow-sm sm:items-end">
+        <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:flex sm:items-end sm:gap-2">
+          <label className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-1">
+            <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Início</span>
+            <input type="date" aria-label="Data inicial do período" value={periodStart} max={periodEnd || undefined} onChange={event => { const value = event.target.value; setPeriodStart(value); if (value && periodEnd && value > periodEnd) setPeriodEnd(value); setExpandedId(null); }} className="h-8 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-[10px] font-semibold outline-none focus:border-primary sm:w-[132px]" />
+          </label>
+          <label className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-1">
+            <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Fim</span>
+            <input type="date" aria-label="Data final do período" value={periodEnd} min={periodStart || undefined} onChange={event => { const value = event.target.value; setPeriodEnd(value); if (value && periodStart && value < periodStart) setPeriodStart(value); setExpandedId(null); }} className="h-8 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-[10px] font-semibold outline-none focus:border-primary sm:w-[132px]" />
+          </label>
         </div>
-        <label className="flex shrink-0 items-center gap-1">
-          <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Início</span>
-          <input type="date" aria-label="Data inicial do período" value={periodStart} max={periodEnd || undefined} onChange={event => { const value = event.target.value; setPeriodStart(value); if (value && periodEnd && value > periodEnd) setPeriodEnd(value); setExpandedId(null); }} className="h-8 w-[132px] rounded-lg border border-border bg-background px-2 text-[10px] font-semibold outline-none focus:border-primary" />
-        </label>
-        <label className="flex shrink-0 items-center gap-1">
-          <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Fim</span>
-          <input type="date" aria-label="Data final do período" value={periodEnd} min={periodStart || undefined} onChange={event => { const value = event.target.value; setPeriodEnd(value); if (value && periodStart && value < periodStart) setPeriodStart(value); setExpandedId(null); }} className="h-8 w-[132px] rounded-lg border border-border bg-background px-2 text-[10px] font-semibold outline-none focus:border-primary" />
-        </label>
-        <div ref={presetRef} className="relative shrink-0">
+        <div ref={presetRef} className="relative shrink-0 pt-4 sm:pt-0">
           <button type="button" aria-label="Presets de período" title="Presets de período" onClick={() => setPresetOpen(open => !open)} className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${presetOpen ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}><CalendarDays className="h-4 w-4" /></button>
           {presetOpen && (
             <div className="absolute right-0 top-full z-30 mt-1 w-36 rounded-xl border border-border bg-card p-1.5 shadow-xl animate-in fade-in slide-in-from-top-1 duration-150">
@@ -169,7 +154,7 @@ export function AgendaView({ mode }: { mode: 'payable' | 'receivable' }) {
             </div>
           )}
         </div>
-        <button type="button" onClick={clearPeriod} className="shrink-0 rounded-md px-2 py-1 text-[9px] font-black uppercase tracking-wider text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">Limpar</button>
+        <button type="button" onClick={clearPeriod} className="mt-4 h-8 w-[132px] shrink-0 rounded-lg border border-border bg-muted/60 px-3 text-center text-[9px] font-black uppercase tracking-wider text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:mt-0">Limpar</button>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
