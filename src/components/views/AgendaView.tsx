@@ -206,7 +206,12 @@ export function AgendaView({ mode }: { mode: 'payable' | 'receivable' }) {
               const registeredPaymentMethod = customPaymentMethods.find(value => value.name === savedPaymentMethod)?.name;
               const paymentMethod = item.cardId && item.cardId !== 'money'
                 ? `Cartão ${card?.name || 'cadastrado'}`
-                : registeredPaymentMethod || savedPaymentMethod || account?.name || 'Não informado';
+                : registeredPaymentMethod || savedPaymentMethod || 'Não informado';
+              const accountLabel = account?.name || 'Não informado';
+              const issueDate = new Date(item.date).toLocaleDateString('pt-BR');
+              const paymentDate = item.isPaid
+                ? new Date(item.paymentDate || item.date).toLocaleDateString('pt-BR')
+                : 'Não realizado';
               const expanded = expandedId === item.id;
               const statusText = item.isPaid
                 ? `${mode === 'payable' ? 'Pago' : 'Recebido'} em ${new Date(item.paymentDate || item.date).toLocaleDateString('pt-BR')}`
@@ -233,11 +238,14 @@ export function AgendaView({ mode }: { mode: 'payable' | 'receivable' }) {
                     {expanded && (
                       <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}>
                         <div className="border-t border-border bg-muted/20 px-3 pb-3 pt-3 sm:px-4">
-                          <div className="grid gap-2 text-[11px] sm:grid-cols-4">
+                          <div className="grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-3 lg:grid-cols-7">
+                            <Detail label="Emissão" value={issueDate} />
                             <Detail label="Vencimento" value={due.toLocaleDateString('pt-BR')} />
+                            <Detail label="Pagamento" value={paymentDate} />
                             <Detail label={mode === 'payable' ? 'Fornecedor' : 'Cliente'} value={contact?.name || 'Não informado'} />
                             <Detail label="Categoria" value={category?.name || 'Sem categoria'} />
                             <Detail label={mode === 'payable' ? 'Forma de pagamento' : 'Forma de recebimento'} value={paymentMethod} />
+                            <Detail label={mode === 'payable' ? 'Conta de saída' : 'Conta de entrada'} value={accountLabel} />
                           </div>
                           <div className="mt-3 flex flex-wrap justify-end gap-2">
                             {!item.isPaid ? (
