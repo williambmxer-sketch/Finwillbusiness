@@ -38,21 +38,17 @@ export function ContactsView() {
   const toggleExpanded = (contactId: string) => setExpandedId(current => current === contactId ? null : contactId);
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-6 lg:px-8">
-      <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <div>
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-primary"><UsersRound className="h-3.5 w-3.5" /> Relacionamentos</div>
-          <h1 className="text-2xl font-black tracking-tight md:text-3xl">Clientes e fornecedores</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Cadastros rápidos para identificar de onde o dinheiro vem e para onde vai.</p>
-        </div>
-        <button type="button" onClick={() => setEditing('new')} className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground"><Plus className="h-4 w-4" />Novo contato</button>
+    <div className="mx-auto w-full max-w-7xl px-4 py-4 lg:px-8">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h1 className="text-xl font-black tracking-tight md:text-2xl">Clientes e fornecedores</h1>
+        <button type="button" onClick={() => setEditing('new')} className="flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-[11px] font-bold text-primary-foreground"><Plus className="h-3.5 w-3.5" />Novo contato</button>
       </div>
 
-      <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 md:flex-row md:items-center md:justify-between">
+      <div className="mb-3 flex flex-col gap-2 rounded-2xl border border-border bg-card p-2 md:flex-row md:items-center md:justify-between">
         <div className="flex gap-1 rounded-xl bg-muted p-1">
-          {([['todos', 'Todos'], ['cliente', 'Clientes'], ['fornecedor', 'Fornecedores']] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setFilter(value)} className={`rounded-lg px-3 py-2 text-[10px] font-black uppercase tracking-wider ${filter === value ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground'}`}>{label}</button>)}
+          {([['todos', 'Todos'], ['cliente', 'Clientes'], ['fornecedor', 'Fornecedores']] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setFilter(value)} className={`rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-wider ${filter === value ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground'}`}>{label}</button>)}
         </div>
-        <label className="relative block w-full md:w-72"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar contato" className="h-10 w-full rounded-xl border border-border bg-background pl-9 pr-3 text-xs outline-none focus:border-primary" /></label>
+        <label className="relative block w-full md:w-72"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar contato" className="h-9 w-full rounded-xl border border-border bg-background pl-9 pr-3 text-xs outline-none focus:border-primary" /></label>
       </div>
 
       {error && <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-600">{error}</div>}
@@ -61,7 +57,7 @@ export function ContactsView() {
         <div className="rounded-2xl border border-dashed border-border p-12 text-center"><UsersRound className="mx-auto mb-3 h-10 w-10 text-muted-foreground" /><div className="text-sm font-bold">Nenhum contato encontrado</div><p className="mt-1 text-xs text-muted-foreground">Cadastre seu primeiro cliente ou fornecedor.</p></div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-          <div className="hidden grid-cols-[minmax(0,1fr)_140px_auto] gap-4 border-b border-border bg-muted/30 px-4 py-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground md:grid">
+          <div className="hidden grid-cols-[minmax(0,1fr)_140px_auto] gap-4 border-b border-border bg-muted/30 px-4 py-1.5 text-[8px] font-black uppercase tracking-widest text-muted-foreground md:grid">
             <span>Cadastro</span><span>Tipo</span><span />
           </div>
           <div className="divide-y divide-border">
@@ -77,20 +73,20 @@ export function ContactsView() {
                     aria-expanded={expanded}
                     onClick={() => toggleExpanded(contact.id)}
                     onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleExpanded(contact.id); } }}
-                    className="grid cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 outline-none transition-colors hover:bg-muted/30 focus-visible:bg-muted/30 md:grid-cols-[minmax(0,1fr)_140px_auto]"
+                    className="grid cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-4 py-1.5 outline-none transition-colors hover:bg-muted/30 focus-visible:bg-muted/30 md:grid-cols-[minmax(0,1fr)_140px_auto]"
                   >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${tone}`}><ContactIcon className="h-4 w-4" /></div>
-                      <div className="truncate text-sm font-bold">{contact.name}</div>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${tone}`}><ContactIcon className="h-3.5 w-3.5" /></div>
+                      <div className="truncate text-[13px] font-bold">{contact.name}</div>
                     </div>
-                    <div><span className="rounded-full bg-primary/10 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-primary">{contact.type}</span></div>
+                    <div><span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-primary">{contact.type}</span></div>
                     <div className="col-span-2 flex justify-end md:col-span-1"><ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180 text-foreground' : ''}`} /></div>
                   </div>
                   <div
                     aria-hidden={!expanded}
                     className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-300 ease-out ${expanded ? 'grid-rows-[1fr] opacity-100' : 'pointer-events-none grid-rows-[0fr] opacity-0'}`}
                   >
-                    <div className={`min-h-0 overflow-hidden border-t border-border bg-muted/20 px-4 py-4 transition-transform duration-300 ease-out md:grid md:grid-cols-[1fr_1fr_auto] md:items-start md:gap-6 ${expanded ? 'translate-y-0' : '-translate-y-2'}`}>
+                    <div className={`min-h-0 overflow-hidden bg-muted/20 px-4 transition-[height,padding,transform] duration-300 ease-out md:grid md:grid-cols-[1fr_1fr_auto] md:items-start md:gap-6 ${expanded ? 'border-t border-border py-3 translate-y-0' : 'h-0 border-t-0 py-0 -translate-y-2'}`}>
                       <div><div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">E-mail</div><div className="mt-1 flex items-center gap-2 text-xs">{contact.email ? <><Mail className="h-3.5 w-3.5 text-muted-foreground" />{contact.email}</> : 'Não informado'}</div></div>
                       <div><div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Telefone e observações</div><div className="mt-1 flex items-center gap-2 text-xs">{contact.phone ? <><Phone className="h-3.5 w-3.5 text-muted-foreground" />{contact.phone}</> : 'Não informado'}</div>{contact.notes && <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{contact.notes}</p>}</div>
                       <div className="mt-3 flex gap-2 md:mt-0 md:justify-end"><button type="button" tabIndex={expanded ? 0 : -1} onClick={() => setEditing(contact)} className="rounded-xl border border-border px-3 py-2 text-[10px] font-bold hover:bg-card"><Pencil className="mr-1 inline h-3.5 w-3.5" />Editar</button><button type="button" tabIndex={expanded ? 0 : -1} onClick={() => handleDelete(contact)} disabled={deletingId === contact.id} className="rounded-xl border border-red-500/20 px-3 py-2 text-[10px] font-bold text-red-600 hover:bg-red-500/10 disabled:opacity-50"><Trash2 className="mr-1 inline h-3.5 w-3.5" />Excluir</button></div>
