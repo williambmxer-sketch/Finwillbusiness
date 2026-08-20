@@ -204,7 +204,7 @@ export function TopNavigation() {
     <div ref={rootRef} className="relative z-[80] border-b border-border bg-card/95 shadow-sm">
       <div className="mx-auto flex h-16 w-full max-w-[1500px] items-center gap-2 px-3 lg:px-5">
         <button type="button" onClick={() => setCurrentView('dashboard')} className="mr-1 flex shrink-0 items-center gap-2 rounded-xl px-1.5 py-1 transition-colors hover:bg-muted">
-          <img src="/icone-financas-pwa.svg" alt="FinWill" className="h-9 w-9" />
+          <img src="/icone-financas-pwa.svg?v=2" alt="FinWill" className="h-9 w-9" />
           <div className="hidden text-left sm:block">
             <div className="text-sm font-black leading-none tracking-tight">FinWill</div>
             <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.18em] text-primary">Business</div>

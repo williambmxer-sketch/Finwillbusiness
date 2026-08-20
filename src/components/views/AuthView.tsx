@@ -58,7 +58,7 @@ export function AuthView() {
       >
         <div className="flex flex-col items-center mb-6">
           <div className="w-12 h-12 bg-primary/10 rounded-[14px] flex items-center justify-center mb-3 overflow-hidden">
-            <img src="/icone-financas-pwa.svg" alt="FinWill" className="w-10 h-10 object-contain" />
+            <img src="/icone-financas-pwa.svg?v=2" alt="FinWill" className="w-10 h-10 object-contain" />
           </div>
           <h1 className="text-xl font-bold tracking-tight">FinWill Business</h1>
           <p className="text-xs text-muted-foreground mt-1 text-center">

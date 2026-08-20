@@ -173,7 +173,7 @@ export default function App() {
     return (
       <div className="flex bg-background h-screen w-screen items-center justify-center">
         <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.5 }}>
-          <img src="/icone-financas-pwa.svg" alt="FinWill" className="h-14 w-14 object-contain" />
+          <img src="/icone-financas-pwa.svg?v=2" alt="FinWill" className="h-14 w-14 object-contain" />
         </motion.div>
       </div>
     );
@@ -186,7 +186,7 @@ export default function App() {
   if (dataError && !hasLoadedData) {
     return (
       <div className="flex h-screen w-screen flex-col items-center justify-center gap-4 bg-background px-6 text-center">
-        <img src="/icone-financas-pwa.svg" alt="FinWill" className="h-12 w-12 object-contain" />
+          <img src="/icone-financas-pwa.svg?v=2" alt="FinWill" className="h-12 w-12 object-contain" />
         <div>
           <h1 className="text-base font-bold">Não foi possível carregar seus dados</h1>
           <p className="mt-1 text-xs text-muted-foreground">Verifique sua conexão e tente novamente.</p>
