@@ -108,6 +108,7 @@ export function ConfirmPaymentModal() {
     const isCustom = cardId.startsWith('custom-');
     const isCard = transaction.type === 'despesa' && !isCustom;
     const requiresAccount = selectedMethod ? (selectedMethod.debitFromAccount !== false || isCashPaymentMethod(selectedMethod.name)) : true;
+    const finalAmount = amount === '' ? 0 : Number(amount);
 
     if (!cardId) {
       setValidationError(`Selecione uma forma de ${transaction.type === 'receita' ? 'recebimento' : 'pagamento'} para continuar.`);
@@ -119,8 +120,13 @@ export function ConfirmPaymentModal() {
       return;
     }
 
-    if (transaction.amount <= 0) {
+    if (!Number.isFinite(finalAmount) || finalAmount <= 0) {
       setValidationError('Informe um valor de recebimento ou pagamento maior que zero.');
+      return;
+    }
+
+    if (finalAmount + 0.005 < transaction.amount) {
+      setValidationError(`A baixa parcial não está disponível. O valor deve ser igual ou maior que ${formatCurrency(transaction.amount)}.`);
       return;
     }
 
@@ -149,10 +155,6 @@ export function ConfirmPaymentModal() {
 
     // Create local Date from input, setting to noon to avoid timezone shift issues
     const realPaymentDate = new Date(date + 'T12:00:00');
-    // A baixa é integral neste momento. O valor do título é a única fonte de verdade;
-    // não permitimos que o modal transforme a baixa em uma baixa parcial.
-    const finalAmount = transaction.amount;
-
     const paymentMethodName = isCustom ? (selectedMethod?.name || cardId.replace('custom-', '')) : undefined;
 
     await api.transactions.update(transaction.id, {
@@ -206,9 +208,9 @@ export function ConfirmPaymentModal() {
                   <Input 
                     type="number" 
                     step="0.01"
-                    readOnly
-                    className="w-full h-10 pl-9 cursor-default bg-muted/50 border-transparent focus:bg-muted/50 focus:ring-0 transition-colors shadow-none rounded-[12px] font-medium"
+                    className="w-full h-10 pl-9 bg-muted/50 border-transparent focus:bg-background focus:ring-1 focus:ring-primary transition-colors shadow-none rounded-[12px] font-medium"
                     value={amount}
+                    onChange={e => { setValidationError(''); setAmount(e.target.value ? Number(e.target.value) : ''); }}
                   />
                 </div>
               </div>
