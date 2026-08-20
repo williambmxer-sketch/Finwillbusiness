@@ -343,7 +343,7 @@ function MobileBottomNavigation({ currentView, setCurrentView, onNew }: { curren
       <nav className="fixed inset-x-0 bottom-0 z-[65] border-t border-border bg-card/95 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_24px_-8px_rgba(0,0,0,0.12)] backdrop-blur-xl lg:hidden" aria-label="Navegação principal">
         <div className="mx-auto flex h-16 max-w-md items-center justify-between">
           <MobileNavItem icon={LayoutDashboard} label="Início" active={currentView === 'dashboard'} onClick={() => setCurrentView('dashboard')} />
-          <MobileNavItem icon={WalletCards} label="Transações" active={currentView === 'transactions'} onClick={() => setCurrentView('transactions')} />
+          <MobileNavItem icon={WalletCards} label="Lançamentos" active={currentView === 'transactions'} onClick={() => setCurrentView('transactions')} />
           <MobileNavItem icon={CreditCard} label="Cartões" active={currentView === 'cards' || currentView === 'cardDetails'} onClick={() => setCurrentView('cards')} />
           <MobileNavItem icon={ReceiptText} label="Faturas" active={currentView === 'invoices'} onClick={() => setCurrentView('invoices')} />
           <MobileNavItem icon={BarChart3} label="Relatórios" active={currentView === 'reports'} onClick={() => setCurrentView('reports')} />

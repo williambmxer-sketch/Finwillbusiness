@@ -11,6 +11,9 @@ export function AgendaView({ mode }: { mode: 'payable' | 'receivable' }) {
   const transactions = useDataStore(state => state.transactions);
   const categories = useDataStore(state => state.categories);
   const contacts = useDataStore(state => state.contacts);
+  const accounts = useDataStore(state => state.accounts);
+  const cards = useDataStore(state => state.cards);
+  const customPaymentMethods = useDataStore(state => state.customPaymentMethods);
   const { setConfirmModal, setConfirmPaymentTransactionId, setEditingTransactionId, setTransactionModalOpen } = useAppStore();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<'open' | 'overdue' | 'paid'>('open');
@@ -101,6 +104,15 @@ export function AgendaView({ mode }: { mode: 'payable' | 'receivable' }) {
               const overdue = !item.isPaid && due < now;
               const contact = contacts.find(value => value.id === item.contactId);
               const category = categories.find(value => value.id === item.categoryId);
+              const account = accounts.find(value => value.id === item.accountId);
+              const card = cards.find(value => value.id === item.cardId);
+              const savedPaymentMethod = item.notes?.startsWith('paymentMethod:')
+                ? item.notes.replace('paymentMethod:', '')
+                : undefined;
+              const registeredPaymentMethod = customPaymentMethods.find(value => value.name === savedPaymentMethod)?.name;
+              const paymentMethod = item.cardId && item.cardId !== 'money'
+                ? `Cartão ${card?.name || 'cadastrado'}`
+                : registeredPaymentMethod || savedPaymentMethod || account?.name || 'Não informado';
               const expanded = expandedId === item.id;
               const statusText = item.isPaid
                 ? `${mode === 'payable' ? 'Pago' : 'Recebido'} em ${new Date(item.paymentDate || item.date).toLocaleDateString('pt-BR')}`
@@ -127,10 +139,11 @@ export function AgendaView({ mode }: { mode: 'payable' | 'receivable' }) {
                     {expanded && (
                       <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}>
                         <div className="border-t border-border bg-muted/20 px-3 pb-3 pt-3 sm:px-4">
-                          <div className="grid gap-2 text-[11px] sm:grid-cols-3">
+                          <div className="grid gap-2 text-[11px] sm:grid-cols-4">
                             <Detail label="Vencimento" value={due.toLocaleDateString('pt-BR')} />
                             <Detail label={mode === 'payable' ? 'Fornecedor' : 'Cliente'} value={contact?.name || 'Não informado'} />
                             <Detail label="Categoria" value={category?.name || 'Sem categoria'} />
+                            <Detail label={mode === 'payable' ? 'Forma de pagamento' : 'Forma de recebimento'} value={paymentMethod} />
                           </div>
                           <div className="mt-3 flex flex-wrap justify-end gap-2">
                             {!item.isPaid ? (
