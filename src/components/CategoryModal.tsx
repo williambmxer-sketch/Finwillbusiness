@@ -40,6 +40,20 @@ export function CategoryModal() {
   const [pmLinkedAccountId, setPmLinkedAccountId] = useState('');
   const [paymentMethodError, setPaymentMethodError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!isCategoryModalOpen) return;
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousDocumentOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousDocumentOverflow;
+    };
+  }, [isCategoryModalOpen]);
+
   const handleEdit = (c: Category) => {
     setConfirmDeleteId(null);
     setEditingId(c.id);
@@ -166,12 +180,12 @@ export function CategoryModal() {
   if (!isCategoryModalOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-background/80 backdrop-blur-sm sm:backdrop-blur-md">
-      <div className="w-full max-w-md bg-card border-t sm:border border-border sm:rounded-[20px] rounded-t-[24px] shadow-2xl flex flex-col h-[90dvh] sm:h-[650px] transition-all relative">
+    <div className="fixed inset-0 z-[110] flex items-end justify-center bg-background/80 p-0 backdrop-blur-sm sm:items-center sm:p-4 sm:backdrop-blur-md">
+      <div className="relative flex h-[90dvh] w-full max-w-md flex-col rounded-t-[24px] border-t border-border bg-card shadow-2xl transition-all sm:h-[650px] sm:rounded-[20px] sm:border lg:h-[760px] lg:max-h-[calc(100dvh-2rem)] lg:max-w-4xl">
         <div className="sm:hidden absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-muted rounded-full" />
         
         <div className="flex justify-between items-center p-4 pb-3 border-b">
-          <h2 className="text-sm font-bold tracking-tight">Configurações</h2>
+          <h2 className="text-sm font-bold tracking-tight sm:text-base">Categorias e formas de pagamento</h2>
           <button onClick={() => setCategoryModalOpen(false)} className="p-1.5 rounded-full bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
             <X className="w-4 h-4" />
           </button>
@@ -277,7 +291,7 @@ export function CategoryModal() {
               )}
 
               {/* List */}
-              <div className="flex-1 overflow-y-auto p-2 space-y-4 pb-8 sm:pb-2">
+              <div className="flex-1 space-y-4 overflow-y-auto p-2 pb-8 sm:pb-2 lg:grid lg:grid-cols-2 lg:content-start lg:gap-5 lg:space-y-0">
                 {['receita', 'despesa'].map((catType) => {
                   const filteredCats = categories.filter(c => c.type === catType);
                   if (filteredCats.length === 0) return null;
@@ -453,7 +467,7 @@ export function CategoryModal() {
               )}
 
               {/* List custom payment methods */}
-              <div className="flex-1 overflow-y-auto p-2 space-y-1.5 pb-8 sm:pb-2">
+              <div className="flex-1 space-y-1.5 overflow-y-auto p-2 pb-8 sm:pb-2 lg:grid lg:grid-cols-2 lg:content-start lg:gap-3 lg:space-y-0">
                 {paymentMethods.map(pm => {
                   const isConfirmingPm = confirmDeletePmId === pm.id;
                   const linkedAccount = accounts.find(account => account.id === pm.linkedAccountId);
