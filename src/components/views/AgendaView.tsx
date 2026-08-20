@@ -224,8 +224,8 @@ export function AgendaView({ mode }: { mode: 'payable' | 'receivable' }) {
                       {item.isPaid ? <CheckCircle2 className="h-4 w-4" /> : <CalendarClock className="h-4 w-4" />}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-bold">{item.description}</div>
-                      <div className="mt-0.5 truncate text-[10px] font-semibold text-muted-foreground">{contact?.name || (mode === 'payable' ? 'Sem fornecedor' : 'Sem cliente')} · {statusText}</div>
+                      <div className="truncate text-sm font-bold">{contact?.name || item.description}</div>
+                      <div className="mt-0.5 truncate text-[10px] font-semibold text-muted-foreground">{statusText}</div>
                     </div>
                     <div className="shrink-0 text-right">
                       <div className="text-sm font-black">{formatCurrency(item.amount)}</div>
@@ -238,6 +238,9 @@ export function AgendaView({ mode }: { mode: 'payable' | 'receivable' }) {
                     {expanded && (
                       <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}>
                         <div className="border-t border-border bg-muted/20 px-3 pb-3 pt-3 sm:px-4">
+                          <div className="mb-3 rounded-lg bg-card/70 px-2.5 py-2">
+                            <Detail label="Descrição" value={item.description} />
+                          </div>
                           <div className="grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-3 lg:grid-cols-7">
                             <Detail label="Emissão" value={issueDate} />
                             <Detail label="Vencimento" value={due.toLocaleDateString('pt-BR')} />
