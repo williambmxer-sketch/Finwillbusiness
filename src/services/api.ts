@@ -575,56 +575,6 @@ export const api = {
     },
   },
 
-  planning: {
-    list: async () => {
-      const { data, error } = await supabase.from('itens_planejamento').select('*').eq('ativo', true).order('mes_inicio');
-      if (error) throw error;
-      return (data || []).map((row: any) => ({
-        id: row.id,
-        description: row.descricao,
-        amount: Number(row.valor),
-        type: row.tipo,
-        startMonth: String(row.mes_inicio).slice(0, 7),
-        durationMonths: row.duracao_meses,
-        categoryId: row.categoria_id || '',
-        accountId: row.conta_id || undefined,
-        cardId: row.cartao_id || undefined,
-        projectSubsequentMonth: false,
-      }));
-    },
-    replace: async (items: any[]) => {
-      const userId = await getUserId();
-      const organizationId = await getCurrentOrganizationId();
-      const { data: existing, error: existingError } = await supabase.from('itens_planejamento').select('id');
-      if (existingError) throw existingError;
-      const ids = new Set(items.map(item => item.id));
-      const toDelete = (existing || []).map((item: any) => item.id).filter(id => !ids.has(id));
-      if (toDelete.length > 0) {
-        const { error } = await supabase.from('itens_planejamento').delete().in('id', toDelete);
-        if (error) throw error;
-      }
-      if (items.length > 0) {
-        const payload = items.map(item => ({
-          id: item.id,
-          organizacao_id: organizationId,
-          usuario_id: userId,
-          descricao: item.description,
-          valor: item.amount,
-          tipo: item.type,
-          mes_inicio: `${item.startMonth}-01`,
-          duracao_meses: item.durationMonths,
-          categoria_id: item.categoryId || null,
-          conta_id: item.accountId || null,
-          cartao_id: item.cardId || null,
-          ativo: true,
-        }));
-        const { error } = await supabase.from('itens_planejamento').upsert(payload, { onConflict: 'id' });
-        if (error) throw error;
-      }
-      notifyMutation();
-    },
-  },
-
   paymentMethods: {
     list: async (): Promise<CustomPaymentMethod[]> => {
       const { data, error } = await supabase.from('formas_pagamento').select('*');

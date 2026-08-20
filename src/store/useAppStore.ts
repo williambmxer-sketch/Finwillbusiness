@@ -11,7 +11,6 @@ export type AppView =
   | 'accountDetails'
   | 'cardDetails'
   | 'reports'
-  | 'planning'
   | 'contacts'
   | 'partners'
   | 'company';

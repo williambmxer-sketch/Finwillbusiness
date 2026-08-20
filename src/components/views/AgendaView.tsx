@@ -87,7 +87,7 @@ export function AgendaView({ mode }: { mode: 'payable' | 'receivable' }) {
                   <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${overdue ? 'bg-red-500/10 text-red-600' : item.isPaid ? 'bg-emerald-500/10 text-emerald-600' : 'bg-primary/10 text-primary'}`}>
                     {item.isPaid ? <CheckCircle2 className="h-5 w-5" /> : <CalendarClock className="h-5 w-5" />}
                   </div>
-                  <button type="button" onClick={() => { setEditingTransactionId(item.id); setTransactionModalOpen(true); }} className="min-w-0 flex-1 text-left">
+                  <button type="button" disabled={item.isPaid} onClick={() => { setEditingTransactionId(item.id); setTransactionModalOpen(true); }} className={`min-w-0 flex-1 text-left ${item.isPaid ? 'cursor-default' : 'cursor-pointer'}`}>
                     <div className="truncate text-sm font-bold">{item.description}</div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] font-semibold text-muted-foreground">
                       <span>{contact?.name || (mode === 'payable' ? 'Sem fornecedor' : 'Sem cliente')}</span>

@@ -18,7 +18,6 @@ import { CardsView } from './components/views/CardsView';
 import { AccountsView } from './components/views/AccountsView';
 import { AccountDetailsView } from './components/views/AccountDetailsView';
 import { CardDetailsView } from './components/views/CardDetailsView';
-import { PlanningView } from './components/views/PlanningView';
 import { TransactionModal } from './components/TransactionModal';
 import { CardModal } from './components/CardModal';
 import { CategoryModal } from './components/CategoryModal';
@@ -224,8 +223,6 @@ export default function App() {
         return <CardDetailsView />;
       case 'reports':
         return <ReportsView />;
-      case 'planning':
-        return <PlanningView />;
       case 'contacts':
         return <ContactsView />;
       case 'partners':

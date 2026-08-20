@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BarChart3,
   Building2,
-  CalendarClock,
   ChevronDown,
   ContactRound,
   CreditCard,
@@ -43,6 +42,7 @@ interface MenuItem {
   action?: 'categories';
   icon: React.ComponentType<{ className?: string }>;
   badge?: string;
+  alertCount?: number;
 }
 
 export function TopNavigation() {
@@ -56,11 +56,36 @@ export function TopNavigation() {
   const canEdit = currentOrganization && !['consulta', 'visualizador', 'membro'].includes(currentOrganization.role);
   const organizationName = currentOrganization?.tradeName || currentOrganization?.name || 'Minha empresa';
 
-  const today = new Date();
-  today.setHours(23, 59, 59, 999);
-  const overdueCount = transactions.filter(t => !t.isPaid && (t.dueDate || t.date) < today).length;
+  const notificationCutoff = new Date();
+  notificationCutoff.setHours(23, 59, 59, 999);
+  notificationCutoff.setDate(notificationCutoff.getDate() + 1);
+  const isFinancialTitle = (transaction: typeof transactions[number]) => (
+    (transaction.type === 'despesa' || transaction.type === 'receita') &&
+    transaction.nature !== 'transferencia' &&
+    transaction.nature !== 'pagamento_fatura'
+  );
+  const financialAlertCount = transactions.filter(transaction => (
+    isFinancialTitle(transaction) &&
+    !transaction.isPaid &&
+    new Date(transaction.dueDate || transaction.date) <= notificationCutoff
+  )).length;
+  const payableAlertCount = transactions.filter(transaction => (
+    isFinancialTitle(transaction) &&
+    transaction.type === 'despesa' &&
+    !transaction.isPaid &&
+    new Date(transaction.dueDate || transaction.date) <= notificationCutoff
+  )).length;
+  const receivableAlertCount = transactions.filter(transaction => (
+    isFinancialTitle(transaction) &&
+    transaction.type === 'receita' &&
+    !transaction.isPaid &&
+    new Date(transaction.dueDate || transaction.date) <= notificationCutoff
+  )).length;
   const payableTotal = transactions
-    .filter(t => !t.isPaid && t.type === 'despesa')
+    .filter(t => isFinancialTitle(t) && !t.isPaid && t.type === 'despesa')
+    .reduce((sum, item) => sum + item.amount, 0);
+  const receivableTotal = transactions
+    .filter(t => isFinancialTitle(t) && !t.isPaid && t.type === 'receita')
     .reduce((sum, item) => sum + item.amount, 0);
 
   const menus = useMemo<Record<'finance' | 'agenda' | 'treasury' | 'management' | 'records', MenuItem[]>>(() => ({
@@ -70,9 +95,8 @@ export function TopNavigation() {
       { label: 'Transferência', preset: 'transfer', icon: Landmark },
     ],
     agenda: [
-      { label: 'Contas a pagar', view: 'agendaPayable', icon: TrendingDown, badge: payableTotal ? formatCurrency(payableTotal) : undefined },
-      { label: 'Contas a receber', view: 'agendaReceivable', icon: TrendingUp },
-      { label: 'Planejamento recorrente', view: 'planning', icon: CalendarClock },
+      { label: 'Contas a pagar', view: 'agendaPayable', icon: TrendingDown, badge: payableTotal ? formatCurrency(payableTotal) : undefined, alertCount: payableAlertCount },
+      { label: 'Contas a receber', view: 'agendaReceivable', icon: TrendingUp, badge: receivableTotal ? formatCurrency(receivableTotal) : undefined, alertCount: receivableAlertCount },
     ],
     treasury: [
       { label: 'Contas e caixa', view: 'accounts', icon: Landmark },
@@ -88,7 +112,7 @@ export function TopNavigation() {
       { label: 'Categorias', action: 'categories', icon: Settings },
       { label: 'Usuários e empresa', view: 'company', icon: Users },
     ],
-  }), [overdueCount, payableTotal]);
+  }), [financialAlertCount, payableAlertCount, payableTotal, receivableAlertCount, receivableTotal]);
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
@@ -162,6 +186,7 @@ export function TopNavigation() {
               <Icon className="h-4 w-4" />
             </span>
             <span className="min-w-0 flex-1 text-xs font-semibold">{item.label}</span>
+            {item.alertCount ? <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-black text-white">{item.alertCount}</span> : null}
             {item.badge && <span className="rounded-full bg-amber-500/10 px-2 py-1 text-[9px] font-bold text-amber-700 dark:text-amber-400">{item.badge}</span>}
           </button>
         );
@@ -186,7 +211,7 @@ export function TopNavigation() {
 
         <nav className="hidden min-w-0 flex-1 items-center gap-0.5 lg:flex">
           <button type="button" aria-label="Visão geral" onClick={() => setCurrentView('dashboard')} className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${currentView === 'dashboard' ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}><Home className="h-4 w-4" />Visão geral</button>
-          <div className="relative"><MenuButton label="Financeiro" active={openMenu === 'agenda'} onClick={() => toggle('agenda')} badge={overdueCount || undefined} />{openMenu === 'agenda' && renderDropdown('agenda', true)}</div>
+          <div className="relative"><MenuButton label="Financeiro" active={openMenu === 'agenda'} onClick={() => toggle('agenda')} badge={financialAlertCount || undefined} />{openMenu === 'agenda' && renderDropdown('agenda', true)}</div>
           <div className="relative"><MenuButton label="Tesouraria" active={openMenu === 'treasury'} onClick={() => toggle('treasury')} />{openMenu === 'treasury' && renderDropdown('treasury')}</div>
           <div className="relative"><MenuButton label="Gestão" active={openMenu === 'management'} onClick={() => toggle('management')} />{openMenu === 'management' && renderDropdown('management')}</div>
           <div className="relative"><MenuButton label="Cadastros" active={openMenu === 'records'} onClick={() => toggle('records')} />{openMenu === 'records' && renderDropdown('records')}</div>
@@ -292,6 +317,7 @@ function MobileMenuPanel({
                   <button key={item.label} type="button" onClick={() => openItem(item)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-semibold transition-colors ${item.view === currentView ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}>
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/70 text-primary"><Icon className="h-4 w-4" /></span>
                     <span className="min-w-0 flex-1">{item.label}</span>
+                    {item.alertCount ? <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-black text-white">{item.alertCount}</span> : null}
                     {item.badge && <span className="rounded-full bg-amber-500/10 px-2 py-1 text-[9px] font-bold text-amber-700 dark:text-amber-400">{item.badge}</span>}
                   </button>
                 );
