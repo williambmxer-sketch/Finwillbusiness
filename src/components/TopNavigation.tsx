@@ -54,6 +54,7 @@ export function TopNavigation() {
   const signOut = useAuthStore(state => state.signOut);
   const transactions = useDataStore(state => state.transactions);
   const canEdit = currentOrganization && !['consulta', 'visualizador', 'membro'].includes(currentOrganization.role);
+  const organizationName = currentOrganization?.tradeName || currentOrganization?.name || 'Minha empresa';
 
   const today = new Date();
   today.setHours(23, 59, 59, 999);
@@ -178,6 +179,10 @@ export function TopNavigation() {
             <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.18em] text-primary">Business</div>
           </div>
         </button>
+
+        <div className="min-w-0 flex-1 px-2 text-center lg:hidden" aria-label={`Empresa ativa: ${organizationName}`}>
+          <span className="block truncate text-xs font-bold text-foreground">{organizationName}</span>
+        </div>
 
         <nav className="hidden min-w-0 flex-1 items-center gap-0.5 lg:flex">
           <button type="button" aria-label="Visão geral" onClick={() => setCurrentView('dashboard')} className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${currentView === 'dashboard' ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}><Home className="h-4 w-4" />Visão geral</button>
