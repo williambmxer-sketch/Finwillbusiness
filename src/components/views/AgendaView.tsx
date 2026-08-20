@@ -1,11 +1,36 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { CalendarClock, CheckCircle2, ChevronDown, Clock3, Pencil, RotateCcw, Search, TrendingDown, TrendingUp } from 'lucide-react';
+import { CalendarClock, CalendarDays, CheckCircle2, ChevronDown, Clock3, Pencil, RotateCcw, Search, TrendingDown, TrendingUp } from 'lucide-react';
 import { Transaction } from '../../db/db';
 import { api } from '../../services/api';
 import { useDataStore } from '../../store/useDataStore';
 import { useAppStore } from '../../store/useAppStore';
 import { formatCurrency } from '../../utils/formatters';
+
+function toDateInputValue(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function getCurrentMonthPeriod() {
+  const today = new Date();
+  return {
+    start: toDateInputValue(new Date(today.getFullYear(), today.getMonth(), 1)),
+    end: toDateInputValue(new Date(today.getFullYear(), today.getMonth() + 1, 0)),
+  };
+}
+
+function formatDateLabel(value: string) {
+  if (!value) return '';
+  const date = new Date(`${value}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString('pt-BR');
+}
+
+function formatPeriodLabel(start: string, end: string) {
+  if (!start && !end) return 'Todo o período';
+  if (start && end) return `${formatDateLabel(start)} a ${formatDateLabel(end)}`;
+  if (start) return `A partir de ${formatDateLabel(start)}`;
+  return `Até ${formatDateLabel(end)}`;
+}
 
 export function AgendaView({ mode }: { mode: 'payable' | 'receivable' }) {
   const transactions = useDataStore(state => state.transactions);
@@ -18,12 +43,29 @@ export function AgendaView({ mode }: { mode: 'payable' | 'receivable' }) {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<'open' | 'overdue' | 'paid'>('open');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const currentMonthPeriod = getCurrentMonthPeriod();
+  const [periodStart, setPeriodStart] = useState(currentMonthPeriod.start);
+  const [periodEnd, setPeriodEnd] = useState(currentMonthPeriod.end);
+  const [presetOpen, setPresetOpen] = useState(false);
+  const presetRef = useRef<HTMLDivElement>(null);
   const type = mode === 'payable' ? 'despesa' : 'receita';
   const now = new Date();
   now.setHours(0, 0, 0, 0);
 
-  const items = useMemo(() => transactions
-    .filter(item => item.type === type && item.nature !== 'transferencia' && item.nature !== 'pagamento_fatura')
+  const periodTransactions = useMemo(() => {
+    const start = periodStart ? new Date(`${periodStart}T00:00:00`) : null;
+    const end = periodEnd ? new Date(`${periodEnd}T23:59:59.999`) : null;
+
+    return transactions
+      .filter(item => item.type === type && item.nature !== 'transferencia' && item.nature !== 'pagamento_fatura')
+      .filter(item => {
+        const date = new Date(item.dueDate || item.date);
+        if (Number.isNaN(date.getTime())) return false;
+        return (!start || date >= start) && (!end || date <= end);
+      });
+  }, [transactions, type, periodStart, periodEnd]);
+
+  const items = useMemo(() => periodTransactions
     .filter(item => {
       const due = new Date(item.dueDate || item.date);
       due.setHours(0, 0, 0, 0);
@@ -33,9 +75,9 @@ export function AgendaView({ mode }: { mode: 'payable' | 'receivable' }) {
     })
     .filter(item => !search || item.description.toLowerCase().includes(search.toLowerCase()) || contacts.find(contact => contact.id === item.contactId)?.name.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => new Date(a.dueDate || a.date).getTime() - new Date(b.dueDate || b.date).getTime()),
-  [transactions, type, status, search, contacts]);
+  [periodTransactions, status, search, contacts]);
 
-  const allOpen = transactions.filter(item => item.type === type && !item.isPaid && item.nature !== 'transferencia' && item.nature !== 'pagamento_fatura');
+  const allOpen = periodTransactions.filter(item => !item.isPaid);
   const totalOpen = allOpen.reduce((sum, item) => sum + item.amount, 0);
   const totalOverdue = allOpen.filter(item => {
     const due = new Date(item.dueDate || item.date);
@@ -44,10 +86,36 @@ export function AgendaView({ mode }: { mode: 'payable' | 'receivable' }) {
   }).reduce((sum, item) => sum + item.amount, 0);
   const Icon = mode === 'payable' ? TrendingDown : TrendingUp;
 
-  const openNewTitle = () => {
-    useAppStore.getState().setTransactionPreset(mode === 'payable' ? 'expense_pending' : 'income_pending');
-    setEditingTransactionId(null);
-    setTransactionModalOpen(true);
+  const clearPeriod = () => {
+    setPeriodStart('');
+    setPeriodEnd('');
+    setExpandedId(null);
+  };
+
+  useEffect(() => {
+    const closePresets = (event: PointerEvent) => {
+      if (presetRef.current && !presetRef.current.contains(event.target as Node)) setPresetOpen(false);
+    };
+    document.addEventListener('pointerdown', closePresets);
+    return () => document.removeEventListener('pointerdown', closePresets);
+  }, []);
+
+  const applyPeriodPreset = (preset: 'today' | 'month' | 'year') => {
+    const today = new Date();
+    if (preset === 'today') {
+      const value = toDateInputValue(today);
+      setPeriodStart(value);
+      setPeriodEnd(value);
+    } else if (preset === 'month') {
+      const current = getCurrentMonthPeriod();
+      setPeriodStart(current.start);
+      setPeriodEnd(current.end);
+    } else {
+      setPeriodStart(toDateInputValue(new Date(today.getFullYear(), 0, 1)));
+      setPeriodEnd(toDateInputValue(new Date(today.getFullYear(), 11, 31)));
+    }
+    setExpandedId(null);
+    setPresetOpen(false);
   };
 
   const reverseTitle = (item: Transaction) => {
@@ -62,20 +130,46 @@ export function AgendaView({ mode }: { mode: 'payable' | 'receivable' }) {
   };
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-6 pb-24 lg:px-8 lg:pb-8">
-      <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <div>
-          <div className={`mb-3 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${mode === 'payable' ? 'bg-red-500/10 text-red-600' : 'bg-emerald-500/10 text-emerald-600'}`}><Icon className="h-3.5 w-3.5" /> Financeiro</div>
-          <h1 className="text-2xl font-black tracking-tight md:text-3xl">Contas a {mode === 'payable' ? 'pagar' : 'receber'}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Acompanhe cada título e dê baixa integral quando ele for pago ou recebido.</p>
+    <div className="mx-auto w-full max-w-7xl px-4 py-4 pb-24 lg:px-8 lg:pb-8">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${mode === 'payable' ? 'bg-red-500/10 text-red-600' : 'bg-emerald-500/10 text-emerald-600'}`}><Icon className="h-4 w-4" /></div>
+          <div className="min-w-0">
+            <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Financeiro</div>
+            <h1 className="truncate text-xl font-black tracking-tight">A {mode === 'payable' ? 'pagar' : 'receber'}</h1>
+          </div>
         </div>
-        <button type="button" onClick={openNewTitle} className="rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground transition-transform active:scale-95">Novo título</button>
       </div>
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
-        <SummaryCard label="Em aberto" value={totalOpen} icon={Clock3} tone="primary" />
-        <SummaryCard label="Vencido" value={totalOverdue} icon={CalendarClock} tone={totalOverdue ? 'danger' : 'muted'} />
-        <SummaryCard label="Quantidade" value={allOpen.length} icon={CheckCircle2} count />
+      <div className="mb-3 grid grid-cols-2 gap-2">
+        <SummaryCard label="A vencer" value={totalOpen} icon={Clock3} tone="primary" />
+        <SummaryCard label="Vencidos" value={totalOverdue} icon={CalendarClock} tone={totalOverdue ? 'danger' : 'muted'} />
+      </div>
+
+      <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 shadow-sm sm:flex-nowrap">
+        <div className="min-w-[150px] flex-1">
+          <div className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Período</div>
+          <div className="truncate text-xs font-black">{formatPeriodLabel(periodStart, periodEnd)}</div>
+        </div>
+        <label className="flex shrink-0 items-center gap-1">
+          <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Início</span>
+          <input type="date" aria-label="Data inicial do período" value={periodStart} max={periodEnd || undefined} onChange={event => { const value = event.target.value; setPeriodStart(value); if (value && periodEnd && value > periodEnd) setPeriodEnd(value); setExpandedId(null); }} className="h-8 w-[132px] rounded-lg border border-border bg-background px-2 text-[10px] font-semibold outline-none focus:border-primary" />
+        </label>
+        <label className="flex shrink-0 items-center gap-1">
+          <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Fim</span>
+          <input type="date" aria-label="Data final do período" value={periodEnd} min={periodStart || undefined} onChange={event => { const value = event.target.value; setPeriodEnd(value); if (value && periodStart && value < periodStart) setPeriodStart(value); setExpandedId(null); }} className="h-8 w-[132px] rounded-lg border border-border bg-background px-2 text-[10px] font-semibold outline-none focus:border-primary" />
+        </label>
+        <div ref={presetRef} className="relative shrink-0">
+          <button type="button" aria-label="Presets de período" title="Presets de período" onClick={() => setPresetOpen(open => !open)} className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${presetOpen ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}><CalendarDays className="h-4 w-4" /></button>
+          {presetOpen && (
+            <div className="absolute right-0 top-full z-30 mt-1 w-36 rounded-xl border border-border bg-card p-1.5 shadow-xl animate-in fade-in slide-in-from-top-1 duration-150">
+              <button type="button" onClick={() => applyPeriodPreset('today')} className="w-full rounded-lg px-2.5 py-2 text-left text-[10px] font-bold hover:bg-muted">Hoje</button>
+              <button type="button" onClick={() => applyPeriodPreset('month')} className="w-full rounded-lg px-2.5 py-2 text-left text-[10px] font-bold hover:bg-muted">Este mês</button>
+              <button type="button" onClick={() => applyPeriodPreset('year')} className="w-full rounded-lg px-2.5 py-2 text-left text-[10px] font-bold hover:bg-muted">Este ano</button>
+            </div>
+          )}
+        </div>
+        <button type="button" onClick={clearPeriod} className="shrink-0 rounded-md px-2 py-1 text-[9px] font-black uppercase tracking-wider text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">Limpar</button>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
@@ -175,5 +269,5 @@ function Detail({ label, value }: { label: string; value: string }) {
 
 function SummaryCard({ label, value, icon: Icon, tone = 'muted', count = false }: { label: string; value: number; icon: React.ComponentType<{ className?: string }>; tone?: 'primary' | 'danger' | 'muted'; count?: boolean }) {
   const tones = { primary: 'bg-primary/10 text-primary', danger: 'bg-red-500/10 text-red-600', muted: 'bg-muted text-muted-foreground' };
-  return <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4"><div className={`flex h-10 w-10 items-center justify-center rounded-xl ${tones[tone]}`}><Icon className="h-5 w-5" /></div><div><div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</div><div className="mt-1 text-lg font-black">{count ? value : formatCurrency(value)}</div></div></div>;
+  return <div className="flex min-w-0 items-center gap-2 rounded-xl border border-border bg-card p-2 shadow-sm"><div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${tones[tone]}`}><Icon className="h-3.5 w-3.5" /></div><div className="min-w-0"><div className="truncate text-[8px] font-black uppercase tracking-wider text-muted-foreground">{label}</div><div className="mt-0.5 truncate text-sm font-black">{count ? value : formatCurrency(value)}</div></div></div>;
 }
