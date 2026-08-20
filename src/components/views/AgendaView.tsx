@@ -37,7 +37,7 @@ export function AgendaView({ mode }: { mode: 'payable' | 'receivable' }) {
     <div className="mx-auto w-full max-w-7xl px-4 py-6 lg:px-8">
       <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
-          <div className={`mb-3 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${mode === 'payable' ? 'bg-red-500/10 text-red-600' : 'bg-emerald-500/10 text-emerald-600'}`}><Icon className="h-3.5 w-3.5" /> Agenda financeira</div>
+          <div className={`mb-3 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${mode === 'payable' ? 'bg-red-500/10 text-red-600' : 'bg-emerald-500/10 text-emerald-600'}`}><Icon className="h-3.5 w-3.5" /> Financeiro</div>
           <h1 className="text-2xl font-black tracking-tight md:text-3xl">Contas a {mode === 'payable' ? 'pagar' : 'receber'}</h1>
           <p className="mt-1 text-sm text-muted-foreground">Acompanhe vencimentos e dê baixa sem perder nenhum compromisso.</p>
         </div>

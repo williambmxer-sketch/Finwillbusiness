@@ -11,7 +11,7 @@ import {
   Landmark,
   LayoutDashboard,
   LogOut,
-  Menu,
+  MoreHorizontal,
   Plus,
   ReceiptText,
   Settings,
@@ -19,7 +19,6 @@ import {
   TrendingUp,
   Users,
   WalletCards,
-  X,
 } from 'lucide-react';
 import { useAppStore, AppView, TransactionPreset } from '../store/useAppStore';
 import { useOrganizationStore } from '../store/useOrganizationStore';
@@ -27,7 +26,16 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useDataStore } from '../store/useDataStore';
 import { formatCurrency } from '../utils/formatters';
 
-type MenuKey = 'company' | 'finance' | 'agenda' | 'treasury' | 'management' | 'records' | 'new' | 'user' | 'mobile';
+type MenuKey = 'company' | 'finance' | 'agenda' | 'treasury' | 'management' | 'records' | 'new' | 'user';
+type MobileSection = keyof Pick<MenuMap, 'finance' | 'agenda' | 'treasury'> | 'more';
+
+type MenuMap = {
+  finance: MenuItem[];
+  agenda: MenuItem[];
+  treasury: MenuItem[];
+  management: MenuItem[];
+  records: MenuItem[];
+};
 
 interface MenuItem {
   label: string;
@@ -40,6 +48,7 @@ interface MenuItem {
 export function TopNavigation() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
+  const [mobileSection, setMobileSection] = useState<MobileSection | null>(null);
   const { currentView, setCurrentView, setTransactionModalOpen, setEditingTransactionId, setTransactionPreset } = useAppStore();
   const { organizations, currentOrganization, switchOrganization } = useOrganizationStore();
   const signOut = useAuthStore(state => state.signOut);
@@ -66,7 +75,6 @@ export function TopNavigation() {
     agenda: [
       { label: 'Contas a pagar', view: 'agendaPayable', icon: TrendingDown, badge: payableTotal ? formatCurrency(payableTotal) : undefined },
       { label: 'Contas a receber', view: 'agendaReceivable', icon: TrendingUp },
-      { label: 'Vencidos', view: 'agendaPayable', icon: CalendarClock, badge: overdueCount ? String(overdueCount) : undefined },
       { label: 'Planejamento recorrente', view: 'planning', icon: CalendarClock },
     ],
     treasury: [
@@ -76,7 +84,6 @@ export function TopNavigation() {
       { label: 'Extrato consolidado', view: 'transactions', icon: WalletCards },
     ],
     management: [
-      { label: 'Planejamento', view: 'planning', icon: CalendarClock },
       { label: 'Relatórios', view: 'reports', icon: BarChart3 },
       { label: 'Resultado do negócio', view: 'dashboard', icon: CircleDollarSign },
     ],
@@ -102,7 +109,10 @@ export function TopNavigation() {
     };
   }, []);
 
-  useEffect(() => setOpenMenu(null), [currentView]);
+  useEffect(() => {
+    setOpenMenu(null);
+    setMobileSection(null);
+  }, [currentView]);
 
   const toggle = (key: MenuKey) => setOpenMenu(current => current === key ? null : key);
 
@@ -114,6 +124,7 @@ export function TopNavigation() {
       setTransactionModalOpen(true);
     }
     setOpenMenu(null);
+    setMobileSection(null);
   };
 
   const renderDropdown = (key: keyof typeof menus, wide = false) => (
@@ -151,35 +162,40 @@ export function TopNavigation() {
           </div>
         </button>
 
-        <div className="relative hidden sm:block">
-          <MenuButton label={currentOrganization?.tradeName || currentOrganization?.name || 'Empresa'} icon={Building2} active={openMenu === 'company'} onClick={() => toggle('company')} compact />
-          {openMenu === 'company' && (
-            <DropdownPanel className="left-0 w-72">
-              <div className="px-3 pb-2 pt-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Empresa ativa</div>
-              {organizations.map(organization => (
-                <button
-                  key={organization.id}
-                  type="button"
-                  onClick={async () => { await switchOrganization(organization.id); setOpenMenu(null); }}
-                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left ${organization.id === currentOrganization?.id ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}
-                >
-                  <Building2 className="h-4 w-4" />
-                  <span className="min-w-0 flex-1 truncate text-xs font-semibold">{organization.tradeName || organization.name}</span>
-                  <span className="text-[9px] uppercase text-muted-foreground">{organization.role === 'proprietario' ? 'Proprietário' : organization.role}</span>
-                </button>
-              ))}
-              <div className="my-2 border-t border-border" />
-              <button type="button" onClick={() => setCurrentView('company')} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold hover:bg-muted">
-                <Settings className="h-4 w-4" /> Configurar empresa
-              </button>
-            </DropdownPanel>
+        <div className="relative block min-w-0">
+          {organizations.length > 1 ? (
+            <>
+              <MenuButton label={currentOrganization?.tradeName || currentOrganization?.name || 'Empresa'} icon={Building2} active={openMenu === 'company'} onClick={() => toggle('company')} compact />
+              {openMenu === 'company' && (
+                <DropdownPanel className="left-0 w-72">
+                  <div className="px-3 pb-2 pt-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Trocar empresa</div>
+                  {organizations.map(organization => (
+                    <button
+                      key={organization.id}
+                      type="button"
+                      onClick={async () => { await switchOrganization(organization.id); setOpenMenu(null); }}
+                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left ${organization.id === currentOrganization?.id ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}
+                    >
+                      <Building2 className="h-4 w-4" />
+                      <span className="min-w-0 flex-1 truncate text-xs font-semibold">{organization.tradeName || organization.name}</span>
+                      <span className="text-[9px] uppercase text-muted-foreground">{organization.role === 'proprietario' ? 'Proprietário' : organization.role}</span>
+                    </button>
+                  ))}
+                </DropdownPanel>
+              )}
+            </>
+          ) : (
+            <div title="Empresa ativa" className="flex max-w-[220px] items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold">
+              <Building2 className="h-4 w-4 shrink-0 text-primary" />
+              <span className="truncate">{currentOrganization?.tradeName || currentOrganization?.name || 'Empresa'}</span>
+            </div>
           )}
         </div>
 
         <nav className="hidden min-w-0 flex-1 items-center gap-0.5 lg:flex">
           <button type="button" onClick={() => setCurrentView('dashboard')} className={`rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${currentView === 'dashboard' ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}>Visão geral</button>
-          <div className="relative"><MenuButton label="Financeiro" active={openMenu === 'finance'} onClick={() => toggle('finance')} />{openMenu === 'finance' && renderDropdown('finance', true)}</div>
-          <div className="relative"><MenuButton label="Agenda" active={openMenu === 'agenda'} onClick={() => toggle('agenda')} badge={overdueCount || undefined} />{openMenu === 'agenda' && renderDropdown('agenda', true)}</div>
+          <div className="relative"><MenuButton label="Lançamentos" active={openMenu === 'finance'} onClick={() => toggle('finance')} />{openMenu === 'finance' && renderDropdown('finance', true)}</div>
+          <div className="relative"><MenuButton label="Financeiro" active={openMenu === 'agenda'} onClick={() => toggle('agenda')} badge={overdueCount || undefined} />{openMenu === 'agenda' && renderDropdown('agenda', true)}</div>
           <div className="relative"><MenuButton label="Tesouraria" active={openMenu === 'treasury'} onClick={() => toggle('treasury')} />{openMenu === 'treasury' && renderDropdown('treasury')}</div>
           <div className="relative"><MenuButton label="Gestão" active={openMenu === 'management'} onClick={() => toggle('management')} />{openMenu === 'management' && renderDropdown('management')}</div>
           <div className="relative"><MenuButton label="Cadastros" active={openMenu === 'records'} onClick={() => toggle('records')} />{openMenu === 'records' && renderDropdown('records')}</div>
@@ -222,34 +238,122 @@ export function TopNavigation() {
                   <div className="mt-1 text-[10px] capitalize text-muted-foreground">{currentOrganization?.role || 'usuário'}</div>
                 </div>
                 <div className="my-2 border-t border-border" />
-                <button type="button" onClick={() => setCurrentView('company')} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold hover:bg-muted"><Users className="h-4 w-4" />Empresa e usuários</button>
                 <button type="button" onClick={signOut} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-500/10"><LogOut className="h-4 w-4" />Sair</button>
               </DropdownPanel>
             )}
           </div>
 
-          <button type="button" onClick={() => toggle('mobile')} className="flex h-10 w-10 items-center justify-center rounded-xl border border-border lg:hidden" aria-label="Abrir menu">
-            {openMenu === 'mobile' ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
         </div>
       </div>
 
-      {openMenu === 'mobile' && (
-        <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-border bg-card p-3 lg:hidden">
-          <button type="button" onClick={() => setCurrentView('dashboard')} className="mb-2 flex w-full items-center gap-3 rounded-xl bg-primary/10 px-3 py-3 text-left text-xs font-bold text-primary"><LayoutDashboard className="h-4 w-4" />Visão geral</button>
-          {(Object.keys(menus) as Array<keyof typeof menus>).map(key => (
-            <div key={key} className="mb-3 rounded-2xl border border-border p-2">
-              <div className="px-2 py-1 text-[9px] font-black uppercase tracking-widest text-muted-foreground">{{ finance: 'Financeiro', agenda: 'Agenda', treasury: 'Tesouraria', management: 'Gestão', records: 'Cadastros' }[key]}</div>
-              {menus[key].map(item => {
-                const Icon = item.icon;
-                return <button key={item.label} type="button" onClick={() => openItem(item)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-semibold hover:bg-muted"><Icon className="h-4 w-4 text-primary" />{item.label}</button>;
-              })}
-            </div>
-          ))}
-          <button type="button" onClick={signOut} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-xs font-bold text-red-600 hover:bg-red-500/10"><LogOut className="h-4 w-4" />Sair</button>
-        </div>
-      )}
+      <MobileBottomNavigation
+        currentView={currentView}
+        mobileSection={mobileSection}
+        setMobileSection={setMobileSection}
+        setCurrentView={setCurrentView}
+        openItem={openItem}
+        menus={menus}
+        overdueCount={overdueCount}
+        signOut={signOut}
+      />
     </div>
+  );
+}
+
+function MobileBottomNavigation({
+  currentView,
+  mobileSection,
+  setMobileSection,
+  setCurrentView,
+  openItem,
+  menus,
+  overdueCount,
+  signOut,
+}: {
+  currentView: AppView;
+  mobileSection: MobileSection | null;
+  setMobileSection: React.Dispatch<React.SetStateAction<MobileSection | null>>;
+  setCurrentView: (view: AppView) => void;
+  openItem: (item: MenuItem) => void;
+  menus: MenuMap;
+  overdueCount: number;
+  signOut: () => void;
+}) {
+  const toggleSection = (section: MobileSection) => setMobileSection(current => current === section ? null : section);
+  const moreMenus: Array<{ key: keyof Pick<MenuMap, 'management' | 'records'>; label: string }> = [
+    { key: 'management', label: 'Gestão' },
+    { key: 'records', label: 'Cadastros' },
+  ];
+
+  const sheetTitle = mobileSection === 'more'
+    ? 'Mais opções'
+    : mobileSection === 'finance'
+    ? 'Lançamentos'
+    : mobileSection === 'agenda'
+      ? 'Financeiro'
+        : mobileSection === 'treasury'
+          ? 'Tesouraria'
+          : '';
+
+  return (
+    <>
+      {mobileSection && (
+        <>
+          <button type="button" aria-label="Fechar menu" onClick={() => setMobileSection(null)} className="fixed inset-0 z-[60] bg-black/20 lg:hidden" />
+          <div className="fixed inset-x-3 bottom-[4.5rem] z-[70] max-h-[calc(100dvh-8rem)] overflow-y-auto rounded-2xl border border-border bg-card p-3 shadow-2xl lg:hidden">
+            <div className="mb-2 flex items-center justify-between px-1">
+              <div className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">{sheetTitle}</div>
+              <button type="button" onClick={() => setMobileSection(null)} className="rounded-lg px-2 py-1 text-[10px] font-bold text-muted-foreground hover:bg-muted">Fechar</button>
+            </div>
+            {mobileSection === 'more' ? (
+              <>
+                {moreMenus.map(group => (
+                  <div key={group.key} className="mb-3 last:mb-0">
+                    <div className="px-1 py-1.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">{group.label}</div>
+                    {menus[group.key].map(item => <MobileMenuItem key={item.label} item={item} currentView={currentView} openItem={openItem} />)}
+                  </div>
+                ))}
+                <div className="mt-2 border-t border-border pt-2">
+                  <button type="button" onClick={signOut} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-red-600 hover:bg-red-500/10"><LogOut className="h-4 w-4" />Sair</button>
+                </div>
+              </>
+            ) : (
+              menus[mobileSection].map(item => <MobileMenuItem key={item.label} item={item} currentView={currentView} openItem={openItem} />)
+            )}
+          </div>
+        </>
+      )}
+
+      <nav className="fixed inset-x-0 bottom-0 z-[65] border-t border-border bg-card/95 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_24px_-8px_rgba(0,0,0,0.12)] backdrop-blur-xl lg:hidden" aria-label="Navegação principal">
+        <div className="mx-auto flex h-16 max-w-md items-center justify-between">
+          <MobileNavItem icon={LayoutDashboard} label="Início" active={currentView === 'dashboard'} onClick={() => { setMobileSection(null); setCurrentView('dashboard'); }} />
+          <MobileNavItem icon={WalletCards} label="Lançamentos" active={mobileSection === 'finance'} onClick={() => toggleSection('finance')} />
+          <MobileNavItem icon={CalendarClock} label="Financeiro" badge={overdueCount || undefined} active={mobileSection === 'agenda' || currentView === 'agendaPayable' || currentView === 'agendaReceivable' || currentView === 'planning'} onClick={() => toggleSection('agenda')} />
+          <MobileNavItem icon={Landmark} label="Tesouraria" active={mobileSection === 'treasury' || ['accounts', 'cards', 'invoices'].includes(currentView)} onClick={() => toggleSection('treasury')} />
+          <MobileNavItem icon={MoreHorizontal} label="Mais" active={mobileSection === 'more' || ['management', 'records', 'company', 'contacts', 'reports'].includes(currentView)} onClick={() => toggleSection('more')} />
+        </div>
+      </nav>
+    </>
+  );
+}
+
+function MobileMenuItem({ item, currentView, openItem }: { key?: React.Key; item: MenuItem; currentView: AppView; openItem: (item: MenuItem) => void }) {
+  const Icon = item.icon;
+  return (
+    <button type="button" onClick={() => openItem(item)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-semibold transition-colors ${item.view === currentView ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}>
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/70 text-primary"><Icon className="h-4 w-4" /></span>
+      <span className="min-w-0 flex-1">{item.label}</span>
+      {item.badge && <span className="rounded-full bg-amber-500/10 px-2 py-1 text-[9px] font-bold text-amber-700 dark:text-amber-400">{item.badge}</span>}
+    </button>
+  );
+}
+
+function MobileNavItem({ icon: Icon, label, active, onClick, badge }: { icon: React.ComponentType<{ className?: string }>; label: string; active: boolean; onClick: () => void; badge?: number }) {
+  return (
+    <button type="button" onClick={onClick} className={`relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-1 transition-colors ${active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+      <span className="relative"><Icon className="h-5 w-5" />{badge ? <span className="absolute -right-2 -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-1 text-[8px] font-black text-white">{badge}</span> : null}</span>
+      <span className="max-w-full truncate text-[9px] font-bold">{label}</span>
+    </button>
   );
 }
 

@@ -251,7 +251,7 @@ export default function App() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.2 }}
-            className="w-full pb-16"
+            className="w-full pb-24 lg:pb-16"
           >
             <React.Suspense fallback={<div className="flex min-h-[45vh] items-center justify-center"><RefreshCw className="h-5 w-5 animate-spin text-primary" /></div>}>
               {renderView()}
