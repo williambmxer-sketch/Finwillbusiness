@@ -60,7 +60,7 @@ export function CardsView() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-background relative pt-8 px-4 max-w-lg mx-auto w-full">
+    <div className="flex flex-col h-full bg-background relative pt-6 px-4 max-w-6xl mx-auto w-full lg:px-8">
       <header className="flex justify-between items-start mb-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Cartões</h1>

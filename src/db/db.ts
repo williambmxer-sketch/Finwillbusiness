@@ -31,6 +31,59 @@ export interface Category {
   showInAccounts?: boolean;
 }
 
+export type TransactionNature =
+  | 'operacional'
+  | 'pro_labore'
+  | 'retirada_extra'
+  | 'aporte_socio'
+  | 'transferencia'
+  | 'pagamento_fatura'
+  | 'ajuste_saldo';
+
+export interface Contact {
+  id: string;
+  name: string;
+  type: 'cliente' | 'fornecedor' | 'ambos';
+  email?: string;
+  phone?: string;
+  notes?: string;
+  active: boolean;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  tradeName?: string;
+  document?: string;
+  currency: string;
+  timezone: string;
+  role: 'proprietario' | 'administrador' | 'financeiro' | 'socio' | 'membro' | 'visualizador' | 'consulta';
+  isDefault: boolean;
+}
+
+export interface OrganizationMember {
+  organizationId: string;
+  userId: string;
+  role: Organization['role'];
+  active: boolean;
+  isDefault: boolean;
+  email?: string;
+  displayName?: string;
+}
+
+export interface WithdrawalConfig {
+  id: string;
+  organizationId: string;
+  beneficiaryUserId: string;
+  description: string;
+  amount: number;
+  dueDay: number;
+  accountId?: string;
+  categoryId?: string;
+  nextCompetence: string;
+  active: boolean;
+}
+
 export interface Transaction {
   id: string;
   description: string;
@@ -45,6 +98,15 @@ export interface Transaction {
   parentId?: string; // To link installments
   isPaid: boolean;
   paymentDate?: Date | null; // The date when the user actually clicked 'Confirmar Pagamento'
+  dueDate?: Date | null;
+  competenceMonth?: string;
+  nature?: TransactionNature;
+  contactId?: string;
+  beneficiaryUserId?: string;
+  createdBy?: string;
+  updatedBy?: string;
+  paidBy?: string;
+  version?: number;
   notes?: string;
   createdAt?: string;
 }

@@ -115,25 +115,46 @@ export function PlanningView() {
 
   // Load from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem('financas_simulated_items');
-    if (saved) {
+    let cancelled = false;
+    const loadPlanning = async () => {
       try {
-        setSimulatedItems(JSON.parse(saved));
+        const remote = await api.planning.list();
+        if (cancelled) return;
+        if (remote.length > 0) {
+          setSimulatedItems(remote);
+          localStorage.setItem('financas_simulated_items', JSON.stringify(remote));
+          return;
+        }
+
+        const saved = localStorage.getItem('financas_simulated_items');
+        if (saved) {
+          const parsed = JSON.parse(saved).map((item: SimulatedItem) => ({
+            ...item,
+            id: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(item.id)
+              ? item.id
+              : crypto.randomUUID(),
+          }));
+          setSimulatedItems(parsed);
+          await api.planning.replace(parsed);
+        }
       } catch (e) {
-        console.error('Error loading simulated items', e);
+        console.error('Erro ao carregar o planejamento empresarial', e);
       }
-    }
+    };
+    loadPlanning();
 
     // Set default month to current month
     const now = new Date();
     const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     setStartMonth(currentMonthStr);
+    return () => { cancelled = true; };
   }, []);
 
   // Save to localStorage when simulatedItems change
   const saveItems = (items: SimulatedItem[]) => {
     setSimulatedItems(items);
     localStorage.setItem('financas_simulated_items', JSON.stringify(items));
+    api.planning.replace(items).catch(error => console.error('Erro ao salvar planejamento no Supabase', error));
   };
 
   const totalActualBalance = useMemo(() => {
@@ -418,7 +439,7 @@ export function PlanningView() {
       setEditingItemId(null);
     } else {
       const newItem: SimulatedItem = {
-        id: Math.random().toString(36).substring(7),
+        id: crypto.randomUUID(),
         description,
         amount: Math.abs(parseFloat(amount)),
         type,
@@ -733,7 +754,7 @@ export function PlanningView() {
 
 
   return (
-    <div className="flex flex-col gap-4 p-4 pt-8 max-w-lg mx-auto w-full">
+    <div className="flex flex-col gap-4 p-4 pt-6 max-w-6xl mx-auto w-full lg:px-8">
       
       {/* Header */}
       <header className="flex items-center gap-3 mb-2">

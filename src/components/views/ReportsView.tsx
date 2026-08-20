@@ -835,7 +835,7 @@ export function ReportsView() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-background relative pt-6 px-4 max-w-lg mx-auto w-full pb-16 overflow-y-auto">
+    <div className="flex flex-col h-full bg-background relative pt-6 px-4 max-w-6xl mx-auto w-full pb-16 overflow-y-auto lg:px-8">
       <div className="bg-background pb-6 pt-2">
         {/* Header and Fast Navigation */}
         <header className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 gap-3 relative px-1">
@@ -1112,7 +1112,7 @@ export function ReportsView() {
               <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3 px-1">Distribuição de Despesas {reportMode === 'realized' ? 'Realizadas' : 'Projetadas'}</h2>
               <div className="p-3.5 bg-card border border-border/60 rounded-[16px] shadow-sm flex items-center justify-center gap-4">
                 <div className="w-36 h-36 shrink-0">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1} initialDimension={{ width: 144, height: 144 }}>
                     <PieChart>
                       <Pie
                         data={expenseCategories}

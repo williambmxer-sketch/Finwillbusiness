@@ -3,12 +3,14 @@ import { useAppStore } from '../store/useAppStore';
 import { useDataStore } from '../store/useDataStore';
 import { api } from '../services/api';
 import { generateUUID } from '../lib/utils';
-import { Transaction, Category, Account, Card, CustomPaymentMethod } from '../db/db';
+import { Transaction, TransactionNature, CustomPaymentMethod } from '../db/db';
 import { X, Save, Trash, ChevronDown, ArrowRightLeft } from 'lucide-react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { formatCurrency } from '../utils/formatters';
 import { isCashPaymentMethod, splitAmount } from '../utils/financialRules';
+import { useOrganizationStore } from '../store/useOrganizationStore';
+import { useAuthStore } from '../store/useAuthStore';
 
 interface DropdownOption {
   value: string;
@@ -91,19 +93,27 @@ export function TransactionModal() {
     editingTransactionId, setEditingTransactionId,
     defaultPaymentMethod, setDefaultPaymentMethod,
     activeContextCardId,
-    currentView
+    currentView,
+    transactionPreset, setTransactionPreset,
   } = useAppStore();
 
   const categories = useDataStore(state => state.categories);
   const accounts = useDataStore(state => state.accounts);
   const cards = useDataStore(state => state.cards);
   const customPaymentMethods = useDataStore(state => state.customPaymentMethods);
+  const contacts = useDataStore(state => state.contacts);
+  const members = useOrganizationStore(state => state.members);
+  const currentUserId = useAuthStore(state => state.user?.id);
 
   const [type, setType] = useState<'receita' | 'despesa' | 'transferencia'>('despesa');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [dueDate, setDueDate] = useState(new Date().toISOString().split('T')[0]);
   const [categoryId, setCategoryId] = useState('');
+  const [contactId, setContactId] = useState('');
+  const [nature, setNature] = useState<TransactionNature>('operacional');
+  const [beneficiaryUserId, setBeneficiaryUserId] = useState('');
   const [accountId, setAccountId] = useState('');
   const [toAccountId, setToAccountId] = useState('');
   const [cardId, setCardId] = useState('');
@@ -131,7 +141,7 @@ export function TransactionModal() {
   }, [cardId]);
 
   useEffect(() => {
-    if (!editingTransactionId && hasInitialized) {
+    if (!editingTransactionId && hasInitialized && !transactionPreset) {
       if (type === 'receita') {
         setIsPaid(false);
         setInstallmentMode('repeat');
@@ -179,7 +189,11 @@ export function TransactionModal() {
         setAmount((t.amount).toString());
         setDescription(t.description);
         setDate(new Date(t.date).toISOString().split('T')[0]);
+        setDueDate(new Date(t.dueDate || t.date).toISOString().split('T')[0]);
         setCategoryId(t.categoryId);
+        setContactId(t.contactId || '');
+        setNature(t.nature || 'operacional');
+        setBeneficiaryUserId(t.beneficiaryUserId || '');
         setAccountId(t.accountId || (accounts[0]?.id || ''));
         
         let pmId = '';
@@ -205,22 +219,52 @@ export function TransactionModal() {
       setType('despesa');
       setAmount('');
       setDescription('');
-      setDate(new Date().toISOString().split('T')[0]);
-      setCategoryId('');
+      const today = new Date();
+      const todayString = today.toISOString().split('T')[0];
+      const future = new Date(today);
+      future.setDate(future.getDate() + 7);
+      const presetType = transactionPreset === 'income_received' || transactionPreset === 'income_pending' || transactionPreset === 'contribution'
+        ? 'receita'
+        : transactionPreset === 'transfer' ? 'transferencia' : 'despesa';
+      const presetPaid = ['income_received', 'expense_paid', 'prolabore', 'withdrawal', 'contribution'].includes(transactionPreset || '');
+      const presetNature: TransactionNature = transactionPreset === 'prolabore'
+        ? 'pro_labore'
+        : transactionPreset === 'withdrawal'
+          ? 'retirada_extra'
+          : transactionPreset === 'contribution'
+            ? 'aporte_socio'
+            : transactionPreset === 'transfer'
+              ? 'transferencia'
+              : 'operacional';
+
+      setType(presetType);
+      setNature(presetNature);
+      setDate(todayString);
+      setDueDate(presetPaid ? todayString : future.toISOString().split('T')[0]);
+      setCategoryId(categories.find(category => {
+        if (category.type !== (presetType === 'transferencia' ? 'despesa' : presetType)) return false;
+        if (presetNature === 'pro_labore') return category.name.toLowerCase().includes('pró') || category.name.toLowerCase().includes('sócio');
+        if (presetNature === 'retirada_extra') return category.name.toLowerCase().includes('retirada');
+        if (presetNature === 'aporte_socio') return category.name.toLowerCase().includes('aporte');
+        return true;
+      })?.id || '');
       setAccountId('');
       setToAccountId('');
+      setContactId('');
+      setBeneficiaryUserId(['pro_labore', 'retirada_extra', 'aporte_socio'].includes(presetNature) ? (currentUserId || members[0]?.userId || '') : '');
 
       if (defaultPaymentMethod?.startsWith('card-')) {
         setCardId(defaultPaymentMethod.replace('card-', ''));
       } else {
-        setCardId('');
+        setCardId(presetType === 'despesa' && presetPaid && customPaymentMethods[0] ? `custom-${customPaymentMethods[0].id}` : '');
       }
 
-      setIsPaid(false);
+      setIsPaid(presetPaid);
+      setDescription(presetNature === 'pro_labore' ? 'Pró-labore' : presetNature === 'retirada_extra' ? 'Retirada extra' : presetNature === 'aporte_socio' ? 'Aporte do sócio' : '');
       setInstallments('1');
       setHasInitialized(true);
     }
-  }, [editingTransactionId, isTransactionModalOpen, accounts, defaultPaymentMethod, hasInitialized]);
+  }, [editingTransactionId, isTransactionModalOpen, accounts, categories, customPaymentMethods, defaultPaymentMethod, hasInitialized, transactionPreset, currentUserId, members]);
 
   const selectedPaymentMethod = cardId.startsWith('custom-')
     ? (customPaymentMethods.find(pm => `custom-${pm.id}` === cardId || `custom-${pm.name}` === cardId) || { id: '', name: cardId.replace('custom-', ''), debitFromAccount: true } as CustomPaymentMethod)
@@ -251,6 +295,12 @@ export function TransactionModal() {
 
     if (!description || !description.trim()) {
       setError('Por favor, preencha a descrição da transação.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (['pro_labore', 'retirada_extra', 'aporte_socio'].includes(nature) && !beneficiaryUserId) {
+      setError('Selecione o sócio ou titular relacionado a este movimento.');
       setIsSubmitting(false);
       return;
     }
@@ -371,7 +421,6 @@ export function TransactionModal() {
 
     // Convert date string with local timezone offset
     const dateObj = new Date(date + 'T12:00:00');
-    const getAcc = (id: string) => useDataStore.getState().accounts.find(a => a.id === id);
 
     // --- TRANSFER LOGIC ---
     if (type === 'transferencia') {
@@ -401,6 +450,8 @@ export function TransactionModal() {
         accountId: accountId,
         isPaid: true,
         paymentDate: dateObj,
+        dueDate: dateObj,
+        nature: 'transferencia',
         notes: `transferencia:${transferGroupId}`,
         parentId: transferGroupId
       };
@@ -414,16 +465,13 @@ export function TransactionModal() {
         accountId: toAccountId,
         isPaid: true,
         paymentDate: dateObj,
+        dueDate: dateObj,
+        nature: 'transferencia',
         notes: `transferencia:${transferGroupId}`,
         parentId: transferGroupId
       };
 
       await api.transactions.bulkAdd([originTx, destTx]);
-      
-      const originAcc = getAcc(accountId);
-      const destAcc = getAcc(toAccountId);
-      if (originAcc) await api.accounts.update(accountId, { balance: originAcc.balance - txAmount });
-      if (destAcc) await api.accounts.update(toAccountId, { balance: destAcc.balance + txAmount });
       
       setIsSubmitting(false);
       closeModal();
@@ -441,8 +489,10 @@ export function TransactionModal() {
 
       for (let i = 0; i < numInstallments; i++) {
         const txDate = new Date(dateObj);
+        const txDueDate = new Date(dueDate + 'T12:00:00');
         const monthOffset = (type === 'despesa' && firstInstallmentIn30Days) ? i + 1 : i;
         txDate.setMonth(txDate.getMonth() + monthOffset);
+        txDueDate.setMonth(txDueDate.getMonth() + monthOffset);
 
         const isThisPaid = type === 'receita'
           ? (i === 0 ? isPaid : false)
@@ -462,28 +512,15 @@ export function TransactionModal() {
           parentId,
           isPaid: isThisPaid,
           paymentDate: isThisPaid ? dateObj : undefined,
+          dueDate: txDueDate,
+          nature,
+          contactId: contactId || undefined,
+          beneficiaryUserId: beneficiaryUserId || undefined,
           notes: isCustom ? `paymentMethod:${paymentMethodName}` : undefined,
         });
       }
 
       await api.transactions.bulkAdd(newTransactions);
-
-      const firstPaidAmount = installmentAmounts[0];
-      if (type === 'receita' && isPaid && accountId) {
-        const acc = getAcc(accountId);
-        if (acc) {
-          await api.accounts.update(accountId, {
-            balance: acc.balance + firstPaidAmount
-          });
-        }
-      } else if (type === 'despesa' && !firstInstallmentIn30Days && payFirstInstallmentToday && accountId) {
-        const acc = getAcc(accountId);
-        if (acc) {
-          await api.accounts.update(accountId, {
-            balance: acc.balance - firstPaidAmount
-          });
-        }
-      }
     } else {
       const tx: Transaction = {
         id: editingTransactionId || generateUUID(),
@@ -496,6 +533,10 @@ export function TransactionModal() {
         cardId: type === 'despesa' && isCard ? cardId : undefined,
         isPaid: isPaid,
         paymentDate: isPaid ? dateObj : null,
+        dueDate: new Date(dueDate + 'T12:00:00'),
+        nature,
+        contactId: contactId || undefined,
+        beneficiaryUserId: beneficiaryUserId || undefined,
         notes: isCustom ? `paymentMethod:${paymentMethodName}` : undefined,
       };
 
@@ -509,54 +550,8 @@ export function TransactionModal() {
           if (!isCustom && oldTx.notes) tx.notes = oldTx.notes;
         }
         await api.transactions.update(editingTransactionId, tx);
-
-        if (oldTx) {
-          if (oldTx.accountId === tx.accountId) {
-            let balanceDiff = 0;
-            if (oldTx.isPaid) {
-              balanceDiff -= (oldTx.type === 'receita' ? oldTx.amount : -oldTx.amount);
-            }
-            if (tx.isPaid) {
-              balanceDiff += (tx.type === 'receita' ? tx.amount : -tx.amount);
-            }
-
-            if (tx.accountId && balanceDiff !== 0) {
-              const acc = getAcc(tx.accountId);
-              if (acc) {
-                await api.accounts.update(tx.accountId, {
-                  balance: acc.balance + balanceDiff
-                });
-              }
-            }
-          } else {
-            if (oldTx.accountId && oldTx.isPaid) {
-              const oldAcc = getAcc(oldTx.accountId);
-              if (oldAcc) {
-                await api.accounts.update(oldTx.accountId, {
-                  balance: oldAcc.balance - (oldTx.type === 'receita' ? oldTx.amount : -oldTx.amount)
-                });
-              }
-            }
-            if (tx.accountId && tx.isPaid) {
-              const newAcc = getAcc(tx.accountId);
-              if (newAcc) {
-                await api.accounts.update(tx.accountId, {
-                  balance: newAcc.balance + (tx.type === 'receita' ? tx.amount : -tx.amount)
-                });
-              }
-            }
-          }
-        }
       } else {
         await api.transactions.add(tx);
-        if (tx.accountId && tx.isPaid) {
-          const acc = getAcc(tx.accountId);
-          if (acc) {
-            await api.accounts.update(tx.accountId, {
-              balance: acc.balance + (tx.type === 'receita' ? tx.amount : -tx.amount)
-            });
-          }
-        }
       }
     }
 
@@ -584,14 +579,6 @@ export function TransactionModal() {
           const related = useDataStore.getState().transactions.filter(t => t.notes === `transferencia:${transferGroupId}`);
           
           for (const tx of related) {
-            if (tx.accountId && tx.isPaid) {
-              const acc = useDataStore.getState().accounts.find(a => a.id === tx.accountId);
-              if (acc) {
-                await api.accounts.update(tx.accountId, {
-                  balance: acc.balance - (tx.type === 'receita' ? tx.amount : -tx.amount)
-                });
-              }
-            }
             await api.transactions.delete(tx.id);
           }
           closeModal();
@@ -603,14 +590,6 @@ export function TransactionModal() {
           return;
         }
 
-        if (oldTx.accountId && oldTx.isPaid) {
-          const oldAcc = useDataStore.getState().accounts.find(a => a.id === oldTx.accountId);
-          if (oldAcc) {
-            await api.accounts.update(oldTx.accountId, {
-              balance: oldAcc.balance - (oldTx.type === 'receita' ? oldTx.amount : -oldTx.amount)
-            });
-          }
-        }
         await api.transactions.delete(editingTransactionId);
         closeModal();
       }
@@ -630,7 +609,6 @@ export function TransactionModal() {
     const isCard = !isCustom;
     const paymentMethodName = isCustom ? (selectedPaymentMethod?.name || cardId.replace('custom-', '')) : undefined;
     const requiresAccount = type === 'despesa' && isPaid && selectedPaymentMethod && selectedPaymentMethod.debitFromAccount;
-    const getAcc = (id: string) => useDataStore.getState().accounts.find(a => a.id === id);
 
     if (installmentActionType === 'edit') {
       let targets: Transaction[] = [];
@@ -692,47 +670,15 @@ export function TransactionModal() {
           cardId: type === 'despesa' && isCard ? cardId : undefined,
           isPaid: isPaid,
           paymentDate: isPaid ? (t.paymentDate || dateObj) : null,
+          dueDate: new Date(dueDate + 'T12:00:00'),
+          nature,
+          contactId: contactId || undefined,
+          beneficiaryUserId: beneficiaryUserId || undefined,
           notes: isCustom ? `paymentMethod:${paymentMethodName}` : (t.notes && !isCustom ? t.notes : undefined),
         };
 
 
         await api.transactions.update(t.id, newTx);
-
-        if (t.accountId === newTx.accountId) {
-          let balanceDiff = 0;
-          if (t.isPaid) {
-            balanceDiff -= (t.type === 'receita' ? t.amount : -t.amount);
-          }
-          if (newTx.isPaid) {
-            balanceDiff += (newTx.type === 'receita' ? newTx.amount : -newTx.amount);
-          }
-
-          if (newTx.accountId && balanceDiff !== 0) {
-            const acc = getAcc(newTx.accountId);
-            if (acc) {
-              await api.accounts.update(newTx.accountId, {
-                balance: acc.balance + balanceDiff
-              });
-            }
-          }
-        } else {
-          if (t.accountId && t.isPaid) {
-            const oldAcc = getAcc(t.accountId);
-            if (oldAcc) {
-              await api.accounts.update(t.accountId, {
-                balance: oldAcc.balance - (t.type === 'receita' ? t.amount : -t.amount)
-              });
-            }
-          }
-          if (newTx.accountId && newTx.isPaid) {
-            const newAcc = getAcc(newTx.accountId);
-            if (newAcc) {
-              await api.accounts.update(newTx.accountId, {
-                balance: newAcc.balance + (newTx.type === 'receita' ? newTx.amount : -newTx.amount)
-              });
-            }
-          }
-        }
       }
     } else if (installmentActionType === 'delete') {
       let targets: Transaction[] = [];
@@ -749,14 +695,6 @@ export function TransactionModal() {
       }
 
       for (const t of targets) {
-        if (t.accountId && t.isPaid) {
-          const oldAcc = getAcc(t.accountId);
-          if (oldAcc) {
-            await api.accounts.update(t.accountId, {
-              balance: oldAcc.balance - (t.type === 'receita' ? t.amount : -t.amount)
-            });
-          }
-        }
         await api.transactions.delete(t.id);
       }
     }
@@ -770,11 +708,15 @@ export function TransactionModal() {
     setTimeout(() => {
       setEditingTransactionId(null);
       setDefaultPaymentMethod(null);
+      setTransactionPreset(null);
       setError(null);
       setBalanceWarning(null);
       setKeepOpen(false);
       setInstallmentActionType(null);
       setConfirmingDelete(false);
+      setNature('operacional');
+      setContactId('');
+      setBeneficiaryUserId('');
     }, 300);
   };
 
@@ -786,13 +728,41 @@ export function TransactionModal() {
     (type === 'despesa' && isPaid && selectedPaymentMethod && (selectedPaymentMethod.debitFromAccount || isCashPayment)) ||
     (type === 'despesa' && showInstallments && numInstallments > 1 && !firstInstallmentIn30Days && payFirstInstallmentToday);
 
+  const presetTitle = transactionPreset ? {
+    income_received: 'Registrar venda recebida',
+    income_pending: 'Registrar venda a receber',
+    expense_paid: 'Registrar despesa paga',
+    expense_pending: 'Registrar despesa a pagar',
+    transfer: 'Nova transferência',
+    prolabore: 'Registrar pró-labore',
+    withdrawal: 'Registrar retirada extra',
+    contribution: 'Registrar aporte do sócio',
+  }[transactionPreset] : null;
+
+  const modalTitle = editingTransactionId
+    ? 'Editar lançamento'
+    : presetTitle || (nature === 'pro_labore'
+      ? 'Registrar pró-labore'
+      : nature === 'retirada_extra'
+        ? 'Registrar retirada extra'
+        : nature === 'aporte_socio'
+          ? 'Registrar aporte do sócio'
+          : type === 'transferencia'
+            ? 'Nova transferência'
+            : type === 'receita'
+              ? 'Nova receita'
+              : 'Nova despesa');
+
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-background/80 backdrop-blur-sm sm:backdrop-blur-md">
       <div className="w-full max-w-md bg-card border-t sm:border border-border sm:rounded-[20px] rounded-[24px] shadow-2xl flex flex-col h-[85dvh] sm:h-[640px] relative">
         <div className="sm:hidden absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-muted rounded-full" />
 
         <div className="flex justify-between items-center px-4 py-3 border-b">
-          <h2 className="text-base font-bold tracking-tight">{editingTransactionId ? 'Editar Transação' : 'Nova Transação'}</h2>
+          <div>
+            <h2 className="text-base font-bold tracking-tight">{modalTitle}</h2>
+            {nature !== 'operacional' && nature !== 'transferencia' && <div className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-primary">Movimento de sócio • separado do resultado operacional</div>}
+          </div>
           <button onClick={closeModal} className="p-1.5 rounded-full bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
             <X className="w-4 h-4" />
           </button>
@@ -802,17 +772,17 @@ export function TransactionModal() {
           <div className="flex bg-muted/50 p-1 rounded-[12px] shrink-0">
             <button
               className={`flex-1 py-2 rounded-[10px] text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'despesa' ? 'bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400' : 'text-muted-foreground hover:text-foreground'} disabled:opacity-30 disabled:cursor-not-allowed`}
-              onClick={() => setType('despesa')}
+              onClick={() => { setType('despesa'); setNature('operacional'); setTransactionPreset(null); }}
               disabled={!!activeContextCardId && currentView === 'cardDetails'}
             >Despesa</button>
             <button
               className={`flex-1 py-2 rounded-[10px] text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'receita' ? 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'text-muted-foreground hover:text-foreground'} disabled:opacity-30 disabled:cursor-not-allowed`}
-              onClick={() => setType('receita')}
+              onClick={() => { setType('receita'); setNature('operacional'); setTransactionPreset(null); }}
               disabled={!!activeContextCardId && currentView === 'cardDetails'}
             >Receita</button>
             <button
               className={`flex-1 py-2 rounded-[10px] text-[10px] font-bold uppercase tracking-widest transition-all ${type === 'transferencia' ? 'bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400' : 'text-muted-foreground hover:text-foreground'} disabled:opacity-30 disabled:cursor-not-allowed`}
-              onClick={() => setType('transferencia')}
+              onClick={() => { setType('transferencia'); setNature('transferencia'); setTransactionPreset(null); }}
               disabled={!!activeContextCardId && currentView === 'cardDetails'}
             >Transf.</button>
           </div>
@@ -891,6 +861,41 @@ export function TransactionModal() {
                   </div>
                 )}
               </div>
+
+              {type !== 'transferencia' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">Vencimento</Label>
+                    <Input
+                      type="date"
+                      className="rounded-xl h-8 text-[11px] bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus:bg-background transition-colors shadow-none uppercase font-medium"
+                      value={dueDate}
+                      onChange={e => setDueDate(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold mb-1 block ml-1">{type === 'receita' ? 'Cliente' : 'Fornecedor'} (opcional)</Label>
+                    <CustomSelect
+                      value={contactId}
+                      onValueChange={setContactId}
+                      placeholder="Sem contato"
+                      options={contacts.filter(contact => contact.active && (contact.type === 'ambos' || contact.type === (type === 'receita' ? 'cliente' : 'fornecedor'))).map(contact => ({ value: contact.id, label: contact.name }))}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {['pro_labore', 'retirada_extra', 'aporte_socio'].includes(nature) && (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-2.5">
+                  <Label className="text-[9px] uppercase tracking-widest text-primary font-bold mb-1 block ml-1">Sócio ou titular</Label>
+                  <CustomSelect
+                    value={beneficiaryUserId}
+                    onValueChange={setBeneficiaryUserId}
+                    placeholder="Selecione o beneficiário"
+                    options={members.filter(member => member.active).map(member => ({ value: member.userId, label: member.displayName || member.email || 'Usuário' }))}
+                  />
+                </div>
+              )}
 
               {type === 'transferencia' ? (
                 <div className="flex flex-col gap-1 p-2.5 bg-muted/30 rounded-xl border border-border">

@@ -1,10 +1,11 @@
 import { create } from 'zustand';
-import { Account, Card, Category, Transaction, CustomPaymentMethod } from '../db/db';
+import { Account, Card, Category, Contact, Transaction, CustomPaymentMethod } from '../db/db';
 import { api } from '../services/api';
 import { supabase } from '../lib/supabase';
 
 interface DataState {
   categories: Category[];
+  contacts: Contact[];
   accounts: Account[];
   cards: Card[];
   transactions: Transaction[];
@@ -23,6 +24,7 @@ const wait = (milliseconds: number) => new Promise(resolve => setTimeout(resolve
 
 export const useDataStore = create<DataState>((set, get) => ({
   categories: [],
+  contacts: [],
   accounts: [],
   cards: [],
   transactions: [],
@@ -38,8 +40,9 @@ export const useDataStore = create<DataState>((set, get) => ({
     let lastError: any = null;
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
-        const [categories, accounts, cards, transactions, customPaymentMethods] = await Promise.all([
+        const [categories, contacts, accounts, cards, transactions, customPaymentMethods] = await Promise.all([
           api.categories.list(),
+          api.contacts.list(),
           api.accounts.list(),
           api.cards.list(),
           api.transactions.list(),
@@ -51,6 +54,7 @@ export const useDataStore = create<DataState>((set, get) => ({
 
         set({
           categories,
+          contacts,
           accounts,
           cards,
           transactions,
@@ -75,6 +79,7 @@ export const useDataStore = create<DataState>((set, get) => ({
     fetchVersion += 1;
     set({
       categories: [],
+      contacts: [],
       accounts: [],
       cards: [],
       transactions: [],

@@ -60,9 +60,9 @@ export function AuthView() {
           <div className="w-12 h-12 bg-primary/10 rounded-[14px] flex items-center justify-center mb-3 overflow-hidden">
             <img src="/icone-financas-pwa.svg" alt="FinWill" className="w-10 h-10 object-contain" />
           </div>
-          <h1 className="text-xl font-bold tracking-tight">FinWill</h1>
+          <h1 className="text-xl font-bold tracking-tight">FinWill Business</h1>
           <p className="text-xs text-muted-foreground mt-1 text-center">
-            {isLogin ? 'Acesse suas finanças inteligentemente' : 'Crie sua conta e assuma o controle'}
+            {isLogin ? 'Financeiro simples para o seu MEI' : 'Crie sua empresa e comece em poucos minutos'}
           </p>
         </div>
 

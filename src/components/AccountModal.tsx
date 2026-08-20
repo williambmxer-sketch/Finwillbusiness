@@ -46,17 +46,15 @@ export function AccountModal() {
   const handleSave = async () => {
     if (!name) return;
 
-    const accountData = {
-      name,
-      balance: balance ? parseFloat(balance) : 0,
-      type
-    };
-
     if (editingAccountId) {
-      await api.accounts.update(editingAccountId, accountData);
+      // O saldo é derivado dos lançamentos. Alterá-lo diretamente quebraria o
+      // histórico; ajustes são registrados como uma transação na tela de contas.
+      await api.accounts.update(editingAccountId, { name, type });
     } else {
       await api.accounts.add({
-        ...accountData,
+        name,
+        balance: balance ? parseFloat(balance) : 0,
+        type,
         color: '#1a1a1a',
         icon: 'wallet'
       });
@@ -94,7 +92,9 @@ export function AccountModal() {
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
           <div className="space-y-4">
             <div className="flex flex-col items-center justify-center py-2">
-              <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Saldo Inicial</span>
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">
+                {editingAccountId ? 'Saldo atual' : 'Saldo inicial'}
+              </span>
               <div className="flex items-baseline gap-1">
                 <span className="text-sm font-semibold text-muted-foreground">R$</span>
                 <Input 
@@ -104,8 +104,14 @@ export function AccountModal() {
                   className="w-[180px] p-0 text-center text-4xl font-bold h-12 bg-transparent border-none shadow-none focus-visible:ring-0"
                   value={displayBalance}
                   onChange={handleBalanceChange}
+                  disabled={Boolean(editingAccountId)}
                 />
               </div>
+              {editingAccountId && (
+                <p className="mt-2 text-center text-[10px] text-muted-foreground">
+                  Para corrigir o saldo, use “Ajustar saldo” em Contas e caixa.
+                </p>
+              )}
             </div>
 
             <div className="bg-muted/10 rounded-[24px] p-5 space-y-4 border border-border/30">

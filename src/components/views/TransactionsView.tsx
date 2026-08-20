@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import * as XLSX from 'xlsx-js-style';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getCashDate, getCashImpact, INVOICE_PAYMENT_PREFIX, isCashPaymentMethod, isInvoicePayment } from '../../utils/financialRules';
+import { getCashDate, INVOICE_PAYMENT_PREFIX, isCashPaymentMethod, isInvoicePayment } from '../../utils/financialRules';
 
 export function TransactionsView() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -194,19 +194,6 @@ export function TransactionsView() {
   const executeTogglePayment = async (t: any, isNowPaid: boolean) => {
     const paymentDate = isNowPaid ? new Date() : null;
     await api.transactions.update(t.id, { isPaid: isNowPaid, paymentDate });
-
-    if (t.accountId) {
-      const accounts = useDataStore.getState().accounts;
-      const acc = accounts.find(a => a.id === t.accountId);
-      if (acc) {
-        const amountChange = getCashImpact(t);
-        const balanceChange = isNowPaid ? amountChange : -amountChange;
-
-        await api.accounts.update(t.accountId, {
-          balance: acc.balance + balanceChange
-        });
-      }
-    }
   };
 
   const filtered = transactions.filter(t => {
@@ -556,7 +543,7 @@ export function TransactionsView() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-background relative pt-8 px-4 max-w-lg mx-auto w-full">
+    <div className="flex flex-col h-full bg-background relative pt-6 px-4 max-w-6xl mx-auto w-full lg:px-8">
       <header className="px-4 pb-3">
         <div className="flex justify-between items-end mb-4 relative">
           <h1 className="text-2xl font-bold tracking-tight">Transações</h1>

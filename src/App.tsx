@@ -8,16 +8,13 @@ import { supabase } from './lib/supabase';
 import { useAuthStore } from './store/useAuthStore';
 import { useAppStore } from './store/useAppStore';
 import { useDataStore } from './store/useDataStore';
+import { useOrganizationStore } from './store/useOrganizationStore';
 import { AuthView } from './components/views/AuthView';
-import { Home, CreditCard, Receipt, Wallet, PieChart, Plus, RefreshCw, X } from 'lucide-react';
+import { RefreshCw, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { seedDB } from './db/db';
 import { DashboardView } from './components/views/DashboardView';
-import { TransactionsView } from './components/views/TransactionsView';
 import { CardsView } from './components/views/CardsView';
-import { InvoicesView } from './components/views/InvoicesView';
-import { ReportsView } from './components/views/ReportsView';
 import { AccountsView } from './components/views/AccountsView';
 import { AccountDetailsView } from './components/views/AccountDetailsView';
 import { CardDetailsView } from './components/views/CardDetailsView';
@@ -28,11 +25,22 @@ import { CategoryModal } from './components/CategoryModal';
 import { AccountModal } from './components/AccountModal';
 import { ConfirmPaymentModal } from './components/ConfirmPaymentModal';
 import { ConfirmationModal } from './components/ConfirmationModal';
+import { TopNavigation } from './components/TopNavigation';
+import { AgendaView } from './components/views/AgendaView';
+import { ContactsView } from './components/views/ContactsView';
+import { PartnersView } from './components/views/PartnersView';
+import { CompanyView } from './components/views/CompanyView';
+import { api } from './services/api';
+
+const TransactionsView = React.lazy(() => import('./components/views/TransactionsView').then(module => ({ default: module.TransactionsView })));
+const InvoicesView = React.lazy(() => import('./components/views/InvoicesView').then(module => ({ default: module.InvoicesView })));
+const ReportsView = React.lazy(() => import('./components/views/ReportsView').then(module => ({ default: module.ReportsView })));
 
 export default function App() {
-  const { currentView, setCurrentView, setTransactionModalOpen, setEditingTransactionId, activeContextCardId, setDefaultPaymentMethod } = useAppStore();
+  const { currentView } = useAppStore();
   const { session, setSession, isLoading } = useAuthStore();
   const { hasLoaded: hasLoadedData, isLoading: isLoadingData, error: dataError, fetchData, clearData } = useDataStore();
+  const { load: loadOrganization, clear: clearOrganization, isLoading: isLoadingOrganization } = useOrganizationStore();
   const [isReady, setIsReady] = useState(false);
   const { needRefresh: [needRefresh, setNeedRefresh], updateServiceWorker } = useRegisterSW();
   const [isUpdating, setIsUpdating] = useState(false);
@@ -80,29 +88,79 @@ export default function App() {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
+    let validatingInitialSession = true;
+    let cancelled = false;
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (validatingInitialSession && event === 'INITIAL_SESSION') return;
       setSession(session);
     });
 
-    return () => subscription.unsubscribe();
+    (async () => {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (cancelled) return;
+
+      if (sessionError || !session) {
+        validatingInitialSession = false;
+        setSession(null);
+        return;
+      }
+
+      // getSession() pode devolver um token antigo do armazenamento local. A
+      // validação no servidor impede abrir a empresa com um usuário já removido.
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (cancelled) return;
+
+      validatingInitialSession = false;
+      if (userError || !user) {
+        await supabase.auth.signOut({ scope: 'local' });
+        setSession(null);
+        return;
+      }
+
+      setSession({ ...session, user });
+    })().catch(error => {
+      if (!cancelled) {
+        validatingInitialSession = false;
+        console.error('Não foi possível validar a sessão.', error);
+        setSession(null);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, [setSession]);
 
   useEffect(() => {
-    if (session) {
-      fetchData();
-      const cleanup = useDataStore.getState().setupSubscriptions();
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
 
-      return () => cleanup();
+    if (session) {
+      (async () => {
+        await loadOrganization();
+        if (cancelled) return;
+        try {
+          await api.withdrawals.generateDue();
+        } catch (error) {
+          console.warn('Não foi possível gerar o pró-labore recorrente.', error);
+        }
+        await fetchData();
+        if (!cancelled) cleanup = useDataStore.getState().setupSubscriptions();
+      })().catch(error => console.error('Falha na inicialização da empresa.', error));
+
+      return () => {
+        cancelled = true;
+        cleanup?.();
+      };
     }
 
+    clearOrganization();
     clearData();
-  }, [session, fetchData, clearData]);
+    return () => { cancelled = true; cleanup?.(); };
+  }, [session, fetchData, clearData, loadOrganization, clearOrganization]);
 
   useEffect(() => {
     async function init() {
@@ -112,7 +170,7 @@ export default function App() {
     init();
   }, []);
 
-  if (isLoading || !isReady || (session && isLoadingData && !hasLoadedData)) {
+  if (isLoading || !isReady || (session && (isLoadingOrganization || (isLoadingData && !hasLoadedData)))) {
     return (
       <div className="flex bg-background h-screen w-screen items-center justify-center">
         <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.5 }}>
@@ -150,6 +208,10 @@ export default function App() {
         return <DashboardView />;
       case 'transactions':
         return <TransactionsView />;
+      case 'agendaPayable':
+        return <AgendaView mode="payable" />;
+      case 'agendaReceivable':
+        return <AgendaView mode="receivable" />;
       case 'cards':
         return <CardsView />;
       case 'invoices':
@@ -164,6 +226,12 @@ export default function App() {
         return <ReportsView />;
       case 'planning':
         return <PlanningView />;
+      case 'contacts':
+        return <ContactsView />;
+      case 'partners':
+        return <PartnersView />;
+      case 'company':
+        return <CompanyView />;
       default:
         return <DashboardView />;
     }
@@ -172,8 +240,10 @@ export default function App() {
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-background text-foreground overflow-hidden">
 
+      <TopNavigation />
+
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden touch-pan-y relative mt-2">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden touch-pan-y relative">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentView}
@@ -181,39 +251,14 @@ export default function App() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.2 }}
-            className="w-full pb-[120px]"
+            className="w-full pb-16"
           >
-            {renderView()}
+            <React.Suspense fallback={<div className="flex min-h-[45vh] items-center justify-center"><RefreshCw className="h-5 w-5 animate-spin text-primary" /></div>}>
+              {renderView()}
+            </React.Suspense>
           </motion.div>
         </AnimatePresence>
       </div>
-
-      {/* Floating Action Button (FAB) */}
-      {currentView !== 'invoices' && currentView !== 'cardDetails' && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-lg z-50 pointer-events-none flex justify-end px-4">
-          <button
-            onClick={() => {
-              setDefaultPaymentMethod(null);
-              setEditingTransactionId(null);
-              setTransactionModalOpen(true);
-            }}
-            className="pointer-events-auto bg-primary text-primary-foreground h-12 w-12 rounded-[11px] flex items-center justify-center shadow-lg shadow-primary/25 hover:bg-primary/90 active:scale-95 transition-all"
-          >
-            <Plus className="h-5 w-5" />
-          </button>
-        </div>
-      )}
-
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 w-full h-16 bg-background/95 backdrop-blur-xl border-t border-border z-40 px-4 safe-area-bottom shadow-[0_-4px_24px_-8px_rgba(0,0,0,0.05)]">
-        <div className="flex items-center justify-between h-full max-w-md mx-auto">
-          <NavItem icon={Home} label="Início" active={currentView === 'dashboard'} onClick={() => setCurrentView('dashboard')} />
-          <NavItem icon={Wallet} label="Transações" active={currentView === 'transactions'} onClick={() => setCurrentView('transactions')} />
-          <NavItem icon={CreditCard} label="Cartões" active={currentView === 'cards'} onClick={() => setCurrentView('cards')} />
-          <NavItem icon={Receipt} label="Faturas" active={currentView === 'invoices'} onClick={() => setCurrentView('invoices')} />
-          <NavItem icon={PieChart} label="Relatórios" active={currentView === 'reports'} onClick={() => setCurrentView('reports')} />
-        </div>
-      </nav>
 
       <TransactionModal />
       <CardModal />
@@ -284,25 +329,5 @@ export default function App() {
         )}
       </AnimatePresence>
     </div>
-  );
-}
-
-function NavItem({ icon: Icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex flex-col items-center justify-center gap-0.5 w-12 transition-colors ${active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-    >
-      <div className="relative">
-        <Icon className="h-5 w-5" />
-        {active && (
-          <motion.div
-            layoutId="nav-indicator"
-            className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full"
-          />
-        )}
-      </div>
-      <span className="text-[9px] font-bold uppercase tracking-wider mt-0.5">{label}</span>
-    </button>
   );
 }

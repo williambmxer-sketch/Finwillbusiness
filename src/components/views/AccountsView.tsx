@@ -59,7 +59,6 @@ export function AccountsView() {
       });
     }
 
-    await api.accounts.update(id, { balance: parsed });
     setAdjustingId(null);
     setAdjustValue('');
     setAdjustReason('');
@@ -80,7 +79,7 @@ export function AccountsView() {
   const displayAdjustValue = adjustValue ? parseFloat(adjustValue).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
 
   return (
-    <div className="flex flex-col h-full bg-background relative pt-8 px-4 max-w-lg mx-auto w-full">
+    <div className="flex flex-col h-full bg-background relative pt-6 px-4 max-w-6xl mx-auto w-full lg:px-8">
       <header className="flex justify-between items-end mb-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight mb-1">Contas</h1>

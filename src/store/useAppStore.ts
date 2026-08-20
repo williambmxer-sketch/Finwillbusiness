@@ -1,8 +1,35 @@
 import { create } from 'zustand';
 
+export type AppView =
+  | 'dashboard'
+  | 'transactions'
+  | 'agendaPayable'
+  | 'agendaReceivable'
+  | 'cards'
+  | 'invoices'
+  | 'accounts'
+  | 'accountDetails'
+  | 'cardDetails'
+  | 'reports'
+  | 'planning'
+  | 'contacts'
+  | 'partners'
+  | 'company';
+
+export type TransactionPreset =
+  | 'income_received'
+  | 'income_pending'
+  | 'expense_paid'
+  | 'expense_pending'
+  | 'transfer'
+  | 'prolabore'
+  | 'withdrawal'
+  | 'contribution'
+  | null;
+
 interface AppState {
-  currentView: 'dashboard' | 'transactions' | 'cards' | 'invoices' | 'accounts' | 'accountDetails' | 'cardDetails' | 'reports' | 'planning';
-  setCurrentView: (view: 'dashboard' | 'transactions' | 'cards' | 'invoices' | 'accounts' | 'accountDetails' | 'cardDetails' | 'reports' | 'planning') => void;
+  currentView: AppView;
+  setCurrentView: (view: AppView) => void;
   isDarkMode: boolean;
   toggleDarkMode: () => void;
   confirmPaymentTransactionId: string | null;
@@ -16,6 +43,8 @@ interface AppState {
   setActiveContextCardId: (id: string | null) => void;
   defaultPaymentMethod: string | null;
   setDefaultPaymentMethod: (id: string | null) => void;
+  transactionPreset: TransactionPreset;
+  setTransactionPreset: (preset: TransactionPreset) => void;
 
   isCardModalOpen: boolean;
   setCardModalOpen: (open: boolean) => void;
@@ -68,6 +97,8 @@ export const useAppStore = create<AppState>((set) => ({
   setActiveContextCardId: (id) => set({ activeContextCardId: id }),
   defaultPaymentMethod: null,
   setDefaultPaymentMethod: (id) => set({ defaultPaymentMethod: id }),
+  transactionPreset: null,
+  setTransactionPreset: (preset) => set({ transactionPreset: preset }),
 
   isCardModalOpen: false,
   setCardModalOpen: (open) => set({ isCardModalOpen: open }),

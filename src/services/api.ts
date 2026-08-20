@@ -1,5 +1,15 @@
 import { supabase } from '../lib/supabase';
-import { Account, Card, Category, Transaction, Invoice, CustomPaymentMethod } from '../db/db';
+import {
+  Account,
+  Card,
+  Category,
+  Contact,
+  Transaction,
+  CustomPaymentMethod,
+  Organization,
+  OrganizationMember,
+  WithdrawalConfig,
+} from '../db/db';
 import { offlineSync } from './offlineSync';
 
 // Initialize offline listeners
@@ -28,6 +38,27 @@ export const mappers = {
       if (obj.type !== undefined) payload.tipo = obj.type;
       if (obj.showInCards !== undefined) payload.mostrar_em_cartoes = obj.showInCards;
       if (obj.showInAccounts !== undefined) payload.mostrar_em_contas = obj.showInAccounts;
+      return payload;
+    }
+  },
+  contact: {
+    toApp: (row: any): Contact => ({
+      id: row.id,
+      name: row.nome,
+      type: row.tipo,
+      email: row.email || undefined,
+      phone: row.telefone || undefined,
+      notes: row.observacoes || undefined,
+      active: row.ativo ?? true,
+    }),
+    toDb: (obj: Partial<Contact>) => {
+      const payload: any = {};
+      if (obj.name !== undefined) payload.nome = obj.name;
+      if (obj.type !== undefined) payload.tipo = obj.type;
+      if ('email' in obj) payload.email = obj.email || null;
+      if ('phone' in obj) payload.telefone = obj.phone || null;
+      if ('notes' in obj) payload.observacoes = obj.notes || null;
+      if (obj.active !== undefined) payload.ativo = obj.active;
       return payload;
     }
   },
@@ -90,6 +121,15 @@ export const mappers = {
       parentId: row.transacao_pai_id || undefined,
       isPaid: row.esta_pago,
       paymentDate: row.data_pagamento ? new Date(row.data_pagamento) : undefined,
+      dueDate: row.data_vencimento ? new Date(row.data_vencimento) : undefined,
+      competenceMonth: row.competencia_mes || undefined,
+      nature: row.natureza || 'operacional',
+      contactId: row.contato_id || undefined,
+      beneficiaryUserId: row.beneficiario_usuario_id || undefined,
+      createdBy: row.criado_por || undefined,
+      updatedBy: row.atualizado_por || undefined,
+      paidBy: row.baixado_por || undefined,
+      version: row.versao || 1,
       notes: row.observacoes || undefined,
       createdAt: row.criado_em,
     }),
@@ -107,6 +147,11 @@ export const mappers = {
       if (obj.parentId !== undefined) payload.transacao_pai_id = obj.parentId || null;
       if (obj.isPaid !== undefined) payload.esta_pago = obj.isPaid;
       if ('paymentDate' in obj) payload.data_pagamento = obj.paymentDate ? obj.paymentDate.toISOString() : null;
+      if ('dueDate' in obj) payload.data_vencimento = obj.dueDate ? obj.dueDate.toISOString() : null;
+      if ('competenceMonth' in obj) payload.competencia_mes = obj.competenceMonth || null;
+      if (obj.nature !== undefined) payload.natureza = obj.nature;
+      if ('contactId' in obj) payload.contato_id = obj.contactId || null;
+      if ('beneficiaryUserId' in obj) payload.beneficiario_usuario_id = obj.beneficiaryUserId || null;
       if (obj.notes !== undefined) payload.observacoes = obj.notes || null;
       return payload;
     }
@@ -138,6 +183,13 @@ const getUserId = async () => {
   return session.user.id;
 };
 
+const getCurrentOrganizationId = async () => {
+  const { data, error } = await supabase.rpc('current_organization_id');
+  if (error) throw error;
+  if (!data) throw new Error('Nenhuma empresa ativa foi encontrada.');
+  return data as string;
+};
+
 const notifyMutation = () => {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('db_mutation'));
@@ -145,6 +197,88 @@ const notifyMutation = () => {
 };
 
 export const api = {
+  demo: {
+    seed: async () => {
+      const { data, error } = await supabase.rpc('ensure_business_demo_data');
+      if (error) throw error;
+      if (data) notifyMutation();
+      return Boolean(data);
+    },
+  },
+
+  organizations: {
+    list: async (): Promise<Organization[]> => {
+      const { data, error } = await supabase
+        .from('membros_organizacao')
+        .select('organizacao_id,papel,ativo,padrao,organizacoes(id,nome,nome_fantasia,documento,moeda,fuso_horario)')
+        .eq('ativo', true);
+      if (error) throw error;
+
+      return (data || []).map((row: any) => {
+        const organization = Array.isArray(row.organizacoes) ? row.organizacoes[0] : row.organizacoes;
+        return {
+          id: organization.id,
+          name: organization.nome,
+          tradeName: organization.nome_fantasia || undefined,
+          document: organization.documento || undefined,
+          currency: organization.moeda || 'BRL',
+          timezone: organization.fuso_horario || 'America/Sao_Paulo',
+          role: row.papel,
+          isDefault: row.padrao,
+        } as Organization;
+      });
+    },
+    switch: async (organizationId: string) => {
+      const { error } = await supabase.rpc('switch_organization', { p_organizacao_id: organizationId });
+      if (error) throw error;
+      notifyMutation();
+    },
+    update: async (organizationId: string, changes: { name?: string; tradeName?: string; document?: string }) => {
+      const payload: any = {};
+      if (changes.name !== undefined) payload.nome = changes.name;
+      if (changes.tradeName !== undefined) payload.nome_fantasia = changes.tradeName || null;
+      if (changes.document !== undefined) payload.documento = changes.document || null;
+      const { data, error } = await supabase.from('organizacoes').update(payload).eq('id', organizationId).select().single();
+      if (error) throw error;
+      return data;
+    },
+    members: async (): Promise<OrganizationMember[]> => {
+      const { data, error } = await supabase.rpc('list_current_organization_members');
+      if (error) throw error;
+      return (data || []).map((row: any) => ({
+        organizationId: row.organizacao_id,
+        userId: row.usuario_id,
+        role: row.papel,
+        active: row.ativo,
+        isDefault: row.padrao,
+        email: row.email || undefined,
+        displayName: row.nome_exibicao || undefined,
+      }));
+    },
+    createInvite: async (email: string, role: 'administrador' | 'socio' | 'consulta') => {
+      const { data, error } = await supabase.rpc('create_organization_invite', {
+        p_email: email,
+        p_papel: role,
+      });
+      if (error) throw error;
+      return Array.isArray(data) ? data[0] : data;
+    },
+    acceptInvite: async (code: string) => {
+      const { data, error } = await supabase.rpc('accept_organization_invite', { p_codigo: code });
+      if (error) throw error;
+      notifyMutation();
+      return data as string;
+    },
+    updateMember: async (userId: string, role: 'administrador' | 'socio' | 'consulta', active: boolean) => {
+      const { error } = await supabase.rpc('update_organization_member', {
+        p_usuario_id: userId,
+        p_papel: role,
+        p_ativo: active,
+      });
+      if (error) throw error;
+    },
+  },
+
   categories: {
     list: async (): Promise<Category[]> => {
       const { data, error } = await supabase.from('categorias').select('*');
@@ -172,6 +306,35 @@ export const api = {
       if (error) throw error;
       notifyMutation();
     }
+  },
+
+  contacts: {
+    list: async (): Promise<Contact[]> => {
+      const { data, error } = await supabase.from('contatos').select('*').order('nome');
+      if (error) throw error;
+      return (data || []).map(mappers.contact.toApp);
+    },
+    add: async (contact: Omit<Contact, 'id'>) => {
+      const userId = await getUserId();
+      const { data, error } = await supabase.from('contatos').insert({
+        ...mappers.contact.toDb(contact),
+        usuario_id: userId,
+      }).select().single();
+      if (error) throw error;
+      notifyMutation();
+      return mappers.contact.toApp(data);
+    },
+    update: async (id: string, contact: Partial<Contact>) => {
+      const { data, error } = await supabase.from('contatos').update(mappers.contact.toDb(contact)).eq('id', id).select().single();
+      if (error) throw error;
+      notifyMutation();
+      return mappers.contact.toApp(data);
+    },
+    delete: async (id: string) => {
+      const { error } = await supabase.from('contatos').update({ ativo: false }).eq('id', id);
+      if (error) throw error;
+      notifyMutation();
+    },
   },
 
   accounts: {
@@ -202,8 +365,8 @@ export const api = {
       notifyMutation();
     },
     resetBalances: async () => {
-      const userId = await getUserId();
-      const { error } = await supabase.from('contas').update({ saldo: 0 }).eq('usuario_id', userId);
+      const organizationId = await getCurrentOrganizationId();
+      const { error } = await supabase.from('contas').update({ saldo: 0 }).eq('organizacao_id', organizationId);
       if (error) throw error;
       notifyMutation();
     }
@@ -286,9 +449,7 @@ export const api = {
         return mappers.transaction.toApp(data);
       } catch (err: any) {
         if (!navigator.onLine || (err.message && err.message.includes('fetch'))) {
-          offlineSync.queueMutation({ collection: 'transacoes', action: 'insert', payload });
-          notifyMutation();
-          return { ...transaction, id: 'temp-' + Date.now() } as Transaction;
+          throw new Error('Lançamentos financeiros exigem conexão para garantir a empresa e o saldo corretos.');
         }
         throw err;
       }
@@ -320,9 +481,7 @@ export const api = {
         return (data || []).map(mappers.transaction.toApp);
       } catch (err: any) {
         if (!navigator.onLine || (err.message && err.message.includes('fetch'))) {
-          offlineSync.queueMutation({ collection: 'transacoes', action: 'bulkInsert', payload });
-          notifyMutation();
-          return transactions.map((t, i) => ({ ...t, id: 'temp-' + Date.now() + '-' + i })) as Transaction[];
+          throw new Error('Lançamentos financeiros exigem conexão para garantir a empresa e o saldo corretos.');
         }
         throw err;
       }
@@ -350,11 +509,11 @@ export const api = {
       notifyMutation();
     },
     deleteAll: async () => {
-      const userId = await getUserId();
-      const { error: accountsError } = await supabase.from('contas').update({ saldo: 0 }).eq('usuario_id', userId);
-      if (accountsError) throw accountsError;
-      const { error: transactionsError } = await supabase.from('transacoes').delete().eq('usuario_id', userId);
+      const organizationId = await getCurrentOrganizationId();
+      const { error: transactionsError } = await supabase.from('transacoes').delete().eq('organizacao_id', organizationId);
       if (transactionsError) throw transactionsError;
+      const { error: accountsError } = await supabase.from('contas').update({ saldo: 0 }).eq('organizacao_id', organizationId);
+      if (accountsError) throw accountsError;
 
       if (typeof window !== 'undefined') {
         localStorage.removeItem('financas_sync_queue');
@@ -362,6 +521,104 @@ export const api = {
       }
       notifyMutation();
     }
+  },
+
+  withdrawals: {
+    list: async (): Promise<WithdrawalConfig[]> => {
+      const { data, error } = await supabase.from('configuracoes_retirada').select('*').order('descricao');
+      if (error) throw error;
+      return (data || []).map((row: any) => ({
+        id: row.id,
+        organizationId: row.organizacao_id,
+        beneficiaryUserId: row.beneficiario_usuario_id,
+        description: row.descricao,
+        amount: Number(row.valor),
+        dueDay: row.dia_vencimento,
+        accountId: row.conta_id || undefined,
+        categoryId: row.categoria_id || undefined,
+        nextCompetence: row.proxima_competencia,
+        active: row.ativo,
+      }));
+    },
+    save: async (config: Omit<WithdrawalConfig, 'id' | 'organizationId'> & { id?: string }) => {
+      const userId = await getUserId();
+      const organizationId = await getCurrentOrganizationId();
+      const payload = {
+        organizacao_id: organizationId,
+        beneficiario_usuario_id: config.beneficiaryUserId,
+        descricao: config.description,
+        valor: config.amount,
+        dia_vencimento: config.dueDay,
+        conta_id: config.accountId || null,
+        categoria_id: config.categoryId || null,
+        proxima_competencia: config.nextCompetence,
+        ativo: config.active,
+        criado_por: userId,
+      };
+      const query = config.id
+        ? supabase.from('configuracoes_retirada').update(payload).eq('id', config.id)
+        : supabase.from('configuracoes_retirada').insert(payload);
+      const { data, error } = await query.select().single();
+      if (error) throw error;
+      notifyMutation();
+      return data;
+    },
+    generateDue: async () => {
+      const { data, error } = await supabase.rpc('generate_due_prolabore');
+      if (error) throw error;
+      notifyMutation();
+      return Number(data || 0);
+    },
+  },
+
+  planning: {
+    list: async () => {
+      const { data, error } = await supabase.from('itens_planejamento').select('*').eq('ativo', true).order('mes_inicio');
+      if (error) throw error;
+      return (data || []).map((row: any) => ({
+        id: row.id,
+        description: row.descricao,
+        amount: Number(row.valor),
+        type: row.tipo,
+        startMonth: String(row.mes_inicio).slice(0, 7),
+        durationMonths: row.duracao_meses,
+        categoryId: row.categoria_id || '',
+        accountId: row.conta_id || undefined,
+        cardId: row.cartao_id || undefined,
+        projectSubsequentMonth: false,
+      }));
+    },
+    replace: async (items: any[]) => {
+      const userId = await getUserId();
+      const organizationId = await getCurrentOrganizationId();
+      const { data: existing, error: existingError } = await supabase.from('itens_planejamento').select('id');
+      if (existingError) throw existingError;
+      const ids = new Set(items.map(item => item.id));
+      const toDelete = (existing || []).map((item: any) => item.id).filter(id => !ids.has(id));
+      if (toDelete.length > 0) {
+        const { error } = await supabase.from('itens_planejamento').delete().in('id', toDelete);
+        if (error) throw error;
+      }
+      if (items.length > 0) {
+        const payload = items.map(item => ({
+          id: item.id,
+          organizacao_id: organizationId,
+          usuario_id: userId,
+          descricao: item.description,
+          valor: item.amount,
+          tipo: item.type,
+          mes_inicio: `${item.startMonth}-01`,
+          duracao_meses: item.durationMonths,
+          categoria_id: item.categoryId || null,
+          conta_id: item.accountId || null,
+          cartao_id: item.cardId || null,
+          ativo: true,
+        }));
+        const { error } = await supabase.from('itens_planejamento').upsert(payload, { onConflict: 'id' });
+        if (error) throw error;
+      }
+      notifyMutation();
+    },
   },
 
   paymentMethods: {

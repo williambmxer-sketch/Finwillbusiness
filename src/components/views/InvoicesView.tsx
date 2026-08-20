@@ -431,32 +431,15 @@ export function InvoicesView() {
             accountId: payAccountId,
             isPaid: true,
             paymentDate,
+            nature: 'pagamento_fatura',
             notes: paymentNote,
           });
           savePaymentRecovery({ ...nextRecovery, paymentId: payment.id }, recoveryKey);
           existingPayment = payment;
 
-          try {
-            await api.accounts.update(payAccountId, { balance: account.balance - paymentAmount });
-          } catch (accountError) {
-            // Se a resposta da atualização se perdeu, confirmamos antes de
-            // desfazer o registro novo. Assim não apagamos um débito que de
-            // fato tenha sido aplicado no servidor.
-            try {
-              const verifiedAccounts = await api.accounts.list();
-              const verifiedAccount = verifiedAccounts.find(a => a.id === payAccountId);
-              if (!verifiedAccount || !sameMoney(verifiedAccount.balance, account.balance - paymentAmount)) {
-                await api.transactions.delete(payment.id);
-                clearPaymentRecovery(recoveryKey);
-                throw new Error('Não foi possível confirmar o débito. O registro técnico foi removido e nenhum lançamento antigo foi alterado.');
-              }
-            } catch (verificationError) {
-              if (verificationError instanceof Error && verificationError.message.startsWith('Não foi possível confirmar')) {
-                throw verificationError;
-              }
-              throw new Error('O pagamento foi registrado, mas o saldo não pôde ser confirmado. Não tente pagar novamente até atualizar a tela.');
-            }
-          }
+          // O trigger transacional do banco atualiza o saldo na mesma operação
+          // que cria este movimento técnico. Não há uma segunda escrita sujeita
+          // a falha ou duplicidade.
         }
 
         const paymentDate = existingPayment.paymentDate || new Date();
@@ -504,7 +487,7 @@ export function InvoicesView() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-background relative pt-8 px-4 max-w-lg mx-auto w-full">
+    <div className="flex flex-col h-full bg-background relative pt-6 px-4 max-w-6xl mx-auto w-full lg:px-8">
       <header className="px-4 pb-4">
         <h1 className="text-2xl font-bold tracking-tight mb-1">Faturas</h1>
         <p className="text-xs text-muted-foreground">Gerencie seus pagamentos</p>

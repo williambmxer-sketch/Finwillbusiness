@@ -16,9 +16,9 @@ export default defineConfig(() => {
           maximumFileSizeToCacheInBytes: 5000000
         },
         manifest: {
-          name: 'FinWill',
+          name: 'FinWill Business',
           short_name: 'FinWill',
-          description: 'Gestor Financeiro Pessoal',
+          description: 'Financeiro simples para microempreendedores individuais',
           theme_color: '#000000',
           background_color: '#000000',
           display: 'standalone',

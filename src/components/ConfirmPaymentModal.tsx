@@ -89,15 +89,6 @@ export function ConfirmPaymentModal() {
       notes: isCustom ? `paymentMethod:${paymentMethodName}` : transaction.notes
     });
 
-    if (requiresAccount && accountId) {
-      const acc = useDataStore.getState().accounts.find(a => a.id === accountId);
-      if (acc) {
-        await api.accounts.update(accountId, {
-          balance: acc.balance + (transaction.type === 'receita' ? finalAmount : -finalAmount)
-        });
-      }
-    }
-
     setConfirmPaymentTransactionId(null);
   };
 
