@@ -41,9 +41,10 @@ export default function App() {
   const { hasLoaded: hasLoadedData, isLoading: isLoadingData, error: dataError, fetchData, clearData } = useDataStore();
   const { load: loadOrganization, clear: clearOrganization, isLoading: isLoadingOrganization } = useOrganizationStore();
   const [isReady, setIsReady] = useState(false);
-  const { needRefresh: [needRefresh, setNeedRefresh], updateServiceWorker } = useRegisterSW();
+  const { needRefresh: [needRefresh, setNeedRefresh], updateServiceWorker } = useRegisterSW({ immediate: true });
   const [isUpdating, setIsUpdating] = useState(false);
   const updateReloadTimer = useRef<number | null>(null);
+  const initializedUserIdRef = useRef<string | null>(null);
 
   useEffect(() => () => {
     if (updateReloadTimer.current !== null) {
@@ -138,6 +139,10 @@ export default function App() {
     let cancelled = false;
 
     if (session) {
+      const userId = session.user.id;
+      if (initializedUserIdRef.current === userId) return;
+      initializedUserIdRef.current = userId;
+
       (async () => {
         await loadOrganization();
         if (cancelled) return;
@@ -148,7 +153,10 @@ export default function App() {
         }
         await fetchData();
         if (!cancelled) cleanup = useDataStore.getState().setupSubscriptions();
-      })().catch(error => console.error('Falha na inicialização da empresa.', error));
+      })().catch(error => {
+        if (initializedUserIdRef.current === userId) initializedUserIdRef.current = null;
+        console.error('Falha na inicialização da empresa.', error);
+      });
 
       return () => {
         cancelled = true;
@@ -156,10 +164,29 @@ export default function App() {
       };
     }
 
+    initializedUserIdRef.current = null;
     clearOrganization();
     clearData();
     return () => { cancelled = true; cleanup?.(); };
   }, [session, fetchData, clearData, loadOrganization, clearOrganization]);
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+
+    let intervalId: number | null = null;
+    let cancelled = false;
+
+    navigator.serviceWorker.ready.then(registration => {
+      if (cancelled) return;
+      registration.update();
+      intervalId = window.setInterval(() => registration.update(), 60_000);
+    }).catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+      if (intervalId !== null) window.clearInterval(intervalId);
+    };
+  }, []);
 
   useEffect(() => {
     async function init() {

@@ -10,7 +10,7 @@ export default defineConfig(() => {
       react(), 
       tailwindcss(),
       VitePWA({
-        registerType: 'autoUpdate',
+        registerType: 'prompt',
         includeAssets: ['icone-financas-pwa.svg'],
         workbox: {
           maximumFileSizeToCacheInBytes: 5000000
