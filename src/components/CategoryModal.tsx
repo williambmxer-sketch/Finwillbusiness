@@ -180,18 +180,22 @@ export function CategoryModal() {
   if (!isCategoryModalOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-end justify-center bg-background/80 p-0 backdrop-blur-sm sm:items-center sm:p-4 sm:backdrop-blur-md">
-      <div className="relative flex h-[90dvh] w-full max-w-md flex-col rounded-t-[24px] border-t border-border bg-card shadow-2xl transition-all sm:h-[650px] sm:rounded-[20px] sm:border lg:h-[760px] lg:max-h-[calc(100dvh-2rem)] lg:max-w-4xl">
-        <div className="sm:hidden absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-muted rounded-full" />
-        
-        <div className="flex justify-between items-center p-4 pb-3 border-b">
-          <h2 className="text-sm font-bold tracking-tight sm:text-base">Categorias e formas de pagamento</h2>
-          <button onClick={() => setCategoryModalOpen(false)} className="p-1.5 rounded-full bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-            <X className="w-4 h-4" />
-          </button>
+    <div className="fixed inset-0 z-[110] overflow-hidden bg-background">
+      <div className="relative flex h-full w-full flex-col bg-background">
+        <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-card/95 shadow-sm backdrop-blur">
+          <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 lg:px-8">
+            <div>
+              <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Cadastros</div>
+              <h2 className="mt-0.5 text-xl font-black tracking-tight">Categorias e formas de pagamento</h2>
+            </div>
+            <button onClick={() => setCategoryModalOpen(false)} aria-label="Fechar" className="rounded-xl border border-border bg-muted/40 p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
-        <div className="flex bg-muted/50 p-1 mx-4 mt-3 rounded-[12px]">
+        <div className="mx-auto flex w-full max-w-5xl min-h-0 flex-1 flex-col overflow-y-auto px-4 lg:px-8">
+          <div className="mt-5 flex w-full rounded-xl border border-border bg-muted/50 p-1 shadow-sm">
           <button 
             className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'categories' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             onClick={() => setActiveTab('categories')}
@@ -200,9 +204,9 @@ export function CategoryModal() {
             className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'payment_methods' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             onClick={() => setActiveTab('payment_methods')}
           >Formas de Pagamento</button>
-        </div>
+          </div>
 
-        <div className="flex flex-col flex-1 overflow-hidden mt-2">
+        <div className="mt-4 flex flex-col pb-10">
           {activeTab === 'categories' ? (
             <>
               {/* Button to add new category */}
@@ -219,8 +223,20 @@ export function CategoryModal() {
 
               {/* Form */}
               {isAddingCategory && (
-                <div className="p-4 bg-muted/10 border-b animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="flex gap-2 mb-3">
+                <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-in fade-in duration-150">
+                  <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-5 shadow-2xl animate-in zoom-in-95 duration-150 sm:p-6">
+                    <div className="mb-5 flex items-start justify-between gap-4">
+                      <div>
+                        <div className="text-[9px] font-black uppercase tracking-widest text-primary">Categorias</div>
+                        <h3 className="mt-1 text-lg font-black tracking-tight">{editingId ? 'Editar categoria' : 'Nova categoria'}</h3>
+                        <p className="mt-1 text-xs text-muted-foreground">Defina o tipo, a cor e onde ela deve aparecer.</p>
+                      </div>
+                      <button type="button" onClick={handleCancelEdit} aria-label="Fechar formulário" className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <div className="mb-4 flex gap-2">
                     {/* Type toggle — hidden when editing (type is locked) */}
                     {!editingId ? (
                       <div className="flex flex-1 items-center bg-muted/80 p-1.5 rounded-xl">
@@ -248,23 +264,17 @@ export function CategoryModal() {
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Nome da categoria..."
-                      className="rounded-[12px] h-9 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary shadow-none flex-1"
-                      value={name}
-                      onChange={e => setName(e.target.value)}
-                    />
-                    <button onClick={handleSave} className="px-3 bg-primary text-primary-foreground font-bold text-[10px] h-9 rounded-[12px] hover:bg-primary/90 transition-all uppercase tracking-wider">
-                      {editingId ? 'Salvar' : 'Add'}
-                    </button>
-                    <button onClick={handleCancelEdit} className="px-2.5 bg-muted text-foreground font-bold text-[10px] h-9 rounded-[12px] hover:bg-muted/80 transition-colors uppercase tracking-wider">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Nome da categoria..."
+                        className="rounded-[12px] h-9 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary shadow-none flex-1"
+                        value={name}
+                        onChange={e => setName(e.target.value)}
+                      />
+                    </div>
 
-                  {type === 'despesa' && (
-                    <div className="flex gap-4 mt-3">
+                    {type === 'despesa' && (
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
                       <div className="flex items-center justify-between flex-1 bg-muted/30 px-3 py-2 rounded-xl">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none">Mostrar em Cartões</span>
                         <button
@@ -286,20 +296,26 @@ export function CategoryModal() {
                         </button>
                       </div>
                     </div>
-                  )}
+                    )}
+                    <div className="mt-5 flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
+                      <button type="button" onClick={handleCancelEdit} className="h-10 rounded-xl border border-border px-4 text-xs font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">Cancelar</button>
+                      <button type="button" onClick={handleSave} className="h-10 rounded-xl bg-primary px-5 text-xs font-black uppercase tracking-wider text-primary-foreground transition-colors hover:bg-primary/90">{editingId ? 'Salvar alterações' : 'Criar categoria'}</button>
+                    </div>
+                  </div>
                 </div>
               )}
 
               {/* List */}
-              <div className="flex-1 space-y-4 overflow-y-auto p-2 pb-8 sm:pb-2 lg:grid lg:grid-cols-2 lg:content-start lg:gap-5 lg:space-y-0">
+              <div className="space-y-5 pb-8 pr-1 sm:pb-6">
                 {['receita', 'despesa'].map((catType) => {
                   const filteredCats = categories.filter(c => c.type === catType);
                   if (filteredCats.length === 0) return null;
                   
                   return (
-                    <div key={catType} className="space-y-1.5">
-                      <div className="px-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 mt-1">
+                    <div key={catType} className="space-y-2 rounded-2xl border border-border bg-card p-3 shadow-sm">
+                      <div className="flex items-center justify-between border-b border-border/70 px-1 pb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                         {catType === 'receita' ? 'Receitas' : 'Despesas'}
+                        <span className="text-[9px] font-semibold normal-case tracking-normal">{filteredCats.length} {filteredCats.length === 1 ? 'categoria' : 'categorias'}</span>
                       </div>
                       {filteredCats.map(c => {
                         const inUse = usedCategoryIds.has(c.id);
@@ -401,11 +417,23 @@ export function CategoryModal() {
 
               {/* Form custom payment methods */}
               {isAddingPaymentMethod && (
-                <div className="p-4 bg-muted/10 border-b space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="flex gap-2">
+                <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-in fade-in duration-150">
+                  <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-5 shadow-2xl animate-in zoom-in-95 duration-150 sm:p-6">
+                    <div className="mb-5 flex items-start justify-between gap-4">
+                      <div>
+                        <div className="text-[9px] font-black uppercase tracking-widest text-primary">Formas de pagamento</div>
+                        <h3 className="mt-1 text-lg font-black tracking-tight">{editingPmId ? 'Editar forma de pagamento' : 'Nova forma de pagamento'}</h3>
+                        <p className="mt-1 text-xs text-muted-foreground">Configure como o pagamento será registrado no caixa.</p>
+                      </div>
+                      <button type="button" onClick={handleCancelEditPaymentMethod} aria-label="Fechar formulário" className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
                     <Input 
                       placeholder="Nome da forma de pagamento... Ex: Crediário" 
-                      className="rounded-[12px] h-9 text-xs bg-muted/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary shadow-none flex-1"
+                      className="h-10 rounded-xl bg-muted/50 text-xs shadow-none focus-visible:ring-1 focus-visible:ring-primary"
                       value={pmName}
                       onChange={e => {
                         const nextName = e.target.value;
@@ -414,22 +442,16 @@ export function CategoryModal() {
                         setPaymentMethodError(null);
                       }}
                     />
-                    <button onClick={handleSavePaymentMethod} className="px-3 bg-primary text-primary-foreground font-bold text-[10px] h-9 rounded-[12px] hover:bg-primary/90 transition-all uppercase tracking-wider">
-                      {editingPmId ? 'Salvar' : 'Add'}
-                    </button>
-                    <button onClick={handleCancelEditPaymentMethod} className="px-2.5 bg-muted text-foreground font-bold text-[10px] h-9 rounded-[12px] hover:bg-muted/80 transition-colors uppercase tracking-wider">
-                      <X className="w-4 h-4" />
-                    </button>
                   </div>
                   {((isCashPaymentMethod(pmName) || pmDebitFromAccount) && (
-                    <div className="space-y-2 pt-2 border-t">
+                    <div className="mt-4 space-y-2 border-t pt-4">
                       <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground ml-1 block">
                         {isCashPaymentMethod(pmName) ? 'Conta caixa / carteira usada pelo Dinheiro' : 'Conta bancária padrão'}
                       </label>
                       <select
                         value={pmLinkedAccountId}
                         onChange={e => setPmLinkedAccountId(e.target.value)}
-                        className="w-full rounded-xl h-9 px-3 text-xs bg-muted/50 border border-transparent focus:ring-1 focus:ring-primary outline-none font-medium"
+                        className="mt-1 h-10 w-full rounded-xl border border-transparent bg-muted/50 px-3 text-xs font-medium outline-none focus:ring-1 focus:ring-primary"
                       >
                         <option value="">{isCashPaymentMethod(pmName) ? 'Selecione a conta caixa...' : 'Selecione a conta bancária...'}</option>
                         {accounts.filter(account => isCashPaymentMethod(pmName) ? account.type === 'carteira' : isBankAccount(account)).map(account => (
@@ -448,7 +470,7 @@ export function CategoryModal() {
                   {paymentMethodError && (
                     <p className="text-[10px] text-destructive font-medium">{paymentMethodError}</p>
                   )}
-                <div className="space-y-4 pt-2 border-t">
+                  <div className="mt-4 space-y-4 border-t pt-4">
                   <div className="flex items-center justify-between px-1">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none">Debitar da conta (Exige Saldo)</span>
                     <button
@@ -462,12 +484,17 @@ export function CategoryModal() {
                       <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${pmDebitFromAccount ? 'translate-x-4' : 'translate-x-0'}`} />
                     </button>
                   </div>
+                  </div>
+                  <div className="mt-5 flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
+                    <button type="button" onClick={handleCancelEditPaymentMethod} className="h-10 rounded-xl border border-border px-4 text-xs font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">Cancelar</button>
+                    <button type="button" onClick={handleSavePaymentMethod} className="h-10 rounded-xl bg-primary px-5 text-xs font-black uppercase tracking-wider text-primary-foreground transition-colors hover:bg-primary/90">{editingPmId ? 'Salvar alterações' : 'Criar forma de pagamento'}</button>
+                  </div>
                 </div>
                 </div>
               )}
 
               {/* List custom payment methods */}
-              <div className="flex-1 space-y-1.5 overflow-y-auto p-2 pb-8 sm:pb-2 lg:grid lg:grid-cols-2 lg:content-start lg:gap-3 lg:space-y-0">
+              <div className="space-y-2 pb-8 pr-1 sm:pb-6">
                 {paymentMethods.map(pm => {
                   const isConfirmingPm = confirmDeletePmId === pm.id;
                   const linkedAccount = accounts.find(account => account.id === pm.linkedAccountId);
@@ -527,6 +554,7 @@ export function CategoryModal() {
             </>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

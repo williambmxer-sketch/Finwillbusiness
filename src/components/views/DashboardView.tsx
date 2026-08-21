@@ -10,7 +10,7 @@ import {
   CreditCard,
   ChevronRight,
 } from 'lucide-react';
-import { BarChart, Bar, ResponsiveContainer, Cell, XAxis, Tooltip, YAxis } from 'recharts';
+import { BarChart, Bar, ResponsiveContainer, Cell, XAxis, YAxis } from 'recharts';
 import { formatCurrency } from '../../utils/formatters';
 
 import { useAppStore } from '../../store/useAppStore';
@@ -93,6 +93,7 @@ export function DashboardView() {
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
+  const [selectedChartIndex, setSelectedChartIndex] = useState<number | null>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!scrollRef.current) return;
@@ -295,7 +296,15 @@ export function DashboardView() {
       {/* Monthly Evolution Chart */}
       <section className="mt-1">
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Evolução de Gastos</h2>
-        <div className="p-3 bg-card border rounded-[11px] shadow-sm h-48">
+        <div className="relative p-3 bg-card border rounded-[11px] shadow-sm h-48">
+          {selectedChartIndex !== null && chartData[selectedChartIndex] && (
+            <div
+              className="pointer-events-none absolute top-2 z-10 -translate-x-1/2 rounded-[11px] border bg-card px-3 py-2 text-xs font-semibold shadow-lg whitespace-nowrap"
+              style={{ left: `${((selectedChartIndex + 0.5) / chartData.length) * 100}%` }}
+            >
+              {chartData[selectedChartIndex].name}: {formatCurrency(chartData[selectedChartIndex].val)}
+            </div>
+          )}
           <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1} initialDimension={{ width: 800, height: 168 }}>
             <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))', textTransform: 'capitalize' }} dy={10} />
@@ -307,13 +316,16 @@ export function DashboardView() {
                 width={62}
                 tickMargin={6}
               />
-              <Tooltip
-                cursor={{ fill: 'transparent' }}
-                contentStyle={{ borderRadius: '11px', border: '1px solid hsl(var(--border))', fontSize: '12px', fontWeight: 600, boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
-                formatter={(value: number) => [formatCurrency(value), 'Gastos']}
-                labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '4px', textTransform: 'capitalize' }}
-              />
-              <Bar dataKey="val" radius={[6, 6, 0, 0]}>
+              <Bar
+                dataKey="val"
+                radius={[6, 6, 0, 0]}
+                isAnimationActive={false}
+                onClick={(entry: any) => {
+                  const clicked = entry?.payload ?? entry;
+                  const index = chartData.findIndex(item => item.name === clicked?.name && item.val === clicked?.val);
+                  if (index >= 0) setSelectedChartIndex(index);
+                }}
+              >
                 {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={'hsl(var(--primary))'} className={entry.isCurrentMonth ? "opacity-100" : "opacity-40 hover:opacity-80 transition-opacity"} />
                 ))}

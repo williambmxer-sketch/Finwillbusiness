@@ -13,10 +13,14 @@ const COLOR_RECEITA = '#10b981';
 const COLOR_DESPESA = '#dc2626';
 const CARD_REPORT_CATEGORY = '__cartoes__';
 const COLOR_CARTAO = '#f97316';
+const CONTRIBUTION_REPORT_CATEGORY = '__aporte_titular__';
+const COLOR_CONTRIBUTION = '#2563eb';
 
 const getReportCategoryKey = (transaction: any) => (
   isInvoicePayment(transaction)
     ? CARD_REPORT_CATEGORY
+    : transaction.nature === 'aporte_socio'
+      ? CONTRIBUTION_REPORT_CATEGORY
     : (transaction.categoryId || 'outros')
 );
 
@@ -321,6 +325,9 @@ export function ReportsView() {
       .map(([catId, amount]) => {
         if (catId === CARD_REPORT_CATEGORY) {
           return { categoryKey: catId, name: 'Cartões', percentage: (amount / total) * 100, amount, color: COLOR_CARTAO };
+        }
+        if (catId === CONTRIBUTION_REPORT_CATEGORY) {
+          return { categoryKey: catId, name: 'Aporte do titular', percentage: (amount / total) * 100, amount, color: COLOR_CONTRIBUTION };
         }
         const cat = allCategories.find(c => c.id === catId);
         return { categoryKey: catId, name: cat?.name || 'Outros', percentage: (amount / total) * 100, amount, color: cat?.color || (type === 'receita' ? COLOR_RECEITA : '#888888') };

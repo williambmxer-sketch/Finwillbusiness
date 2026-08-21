@@ -92,7 +92,7 @@ export interface Transaction {
   amount: number;
   date: Date;
   type: 'receita' | 'despesa';
-  categoryId: string;
+  categoryId?: string;
   accountId?: string;
   cardId?: string; // If it's a credit card transaction
   installments?: number;

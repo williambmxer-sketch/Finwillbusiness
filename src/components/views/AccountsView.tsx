@@ -5,9 +5,11 @@ import { Plus, Landmark, SlidersHorizontal, X, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAppStore } from '../../store/useAppStore';
 import { api } from '../../services/api';
+import { normalizePaymentMethodName } from '../../utils/financialRules';
 
 export function AccountsView() {
   const accounts = useDataStore(state => state.accounts);
+  const customPaymentMethods = useDataStore(state => state.customPaymentMethods);
   const { setAccountModalOpen, setEditingAccountId, setCurrentView, setActiveAccountId } = useAppStore();
 
   const totalBalance = accounts.reduce((acc, account) => acc + account.balance, 0);
@@ -15,13 +17,19 @@ export function AccountsView() {
   // Inline balance adjustment state
   const [adjustingId, setAdjustingId] = useState<string | null>(null);
   const [adjustValue, setAdjustValue] = useState('');
-  const [adjustReason, setAdjustReason] = useState('');
+  const [adjustReason, setAdjustReason] = useState<'aporte_titular' | 'ajuste_saldo'>('aporte_titular');
+  const [adjustPaymentMethodId, setAdjustPaymentMethodId] = useState('');
   const [adjustError, setAdjustError] = useState('');
 
   const handleAdjustOpen = (id: string, currentBalance: number) => {
+    const selectedAccount = accounts.find(account => account.id === id);
+    const linkedMethods = customPaymentMethods.filter(method => method.linkedAccountId === id);
+    const preferredMethodName = selectedAccount?.type === 'carteira' ? 'dinheiro' : 'pix';
+    const preferredMethod = linkedMethods.find(method => normalizePaymentMethodName(method.name) === preferredMethodName) || linkedMethods[0];
     setAdjustingId(id);
     setAdjustValue(currentBalance.toFixed(2));
-    setAdjustReason('');
+    setAdjustReason('aporte_titular');
+    setAdjustPaymentMethodId(preferredMethod?.id || '');
     setAdjustError('');
   };
 
@@ -37,31 +45,40 @@ export function AccountsView() {
 
     const diff = parsed - account.balance;
     if (diff !== 0) {
-      if (!adjustReason.trim()) {
-        setAdjustError('O motivo do ajuste é obrigatório');
+      if (adjustReason === 'aporte_titular' && diff < 0) {
+        setAdjustError('Aporte do titular deve aumentar o saldo. Para reduzir, use Correção de saldo.');
+        return;
+      }
+
+      const selectedPaymentMethod = adjustReason === 'aporte_titular'
+        ? customPaymentMethods.find(method => method.id === adjustPaymentMethodId && method.linkedAccountId === id)
+        : undefined;
+      if (adjustReason === 'aporte_titular' && !selectedPaymentMethod) {
+        setAdjustError('Selecione uma forma cadastrada e vinculada a esta conta.');
         return;
       }
 
       const type = diff >= 0 ? 'receita' : 'despesa';
-      const categories = useDataStore.getState().categories;
-      const category = categories.find(c => c.type === type && (c.name.toLowerCase().includes('ajuste') || c.name.toLowerCase().includes('outro'))) || categories.find(c => c.type === type);
+      const nature = adjustReason === 'aporte_titular' ? 'aporte_socio' : 'ajuste_saldo';
+      const description = adjustReason === 'aporte_titular' ? 'Aporte do titular' : 'Correção de saldo';
 
       await api.transactions.add({
-        description: `Ajuste de Saldo: ${adjustReason.trim()}`,
+        description,
         amount: Math.abs(diff),
         date: new Date(),
         type,
-        categoryId: category?.id || 'none',
+        nature,
         accountId: id,
         isPaid: true,
         paymentDate: new Date(),
-        notes: 'Ajuste manual de saldo'
+        notes: selectedPaymentMethod ? `paymentMethod:${selectedPaymentMethod.name}` : 'Ajuste manual de saldo'
       });
     }
 
     setAdjustingId(null);
     setAdjustValue('');
-    setAdjustReason('');
+    setAdjustReason('aporte_titular');
+    setAdjustPaymentMethodId('');
     setAdjustError('');
   };
 
@@ -201,19 +218,37 @@ export function AccountsView() {
                             <X className="w-4 h-4" />
                           </button>
                         </div>
-                        <div className="mt-2 bg-muted/40 rounded-xl px-3 h-8 flex items-center border border-transparent focus-within:border-primary/40 focus-within:bg-background transition-all">
-                          <input
-                            type="text"
-                            value={adjustReason}
-                            onChange={(e) => setAdjustReason(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleAdjustConfirm(account.id);
-                              if (e.key === 'Escape') setAdjustingId(null);
-                            }}
-                            className="flex-1 bg-transparent text-[10px] font-medium outline-none text-muted-foreground placeholder:text-muted-foreground/50"
-                            placeholder="Motivo do ajuste (ex: Correção, Rendimento)..."
-                          />
+                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                          <label className="flex min-w-0 flex-col gap-1">
+                            <span className="ml-1 text-[8px] font-bold uppercase tracking-widest text-muted-foreground">Motivo</span>
+                            <select
+                              value={adjustReason}
+                              onChange={(e) => { const value = e.target.value as typeof adjustReason; setAdjustReason(value); if (value === 'ajuste_saldo') setAdjustPaymentMethodId(''); setAdjustError(''); }}
+                              className="h-8 min-w-0 rounded-xl border border-transparent bg-muted/40 px-3 text-[10px] font-semibold outline-none transition-all focus:border-primary/40 focus:bg-background"
+                            >
+                              <option value="aporte_titular">Aporte do titular</option>
+                              <option value="ajuste_saldo">Correção de saldo</option>
+                            </select>
+                          </label>
+                          {adjustReason === 'aporte_titular' && (
+                            <label className="flex min-w-0 flex-col gap-1">
+                              <span className="ml-1 text-[8px] font-bold uppercase tracking-widest text-muted-foreground">Forma de entrada</span>
+                              <select
+                                value={adjustPaymentMethodId}
+                                onChange={(e) => { setAdjustPaymentMethodId(e.target.value); setAdjustError(''); }}
+                                className="h-8 min-w-0 rounded-xl border border-transparent bg-muted/40 px-3 text-[10px] font-semibold outline-none transition-all focus:border-primary/40 focus:bg-background"
+                              >
+                                <option value="">Selecione uma forma cadastrada...</option>
+                                {customPaymentMethods.filter(method => method.linkedAccountId === account.id).map(method => (
+                                  <option key={method.id} value={method.id}>{method.name}</option>
+                                ))}
+                              </select>
+                            </label>
+                          )}
                         </div>
+                        {adjustReason === 'aporte_titular' && customPaymentMethods.every(method => method.linkedAccountId !== account.id) && (
+                          <p className="mt-1.5 ml-1 text-[9px] text-amber-700">Cadastre uma forma de pagamento vinculada a esta conta antes de confirmar.</p>
+                        )}
                         {adjustError && (
                           <p className="text-[10px] text-destructive mt-1 ml-1 font-medium">{adjustError}</p>
                         )}

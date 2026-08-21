@@ -19,6 +19,14 @@ function getCurrentMonthPeriod() {
   };
 }
 
+function getCurrentYearPeriod() {
+  const today = new Date();
+  return {
+    start: toDateInputValue(new Date(today.getFullYear(), 0, 1)),
+    end: toDateInputValue(new Date(today.getFullYear(), 11, 31)),
+  };
+}
+
 export function AgendaView({ mode }: { mode: 'payable' | 'receivable' }) {
   const transactions = useDataStore(state => state.transactions);
   const categories = useDataStore(state => state.categories);
@@ -31,8 +39,9 @@ export function AgendaView({ mode }: { mode: 'payable' | 'receivable' }) {
   const [status, setStatus] = useState<'open' | 'overdue' | 'paid'>('open');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const currentMonthPeriod = getCurrentMonthPeriod();
-  const [periodStart, setPeriodStart] = useState(currentMonthPeriod.start);
-  const [periodEnd, setPeriodEnd] = useState(currentMonthPeriod.end);
+  const currentYearPeriod = getCurrentYearPeriod();
+  const [periodStart, setPeriodStart] = useState(currentYearPeriod.start);
+  const [periodEnd, setPeriodEnd] = useState(currentYearPeriod.end);
   const [presetOpen, setPresetOpen] = useState(false);
   const presetRef = useRef<HTMLDivElement>(null);
   const type = mode === 'payable' ? 'despesa' : 'receita';
