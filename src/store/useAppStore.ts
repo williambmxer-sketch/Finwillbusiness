@@ -13,6 +13,7 @@ export type AppView =
   | 'reports'
   | 'contacts'
   | 'partners'
+  | 'categories'
   | 'company';
 
 export type TransactionPreset =

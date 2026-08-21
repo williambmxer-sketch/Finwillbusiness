@@ -227,6 +227,8 @@ export default function App() {
         return <ContactsView />;
       case 'partners':
         return <PartnersView />;
+      case 'categories':
+        return <CategoryModal />;
       case 'company':
         return <CompanyView />;
       default:
@@ -259,7 +261,6 @@ export default function App() {
 
       <TransactionModal />
       <CardModal />
-      <CategoryModal />
       <AccountModal />
       <ConfirmPaymentModal />
       <ConfirmationModal />

@@ -49,7 +49,7 @@ export function TopNavigation() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { currentView, isCategoryModalOpen, setCurrentView, setCategoryModalOpen, setTransactionModalOpen, setEditingTransactionId, setTransactionPreset, setActiveContextCardId } = useAppStore();
+  const { currentView, setCurrentView, setTransactionModalOpen, setEditingTransactionId, setTransactionPreset, setActiveContextCardId } = useAppStore();
   const { organizations, currentOrganization, switchOrganization } = useOrganizationStore();
   const signOut = useAuthStore(state => state.signOut);
   const transactions = useDataStore(state => state.transactions);
@@ -109,7 +109,7 @@ export function TopNavigation() {
     ],
     records: [
       { label: 'Clientes e fornecedores', view: 'contacts', icon: ContactRound },
-      { label: 'Categorias', action: 'categories', icon: Settings },
+      { label: 'Categorias', view: 'categories', icon: Settings },
       { label: 'Usuários e empresa', view: 'company', icon: Users },
     ],
   }), [financialAlertCount, payableAlertCount, payableTotal, receivableAlertCount, receivableTotal]);
@@ -144,7 +144,6 @@ export function TopNavigation() {
 
   const openItem = (item: MenuItem) => {
     if (item.view) setCurrentView(item.view);
-    if (item.action === 'categories') setCategoryModalOpen(true);
     if (item.preset && canEdit) {
       if (currentView === 'cardDetails') setCurrentView('transactions');
       setActiveContextCardId(null);
@@ -186,7 +185,7 @@ export function TopNavigation() {
             type="button"
             disabled={disabled}
             onClick={() => openItem(item)}
-            className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${item.view === currentView || (item.action === 'categories' && isCategoryModalOpen) ? 'bg-primary/10 text-primary' : 'hover:bg-muted'} disabled:cursor-not-allowed disabled:opacity-45`}
+            className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${item.view === currentView ? 'bg-primary/10 text-primary' : 'hover:bg-muted'} disabled:cursor-not-allowed disabled:opacity-45`}
           >
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/70">
               <Icon className="h-4 w-4" />

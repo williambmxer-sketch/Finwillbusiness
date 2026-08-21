@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { api } from '../services/api';
 import { useDataStore } from '../store/useDataStore';
@@ -10,7 +10,7 @@ import { isBankAccount, isCashPaymentMethod } from '../utils/financialRules';
 
 
 export function CategoryModal() {
-  const { isCategoryModalOpen, setCategoryModalOpen } = useAppStore();
+  const { currentView, setCurrentView } = useAppStore();
   const categories = useDataStore(state => state.categories);
   const paymentMethods = useDataStore(state => state.customPaymentMethods);
   const transactions = useDataStore(state => state.transactions);
@@ -39,20 +39,6 @@ export function CategoryModal() {
   const [confirmDeletePmId, setConfirmDeletePmId] = useState<string | null>(null);
   const [pmLinkedAccountId, setPmLinkedAccountId] = useState('');
   const [paymentMethodError, setPaymentMethodError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!isCategoryModalOpen) return;
-
-    const previousBodyOverflow = document.body.style.overflow;
-    const previousDocumentOverflow = document.documentElement.style.overflow;
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-
-    return () => {
-      document.body.style.overflow = previousBodyOverflow;
-      document.documentElement.style.overflow = previousDocumentOverflow;
-    };
-  }, [isCategoryModalOpen]);
 
   const handleEdit = (c: Category) => {
     setConfirmDeleteId(null);
@@ -177,20 +163,17 @@ export function CategoryModal() {
     }
   };
 
-  if (!isCategoryModalOpen) return null;
+  if (currentView !== 'categories') return null;
 
   return (
-    <div className="fixed inset-0 z-[110] overflow-hidden bg-background">
-      <div className="relative flex h-full w-full flex-col bg-background">
-        <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-card/95 shadow-sm backdrop-blur">
+    <div className="w-full bg-background">
+      <div className="relative flex w-full flex-col bg-background">
+        <div className="shrink-0 border-b border-border bg-card shadow-sm">
           <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 lg:px-8">
             <div>
               <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Cadastros</div>
               <h2 className="mt-0.5 text-xl font-black tracking-tight">Categorias e formas de pagamento</h2>
             </div>
-            <button onClick={() => setCategoryModalOpen(false)} aria-label="Fechar" className="rounded-xl border border-border bg-muted/40 p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-              <X className="h-5 w-5" />
-            </button>
           </div>
         </div>
 
