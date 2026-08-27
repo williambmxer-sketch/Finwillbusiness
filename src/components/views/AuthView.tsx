@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { useAuthStore } from '../../store/useAuthStore';
 import { motion } from 'motion/react';
-import { Mail, Lock, ArrowRight, Loader2, User } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Loader2, User, KeyRound } from 'lucide-react';
 import { Input } from '../ui/input';
 
 export function AuthView() {
-  const [isLogin, setIsLogin] = useState(true);
+  const [mode, setMode] = useState<'login' | 'register' | 'invite'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [name, setName] = useState(''); // Só usado no cadastro
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +19,30 @@ export function AuthView() {
     setError(null);
 
     try {
-      if (isLogin) {
+      if (mode === 'invite') {
+        const normalizedCode = inviteCode.trim().toUpperCase();
+        if (!normalizedCode) throw new Error('Informe o código do convite.');
+
+        const { data: invitation, error: invitationError } = await supabase.rpc('preview_organization_invite', {
+          p_codigo: normalizedCode,
+        });
+        if (invitationError) throw invitationError;
+        const invite = Array.isArray(invitation) ? invitation[0] : invitation;
+        if (!invite?.email) throw new Error('Convite inválido ou expirado.');
+
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: invite.email,
+          password,
+          options: {
+            data: { invite_code: normalizedCode },
+          },
+        });
+        if (signUpError) throw signUpError;
+
+        if (!signUpData.session) {
+          setError('Conta criada. Confirme o e-mail para concluir o acesso ao convite.');
+        }
+      } else if (mode === 'login') {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password
@@ -36,7 +59,7 @@ export function AuthView() {
           }
         });
         if (signUpError) throw signUpError;
-        alert('Cadastro realizado com sucesso! Verifique seu email se o Supabase exigir, ou já estará logado se o auto-confirm estiver ativado.');
+        alert('Cadastro realizado com sucesso! Verifique seu email se o Supabase exigir, ou já estará logado se a confirmação automática estiver ativada.');
       }
     } catch (err: any) {
       setError(err.message || 'Ocorreu um erro.');
@@ -62,7 +85,7 @@ export function AuthView() {
           </div>
           <h1 className="text-xl font-bold tracking-tight">FinWill Business</h1>
           <p className="text-xs text-muted-foreground mt-1 text-center">
-            {isLogin ? 'Financeiro simples para o seu MEI' : 'Crie sua empresa e comece em poucos minutos'}
+            {mode === 'invite' ? 'Ative seu acesso à empresa compartilhada' : mode === 'login' ? 'Financeiro simples para o seu MEI' : 'Crie sua empresa e comece em poucos minutos'}
           </p>
         </div>
 
@@ -73,7 +96,7 @@ export function AuthView() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3">
-          {!isLogin && (
+          {mode === 'register' && (
             <div className="space-y-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground ml-1">Nome Completo</label>
               <div className="relative">
@@ -83,7 +106,7 @@ export function AuthView() {
                   onChange={e => setName(e.target.value)}
                   className="w-full h-10 bg-muted/40 border-transparent focus:ring-1 focus:ring-primary shadow-none rounded-xl pl-9 text-xs"
                   placeholder="Seu nome"
-                  required={!isLogin}
+                  required
                 />
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60">
                   <User className="w-4 h-4" />
@@ -92,7 +115,24 @@ export function AuthView() {
             </div>
           )}
 
-          <div className="space-y-1">
+          {mode === 'invite' ? (
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground ml-1">Código do convite</label>
+              <div className="relative">
+                <Input
+                  type="text"
+                  value={inviteCode}
+                  onChange={e => setInviteCode(e.target.value.toUpperCase())}
+                  className="w-full h-10 bg-muted/40 border-transparent focus:ring-1 focus:ring-primary shadow-none rounded-xl pl-9 text-xs uppercase tracking-[0.18em]"
+                  placeholder="EX: A1B2C3D4E5F6"
+                  maxLength={12}
+                  required
+                />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60"><KeyRound className="w-4 h-4" /></div>
+              </div>
+              <p className="pt-1 text-[10px] leading-relaxed text-muted-foreground">O e-mail já foi informado pelo proprietário. Você só precisa do código e criar sua senha.</p>
+            </div>
+          ) : <div className="space-y-1">
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground ml-1">E-mail</label>
             <div className="relative">
               <Input 
@@ -107,7 +147,7 @@ export function AuthView() {
                 <Mail className="w-4 h-4" />
               </div>
             </div>
-          </div>
+          </div>}
 
           <div className="space-y-1">
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground ml-1">Senha</label>
@@ -133,7 +173,7 @@ export function AuthView() {
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
               <>
-                {isLogin ? 'Entrar' : 'Criar Conta'}
+                {mode === 'invite' ? 'Ativar acesso' : mode === 'login' ? 'Entrar' : 'Criar Conta'}
                 <ArrowRight className="w-3.5 h-3.5" />
               </>
             )}
@@ -143,10 +183,18 @@ export function AuthView() {
         <div className="mt-5 text-center">
           <button 
             type="button"
-            onClick={() => setIsLogin(!isLogin)}
+            onClick={() => { setError(null); setMode(mode === 'login' ? 'register' : 'login'); }}
             className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors"
           >
-            {isLogin ? 'Não tem conta? Cadastre-se' : 'Já tem conta? Faça Login'}
+            {mode === 'login' ? 'Não tem conta? Cadastre-se' : 'Já tem conta? Faça Login'}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setError(null); setMode(mode === 'invite' ? 'login' : 'invite'); }}
+            className="mt-3 flex w-full items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-primary hover:underline"
+          >
+            <KeyRound className="h-3.5 w-3.5" />
+            {mode === 'invite' ? 'Voltar para login' : 'Tenho um código de convite'}
           </button>
         </div>
       </motion.div>

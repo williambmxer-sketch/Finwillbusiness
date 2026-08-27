@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Building2, Check, Clipboard, DatabaseZap, KeyRound, Mail, ShieldCheck, UserPlus, Users, XCircle } from 'lucide-react';
+import { Building2, Check, Clipboard, DatabaseZap, Mail, ShieldCheck, UserPlus, Users, XCircle } from 'lucide-react';
 import { useOrganizationStore } from '../../store/useOrganizationStore';
 import { api } from '../../services/api';
 import { useDataStore } from '../../store/useDataStore';
@@ -7,7 +7,7 @@ import { useDataStore } from '../../store/useDataStore';
 type InviteRole = 'administrador' | 'socio' | 'consulta';
 
 export function CompanyView() {
-  const { currentOrganization, members, load, refreshMembers, acceptInvite } = useOrganizationStore();
+  const { currentOrganization, members, load, refreshMembers } = useOrganizationStore();
   const [name, setName] = useState(currentOrganization?.name || '');
   const [tradeName, setTradeName] = useState(currentOrganization?.tradeName || '');
   const [document, setDocument] = useState(currentOrganization?.document || '');
@@ -16,7 +16,6 @@ export function CompanyView() {
   const [role, setRole] = useState<InviteRole>('socio');
   const [inviteCode, setInviteCode] = useState('');
   const [inviteExpiry, setInviteExpiry] = useState('');
-  const [acceptCode, setAcceptCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const canAdmin = currentOrganization && ['proprietario', 'administrador'].includes(currentOrganization.role);
@@ -55,19 +54,6 @@ export function CompanyView() {
     } finally { setBusy(false); }
   };
 
-  const handleAccept = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!acceptCode.trim()) return;
-    setBusy(true); setMessage(null);
-    try {
-      await acceptInvite(acceptCode.trim());
-      setAcceptCode('');
-      setMessage({ type: 'success', text: 'Convite aceito. A nova empresa já está ativa.' });
-    } catch (error: any) {
-      setMessage({ type: 'error', text: error?.message || 'Não foi possível aceitar o convite.' });
-    } finally { setBusy(false); }
-  };
-
   const updateMember = async (userId: string, nextRole: InviteRole, active: boolean) => {
     setBusy(true); setMessage(null);
     try {
@@ -99,8 +85,6 @@ export function CompanyView() {
       <div className="grid gap-5 xl:grid-cols-[1fr_1.25fr]">
         <div className="space-y-5">
           <form onSubmit={saveCompany} className="rounded-2xl border border-border bg-card p-5 shadow-sm"><div className="mb-5 flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><Building2 className="h-5 w-5" /></div><div><h2 className="text-sm font-black">Dados da empresa</h2><p className="text-xs text-muted-foreground">Informações exibidas no sistema e relatórios.</p></div></div><div className="space-y-4"><Field label="Nome da empresa"><input className="field-input" value={name} onChange={event => setName(event.target.value)} disabled={!canAdmin} required /></Field><Field label="Nome fantasia"><input className="field-input" value={tradeName} onChange={event => setTradeName(event.target.value)} disabled={!canAdmin} placeholder="Como você chama o seu negócio" /></Field><Field label="Documento (opcional)"><input className="field-input" value={document} onChange={event => setDocument(event.target.value)} disabled={!canAdmin} placeholder="CNPJ ou identificação interna" /></Field></div>{canAdmin && <button disabled={savingCompany} type="submit" className="mt-5 w-full rounded-xl bg-primary px-4 py-3 text-xs font-bold text-primary-foreground disabled:opacity-50">{savingCompany ? 'Salvando...' : 'Salvar empresa'}</button>}</form>
-
-          <form onSubmit={handleAccept} className="rounded-2xl border border-border bg-card p-5 shadow-sm"><div className="mb-4 flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600"><KeyRound className="h-5 w-5" /></div><div><h2 className="text-sm font-black">Entrar em outra empresa</h2><p className="text-xs text-muted-foreground">Use o código recebido de um administrador.</p></div></div><div className="flex gap-2"><input className="field-input uppercase tracking-[0.2em]" value={acceptCode} onChange={event => setAcceptCode(event.target.value)} placeholder="CÓDIGO" /><button disabled={busy || !acceptCode.trim()} className="rounded-xl bg-foreground px-4 text-xs font-bold text-background disabled:opacity-40">Entrar</button></div></form>
 
           {canAdmin && !hasFinancialData && <div className="rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-5"><div className="flex items-start gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><DatabaseZap className="h-5 w-5" /></div><div><h2 className="text-sm font-black">Dados para demonstração</h2><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Carregue uma empresa fictícia completa para explorar contas, cartão, clientes, fornecedores, pendências e pró-labore. Esta opção só funciona enquanto a empresa estiver vazia.</p></div></div><button type="button" disabled={busy} onClick={loadDemo} className="mt-4 w-full rounded-xl bg-primary px-4 py-3 text-xs font-bold text-primary-foreground disabled:opacity-50">{busy ? 'Carregando...' : 'Carregar demonstração completa'}</button></div>}
         </div>

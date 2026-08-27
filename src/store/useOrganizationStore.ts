@@ -11,7 +11,6 @@ interface OrganizationState {
   error: string | null;
   load: () => Promise<void>;
   switchOrganization: (organizationId: string) => Promise<void>;
-  acceptInvite: (code: string) => Promise<void>;
   refreshMembers: () => Promise<void>;
   clear: () => void;
 }
@@ -46,19 +45,6 @@ export const useOrganizationStore = create<OrganizationState>((set, get) => ({
       await useDataStore.getState().fetchData();
     } catch (error: any) {
       set({ error: error?.message || 'Não foi possível trocar de empresa.', isLoading: false });
-      throw error;
-    }
-  },
-
-  acceptInvite: async (code: string) => {
-    set({ isLoading: true, error: null });
-    try {
-      await api.organizations.acceptInvite(code);
-      useDataStore.getState().clearData();
-      await get().load();
-      await useDataStore.getState().fetchData();
-    } catch (error: any) {
-      set({ error: error?.message || 'Não foi possível aceitar o convite.', isLoading: false });
       throw error;
     }
   },

@@ -267,12 +267,6 @@ export const api = {
       if (error) throw error;
       return Array.isArray(data) ? data[0] : data;
     },
-    acceptInvite: async (code: string) => {
-      const { data, error } = await supabase.rpc('accept_organization_invite', { p_codigo: code });
-      if (error) throw error;
-      notifyMutation();
-      return data as string;
-    },
     updateMember: async (userId: string, role: 'administrador' | 'socio' | 'consulta', active: boolean) => {
       const { error } = await supabase.rpc('update_organization_member', {
         p_usuario_id: userId,
