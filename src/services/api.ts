@@ -285,12 +285,13 @@ export const api = {
   },
 
   audit: {
-    list: async () => {
-      const { data, error } = await supabase
-        .from('auditoria_operacoes')
-        .select('id,organizacao_id,usuario_id,acao,entidade,entidade_id,tela,dados_anteriores,dados_novos,criado_em')
-        .order('criado_em', { ascending: false })
-        .limit(250);
+    list: async (filters: { startDate?: string; endDate?: string; userId?: string; action?: string } = {}) => {
+      const { data, error } = await supabase.rpc('list_audit_operations', {
+        p_inicio: filters.startDate || null,
+        p_fim: filters.endDate || null,
+        p_usuario_id: filters.userId || null,
+        p_acao: filters.action || null,
+      });
       if (error) throw error;
       return data || [];
     },
