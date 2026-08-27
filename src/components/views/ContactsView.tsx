@@ -38,7 +38,7 @@ export function ContactsView() {
   const toggleExpanded = (contactId: string) => setExpandedId(current => current === contactId ? null : contactId);
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-4 lg:px-8">
+    <div className="mx-auto w-full max-w-6xl px-4 py-4 lg:px-8">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-black tracking-tight md:text-2xl">Clientes e fornecedores</h1>
         <button type="button" onClick={() => setEditing('new')} className="flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-[11px] font-bold text-primary-foreground"><Plus className="h-3.5 w-3.5" />Novo contato</button>

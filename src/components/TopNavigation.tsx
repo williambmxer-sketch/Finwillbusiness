@@ -201,7 +201,7 @@ export function TopNavigation() {
 
   return (
     <div ref={rootRef} className="relative z-[80] border-b border-border bg-card/95 shadow-sm">
-      <div className="mx-auto flex h-16 w-full max-w-[1500px] items-center gap-2 px-3 lg:px-5">
+      <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-2 px-3 lg:px-5">
         <button type="button" onClick={() => setCurrentView('dashboard')} className="mr-1 flex shrink-0 items-center gap-2 rounded-xl px-1.5 py-1 transition-colors hover:bg-muted">
           <img src="/icone-financas-pwa.svg?v=2" alt="FinWill" className="h-9 w-9" />
           <div className="hidden text-left sm:block">
@@ -335,11 +335,11 @@ function MobileMenuPanel({
 function MobileBottomNavigation({ currentView, setCurrentView, onNew }: { currentView: AppView; setCurrentView: (view: AppView) => void; onNew: () => void }) {
   return (
     <>
-      <nav className="fixed inset-x-0 bottom-0 z-[65] border-t border-border bg-card/95 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_24px_-8px_rgba(0,0,0,0.12)] backdrop-blur-xl lg:hidden" aria-label="Navegação principal">
-        <div className="mx-auto flex h-16 max-w-md items-center justify-between">
+      <nav className="fixed inset-x-0 bottom-0 z-[65] border-t border-border bg-card/95 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_24px_-8px_rgba(0,0,0,0.12)] backdrop-blur-xl" aria-label="Navegação principal">
+        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-1">
           <MobileNavItem icon={LayoutDashboard} label="Início" active={currentView === 'dashboard'} onClick={() => setCurrentView('dashboard')} />
-          <MobileNavItem icon={WalletCards} label="Lançamentos" active={currentView === 'transactions'} onClick={() => setCurrentView('transactions')} />
-          <MobileNavItem icon={CreditCard} label="Cartões" active={currentView === 'cards' || currentView === 'cardDetails'} onClick={() => setCurrentView('cards')} />
+          <MobileNavItem icon={TrendingUp} label="Receber" active={currentView === 'agendaReceivable'} onClick={() => setCurrentView('agendaReceivable')} />
+          <MobileNavItem icon={TrendingDown} label="Pagar" active={currentView === 'agendaPayable'} onClick={() => setCurrentView('agendaPayable')} />
           <MobileNavItem icon={ReceiptText} label="Faturas" active={currentView === 'invoices'} onClick={() => setCurrentView('invoices')} />
           <MobileNavItem icon={BarChart3} label="Relatórios" active={currentView === 'reports'} onClick={() => setCurrentView('reports')} />
         </div>

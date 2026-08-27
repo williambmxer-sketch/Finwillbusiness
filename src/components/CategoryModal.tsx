@@ -169,7 +169,7 @@ export function CategoryModal() {
     <div className="w-full bg-background">
       <div className="relative flex w-full flex-col bg-background">
         <div className="shrink-0 border-b border-border bg-card shadow-sm">
-          <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 lg:px-8">
+          <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 lg:px-8">
             <div>
               <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Cadastros</div>
               <h2 className="mt-0.5 text-xl font-black tracking-tight">Categorias e formas de pagamento</h2>

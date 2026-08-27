@@ -126,7 +126,7 @@ export function AgendaView({ mode }: { mode: 'payable' | 'receivable' }) {
   };
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-4 pb-24 lg:px-8 lg:pb-8">
+    <div className="mx-auto w-full max-w-6xl px-4 py-4 pb-24 lg:px-8 lg:pb-8">
       <div className="mb-4 flex items-center gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${mode === 'payable' ? 'bg-red-500/10 text-red-600' : 'bg-emerald-500/10 text-emerald-600'}`}><Icon className="h-4 w-4" /></div>

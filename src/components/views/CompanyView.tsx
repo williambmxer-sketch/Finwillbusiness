@@ -77,7 +77,7 @@ export function CompanyView() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-6 lg:px-8">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 lg:px-8">
       <div className="mb-6"><div className="mb-3 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-primary"><Building2 className="h-3.5 w-3.5" /> Organização</div><h1 className="text-2xl font-black tracking-tight md:text-3xl">Empresa e usuários</h1><p className="mt-1 text-sm text-muted-foreground">Dados do negócio, sócios e acessos compartilhados.</p></div>
 
       {message && <div className={`mb-5 flex items-center gap-2 rounded-xl p-3 text-xs font-semibold ${message.type === 'success' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' : 'bg-red-500/10 text-red-700 dark:text-red-400'}`}>{message.type === 'success' ? <Check className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}{message.text}</div>}
