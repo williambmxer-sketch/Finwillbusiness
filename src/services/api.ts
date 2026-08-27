@@ -275,6 +275,13 @@ export const api = {
       });
       if (error) throw error;
     },
+    removeMember: async (userId: string) => {
+      const { error } = await supabase.rpc('remove_organization_member', {
+        p_usuario_id: userId,
+      });
+      if (error) throw error;
+      notifyMutation();
+    },
   },
 
   categories: {
