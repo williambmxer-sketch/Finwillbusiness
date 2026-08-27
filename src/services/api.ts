@@ -284,6 +284,18 @@ export const api = {
     },
   },
 
+  audit: {
+    list: async () => {
+      const { data, error } = await supabase
+        .from('auditoria_operacoes')
+        .select('id,organizacao_id,usuario_id,acao,entidade,entidade_id,tela,dados_anteriores,dados_novos,criado_em')
+        .order('criado_em', { ascending: false })
+        .limit(250);
+      if (error) throw error;
+      return data || [];
+    },
+  },
+
   categories: {
     list: async (): Promise<Category[]> => {
       const { data, error } = await supabase.from('categorias').select('*');

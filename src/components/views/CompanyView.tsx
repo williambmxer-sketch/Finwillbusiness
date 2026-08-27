@@ -3,11 +3,13 @@ import { Building2, Check, Clipboard, DatabaseZap, Mail, ShieldCheck, UserMinus,
 import { useOrganizationStore } from '../../store/useOrganizationStore';
 import { api } from '../../services/api';
 import { useDataStore } from '../../store/useDataStore';
+import { useAuthStore } from '../../store/useAuthStore';
 
 type InviteRole = 'administrador' | 'socio' | 'consulta';
 
 export function CompanyView() {
   const { currentOrganization, members, load, refreshMembers } = useOrganizationStore();
+  const currentUserId = useAuthStore(state => state.user?.id);
   const [name, setName] = useState(currentOrganization?.name || '');
   const [tradeName, setTradeName] = useState(currentOrganization?.tradeName || '');
   const [document, setDocument] = useState(currentOrganization?.document || '');
@@ -16,6 +18,7 @@ export function CompanyView() {
   const [role, setRole] = useState<InviteRole>('socio');
   const [inviteCode, setInviteCode] = useState('');
   const [inviteExpiry, setInviteExpiry] = useState('');
+  const [copiedInvite, setCopiedInvite] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const canAdmin = currentOrganization && ['proprietario', 'administrador'].includes(currentOrganization.role);
@@ -48,10 +51,38 @@ export function CompanyView() {
       const result = await api.organizations.createInvite(email.trim(), role);
       setInviteCode(result.codigo);
       setInviteExpiry(result.expira_em);
+      setCopiedInvite(false);
       setMessage({ type: 'success', text: 'Convite criado. Compartilhe o código com segurança.' });
     } catch (error: any) {
       setMessage({ type: 'error', text: error?.message || 'Não foi possível criar o convite.' });
     } finally { setBusy(false); }
+  };
+
+  const copyInviteCode = async () => {
+    const code = inviteCode.trim();
+    if (!code) return;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(code);
+      } else {
+        const helper = document.createElement('textarea');
+        helper.value = code;
+        helper.setAttribute('readonly', '');
+        helper.style.position = 'fixed';
+        helper.style.opacity = '0';
+        document.body.appendChild(helper);
+        helper.select();
+        const copied = document.execCommand('copy');
+        helper.remove();
+        if (!copied) throw new Error('Falha ao copiar');
+      }
+      setCopiedInvite(true);
+      setMessage({ type: 'success', text: 'Código copiado para a área de transferência.' });
+    } catch {
+      setCopiedInvite(false);
+      setMessage({ type: 'error', text: 'Não foi possível copiar automaticamente. Selecione o código e copie manualmente.' });
+    }
   };
 
   const updateMember = async (userId: string, nextRole: InviteRole, active: boolean) => {
@@ -105,10 +136,10 @@ export function CompanyView() {
         <div className="space-y-5">
           <div className="rounded-2xl border border-border bg-card shadow-sm"><div className="flex items-center justify-between border-b border-border p-5"><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600"><Users className="h-5 w-5" /></div><div><h2 className="text-sm font-black">Usuários e sócios</h2><p className="text-xs text-muted-foreground">{members.filter(member => member.active).length} acesso(s) ativo(s)</p></div></div>{canAdmin && <ShieldCheck className="h-5 w-5 text-emerald-500" />}</div><div className="divide-y divide-border">{members.map(member => {
             const isOwner = member.role === 'proprietario';
-            return <div key={member.userId} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-black uppercase text-primary">{(member.displayName || member.email || 'U').slice(0, 2)}</div><div className="min-w-0 flex-1"><div className="truncate text-sm font-bold">{member.displayName || member.email || 'Usuário'}</div><div className="truncate text-[10px] text-muted-foreground">{member.email}</div></div>{isOwner ? <span className="rounded-full bg-primary/10 px-3 py-1.5 text-[9px] font-black uppercase text-primary">Proprietário</span> : canAdmin ? <><select value={member.role === 'administrador' ? 'administrador' : member.role === 'consulta' ? 'consulta' : 'socio'} onChange={event => updateMember(member.userId, event.target.value as InviteRole, member.active)} disabled={busy} className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold"><option value="administrador">Administrador</option><option value="socio">Sócio</option><option value="consulta">Consulta</option></select><button type="button" onClick={() => updateMember(member.userId, member.role === 'administrador' ? 'administrador' : member.role === 'consulta' ? 'consulta' : 'socio', !member.active)} disabled={busy} className={`rounded-xl px-3 py-2 text-[9px] font-black uppercase ${member.active ? 'bg-emerald-500/10 text-emerald-600' : 'bg-muted text-muted-foreground'}`}>{member.active ? 'Ativo' : 'Inativo'}</button><button type="button" onClick={() => removeMember(member)} disabled={busy} className="rounded-xl border border-red-500/20 px-3 py-2 text-[9px] font-black uppercase text-red-600 hover:bg-red-500/10 disabled:opacity-50"><UserMinus className="mr-1 inline h-3.5 w-3.5" />Remover</button></> : <span className="text-xs capitalize text-muted-foreground">{member.role}</span>}</div>;
+            return <div key={member.userId} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-black uppercase text-primary">{(member.displayName || member.email || 'U').slice(0, 2)}</div><div className="min-w-0 flex-1"><div className="truncate text-sm font-bold">{member.displayName || member.email || 'Usuário'}</div><div className="truncate text-[10px] text-muted-foreground">{member.email}</div></div>{isOwner ? <span className="rounded-full bg-primary/10 px-3 py-1.5 text-[9px] font-black uppercase text-primary">Proprietário</span> : canAdmin ? <><select value={member.role === 'administrador' ? 'administrador' : member.role === 'consulta' ? 'consulta' : 'socio'} onChange={event => updateMember(member.userId, event.target.value as InviteRole, member.active)} disabled={busy} className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold"><option value="administrador">Administrador</option><option value="socio">Sócio</option><option value="consulta">Consulta</option></select><button type="button" onClick={() => updateMember(member.userId, member.role === 'administrador' ? 'administrador' : member.role === 'consulta' ? 'consulta' : 'socio', !member.active)} disabled={busy} className={`rounded-xl px-3 py-2 text-[9px] font-black uppercase ${member.active ? 'bg-emerald-500/10 text-emerald-600' : 'bg-muted text-muted-foreground'}`}>{member.active ? 'Ativo' : 'Inativo'}</button>{member.userId !== currentUserId && <button type="button" onClick={() => removeMember(member)} disabled={busy} className="rounded-xl border border-red-500/20 px-3 py-2 text-[9px] font-black uppercase text-red-600 hover:bg-red-500/10 disabled:opacity-50"><UserMinus className="mr-1 inline h-3.5 w-3.5" />Remover</button>}</> : <span className="text-xs capitalize text-muted-foreground">{member.role}</span>}</div>;
           })}</div></div>
 
-          {canAdmin && <form onSubmit={createInvite} className="rounded-2xl border border-border bg-card p-5 shadow-sm"><div className="mb-4 flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600"><UserPlus className="h-5 w-5" /></div><div><h2 className="text-sm font-black">Convidar usuário</h2><p className="text-xs text-muted-foreground">O código expira em sete dias e só funciona para o e-mail informado.</p></div></div><div className="grid gap-3 sm:grid-cols-[1fr_150px]"><label className="relative"><Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><input type="email" required value={email} onChange={event => setEmail(event.target.value)} className="field-input pl-9" placeholder="socio@empresa.com" /></label><select value={role} onChange={event => setRole(event.target.value as InviteRole)} className="field-input"><option value="socio">Sócio</option><option value="administrador">Administrador</option><option value="consulta">Consulta</option></select></div><button disabled={busy} className="mt-3 w-full rounded-xl bg-primary px-4 py-3 text-xs font-bold text-primary-foreground disabled:opacity-50">Gerar convite</button>{inviteCode && <div className="mt-4 rounded-2xl border border-primary/20 bg-primary/5 p-4"><div className="text-[9px] font-black uppercase tracking-widest text-primary">Código do convite</div><div className="mt-2 flex items-center gap-2"><code className="min-w-0 flex-1 truncate rounded-xl bg-background px-3 py-2.5 text-center text-sm font-black tracking-[0.18em]">{inviteCode}</code><button type="button" onClick={() => navigator.clipboard.writeText(inviteCode)} className="rounded-xl border border-border bg-background p-2.5" aria-label="Copiar código"><Clipboard className="h-4 w-4" /></button></div>{inviteExpiry && <div className="mt-2 text-[10px] text-muted-foreground">Válido até {new Date(inviteExpiry).toLocaleString('pt-BR')}</div>}</div>}</form>}
+          {canAdmin && <form onSubmit={createInvite} className="rounded-2xl border border-border bg-card p-5 shadow-sm"><div className="mb-4 flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600"><UserPlus className="h-5 w-5" /></div><div><h2 className="text-sm font-black">Convidar usuário</h2><p className="text-xs text-muted-foreground">O código expira em sete dias e só funciona para o e-mail informado.</p></div></div><div className="grid gap-3 sm:grid-cols-[1fr_150px]"><label className="relative"><Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><input type="email" required value={email} onChange={event => setEmail(event.target.value)} className="field-input pl-9" placeholder="socio@empresa.com" /></label><select value={role} onChange={event => setRole(event.target.value as InviteRole)} className="field-input"><option value="socio">Sócio</option><option value="administrador">Administrador</option><option value="consulta">Consulta</option></select></div><button disabled={busy} className="mt-3 w-full rounded-xl bg-primary px-4 py-3 text-xs font-bold text-primary-foreground disabled:opacity-50">Gerar convite</button>{inviteCode && <div className="mt-4 rounded-2xl border border-primary/20 bg-primary/5 p-4"><div className="text-[9px] font-black uppercase tracking-widest text-primary">Código do convite</div><div className="mt-2 flex items-center gap-2"><code className="min-w-0 flex-1 truncate rounded-xl bg-background px-3 py-2.5 text-center text-sm font-black tracking-[0.18em]">{inviteCode}</code><button type="button" onClick={copyInviteCode} className="rounded-xl border border-border bg-background p-2.5" aria-label={copiedInvite ? 'Código copiado' : 'Copiar código'}>{copiedInvite ? <Check className="h-4 w-4 text-emerald-600" /> : <Clipboard className="h-4 w-4" />}</button></div>{inviteExpiry && <div className="mt-2 text-[10px] text-muted-foreground">Válido até {new Date(inviteExpiry).toLocaleString('pt-BR')}</div>}</div>}</form>}
         </div>
       </div>
     </div>

@@ -34,6 +34,7 @@ import { api } from './services/api';
 const TransactionsView = React.lazy(() => import('./components/views/TransactionsView').then(module => ({ default: module.TransactionsView })));
 const InvoicesView = React.lazy(() => import('./components/views/InvoicesView').then(module => ({ default: module.InvoicesView })));
 const ReportsView = React.lazy(() => import('./components/views/ReportsView').then(module => ({ default: module.ReportsView })));
+const AuditView = React.lazy(() => import('./components/views/AuditView').then(module => ({ default: module.AuditView })));
 
 export default function App() {
   const { currentView } = useAppStore();
@@ -250,6 +251,8 @@ export default function App() {
         return <CardDetailsView />;
       case 'reports':
         return <ReportsView />;
+      case 'audit':
+        return <AuditView />;
       case 'contacts':
         return <ContactsView />;
       case 'partners':

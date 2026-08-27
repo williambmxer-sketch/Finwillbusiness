@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BarChart3,
+  ClipboardList,
   Building2,
   ChevronDown,
   ContactRound,
@@ -106,6 +107,7 @@ export function TopNavigation() {
     ],
     management: [
       { label: 'Relatórios', view: 'reports', icon: BarChart3 },
+      { label: 'Auditoria', view: 'audit', icon: ClipboardList },
     ],
     records: [
       { label: 'Clientes e fornecedores', view: 'contacts', icon: ContactRound },

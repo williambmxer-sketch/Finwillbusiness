@@ -34,7 +34,7 @@ export function AuthView() {
           email: invite.email,
           password,
           options: {
-            data: { invite_code: normalizedCode },
+            data: { invite_code: normalizedCode, full_name: name.trim() },
           },
         });
         if (signUpError) throw signUpError;
@@ -96,7 +96,7 @@ export function AuthView() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3">
-          {mode === 'register' && (
+          {(mode === 'register' || mode === 'invite') && (
             <div className="space-y-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground ml-1">Nome Completo</label>
               <div className="relative">
@@ -105,7 +105,7 @@ export function AuthView() {
                   value={name}
                   onChange={e => setName(e.target.value)}
                   className="w-full h-10 bg-muted/40 border-transparent focus:ring-1 focus:ring-primary shadow-none rounded-xl pl-9 text-xs"
-                  placeholder="Seu nome"
+                  placeholder={mode === 'invite' ? 'Nome do convidado' : 'Seu nome'}
                   required
                 />
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60">
