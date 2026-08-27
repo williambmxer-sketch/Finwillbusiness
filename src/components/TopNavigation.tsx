@@ -173,6 +173,7 @@ export function TopNavigation() {
   const mobileMenuGroups: Array<{ label: string; items: MenuItem[] }> = [
     { label: 'Financeiro', items: menus.agenda },
     { label: 'Contas', items: menus.treasury },
+    { label: 'Gestão', items: menus.management },
     { label: 'Cadastros', items: menus.records },
   ];
 
