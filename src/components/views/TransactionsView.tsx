@@ -779,7 +779,7 @@ export function TransactionsView() {
           </button>
 
           <Select value={selectedCycle} onValueChange={setSelectedCycle}>
-            <SelectTrigger className="flex-1 bg-muted/30 border-border/50 rounded-[11px] !h-10 text-xs font-bold uppercase tracking-wider text-foreground focus:ring-primary shadow-sm hover:bg-muted/50 transition-colors min-w-0">
+            <SelectTrigger className="flex-1 bg-muted/30 border-border/50 rounded-[11px] !h-10 text-xs font-bold uppercase tracking-wider text-foreground focus:ring-primary shadow-none hover:bg-muted/50 transition-colors min-w-0">
               <SelectValue placeholder="Mês" className="justify-center !text-center flex-1">
                 {selectedCycle === 'all' ? '✨ TODO O PERÍODO' : formatCycleName(selectedCycle)}
               </SelectValue>
@@ -807,7 +807,7 @@ export function TransactionsView() {
         <div className="relative shrink-0" ref={dropdownRef}>
           <button
             onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
-            className="flex items-center justify-center gap-1.5 px-3 bg-muted/30 border border-border/50 rounded-[11px] h-10 text-xs font-bold uppercase text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-sm hover:bg-muted/50 transition-colors"
+            className="flex items-center justify-center gap-1.5 px-3 bg-muted/30 border border-border/50 rounded-[11px] h-10 text-xs font-bold uppercase text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-none hover:bg-muted/50 transition-colors"
             title="Filtrar Transações"
           >
             <Filter className="w-4 h-4 shrink-0" />
