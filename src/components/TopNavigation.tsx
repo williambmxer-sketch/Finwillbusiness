@@ -203,7 +203,7 @@ export function TopNavigation() {
   );
 
   return (
-    <div ref={rootRef} className="relative z-[80] border-b border-border bg-card/95 shadow-sm">
+    <div ref={rootRef} className="relative z-[80] border-b border-border bg-card">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-2 px-3 lg:px-5">
         <button type="button" onClick={() => setCurrentView('dashboard')} className="mr-1 flex shrink-0 items-center gap-2 rounded-xl px-1.5 py-1 transition-colors hover:bg-muted">
           <img src="/icone-financas-pwa.svg?v=2" alt="FinWill" className="h-9 w-9" />

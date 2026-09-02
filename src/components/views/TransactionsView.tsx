@@ -912,15 +912,12 @@ export function TransactionsView() {
               <p className="text-xs">Nenhuma transação</p>
             </div>
           ) : (
-            displayItems.map((t, i) => {
+            displayItems.map(t => {
               const isExpanded = expandedId === t.id;
               const isInvoice = t.isVirtualInvoice;
 
               return (
                 <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
                   key={t.id}
                   className={`flex flex-col bg-card shadow-sm rounded-[11px] border cursor-pointer hover:border-primary/50 transition-colors overflow-hidden ${isExpanded ? 'border-primary/50 ring-1 ring-primary/20' : ''}`}
                 >
