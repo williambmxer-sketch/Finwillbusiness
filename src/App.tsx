@@ -42,10 +42,11 @@ export default function App() {
   const { hasLoaded: hasLoadedData, isLoading: isLoadingData, error: dataError, fetchData, clearData } = useDataStore();
   const { load: loadOrganization, clear: clearOrganization, isLoading: isLoadingOrganization } = useOrganizationStore();
   const [isReady, setIsReady] = useState(false);
-  const { needRefresh: [needRefresh, setNeedRefresh], updateServiceWorker } = useRegisterSW({ immediate: true });
+  const { needRefresh: [needRefresh, setNeedRefresh], updateServiceWorker } = useRegisterSW({ immediate: !import.meta.env.DEV });
   const [isUpdating, setIsUpdating] = useState(false);
   const updateReloadTimer = useRef<number | null>(null);
   const initializedUserIdRef = useRef<string | null>(null);
+  const isCheckingInitialSessionRef = useRef(true);
 
   useEffect(() => () => {
     if (updateReloadTimer.current !== null) {
@@ -89,12 +90,13 @@ export default function App() {
   };
 
   useEffect(() => {
-    let validatingInitialSession = true;
     let cancelled = false;
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (validatingInitialSession && event === 'INITIAL_SESSION') return;
+      // Ignore partial auth events until the initial session is validated.
+      // Otherwise the app can switch between loading, login and dashboard.
+      if (isCheckingInitialSessionRef.current || event === 'INITIAL_SESSION') return;
       setSession(session);
     });
 
@@ -103,7 +105,7 @@ export default function App() {
       if (cancelled) return;
 
       if (sessionError || !session) {
-        validatingInitialSession = false;
+        isCheckingInitialSessionRef.current = false;
         setSession(null);
         return;
       }
@@ -113,7 +115,7 @@ export default function App() {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (cancelled) return;
 
-      validatingInitialSession = false;
+      isCheckingInitialSessionRef.current = false;
       if (userError || !user) {
         await supabase.auth.signOut({ scope: 'local' });
         setSession(null);
@@ -123,7 +125,7 @@ export default function App() {
       setSession({ ...session, user });
     })().catch(error => {
       if (!cancelled) {
-        validatingInitialSession = false;
+        isCheckingInitialSessionRef.current = false;
         console.error('Não foi possível validar a sessão.', error);
         setSession(null);
       }
@@ -172,6 +174,7 @@ export default function App() {
   }, [session, fetchData, clearData, loadOrganization, clearOrganization]);
 
   useEffect(() => {
+    if (import.meta.env.DEV) return;
     if (!('serviceWorker' in navigator)) return;
 
     let intervalId: number | null = null;

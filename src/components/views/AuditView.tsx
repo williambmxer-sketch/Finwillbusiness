@@ -49,11 +49,11 @@ export function AuditView() {
       </div>
 
       <form onSubmit={event => { event.preventDefault(); void load(); }} className="mb-5 flex flex-wrap items-center gap-2">
-        <label className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-muted-foreground">De<input type="date" value={startDate} onChange={event => setStartDate(event.target.value)} className="field-input !mt-0 !h-10 w-[132px] normal-case tracking-normal" /></label>
-        <label className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-muted-foreground">Até<input type="date" value={endDate} onChange={event => setEndDate(event.target.value)} className="field-input !mt-0 !h-10 w-[132px] normal-case tracking-normal" /></label>
-        <select aria-label="Filtrar por usuário" value={userId} onChange={event => setUserId(event.target.value)} className="field-input !h-10 w-[170px] normal-case tracking-normal"><option value="">Todos os usuários</option>{users.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select>
-        <select aria-label="Filtrar por ação" value={action} onChange={event => setAction(event.target.value)} className="field-input !h-10 w-[145px] normal-case tracking-normal"><option value="">Todas as ações</option>{Object.entries(actionLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-        <button type="submit" className="flex h-10 items-center justify-center gap-1.5 rounded-[11px] border border-border/50 bg-muted/30 px-3 text-xs font-bold text-muted-foreground shadow-sm transition-colors hover:bg-muted/50 hover:text-foreground"><Filter className="h-4 w-4" /><span className="hidden sm:inline">Filtrar</span></button>
+        <input type="date" aria-label="Data inicial" title="Data inicial" value={startDate} onChange={event => setStartDate(event.target.value)} className="field-input !mt-0 !h-9 !w-[120px] text-[11px] normal-case tracking-normal" />
+        <input type="date" aria-label="Data final" title="Data final" value={endDate} onChange={event => setEndDate(event.target.value)} className="field-input !mt-0 !h-9 !w-[120px] text-[11px] normal-case tracking-normal" />
+        <select aria-label="Filtrar por usuário" value={userId} onChange={event => setUserId(event.target.value)} className="field-input !h-9 !w-[150px] text-[11px] normal-case tracking-normal"><option value="">Todos os usuários</option>{users.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select>
+        <select aria-label="Filtrar por ação" value={action} onChange={event => setAction(event.target.value)} className="field-input !h-9 !w-[135px] text-[11px] normal-case tracking-normal"><option value="">Todas as ações</option>{Object.entries(actionLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+        <button type="submit" className="flex h-9 items-center justify-center gap-1.5 rounded-[11px] border border-border/50 bg-muted/30 px-2.5 text-[11px] font-bold text-muted-foreground shadow-sm transition-colors hover:bg-muted/50 hover:text-foreground"><Filter className="h-3.5 w-3.5" /><span>Aplicar</span></button>
       </form>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">

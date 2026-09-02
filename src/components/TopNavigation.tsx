@@ -157,14 +157,14 @@ export function TopNavigation() {
     setMobileMenuOpen(false);
   };
 
-  const openQuickCreate = () => {
+  const openQuickCreate = (preset: TransactionPreset = 'expense') => {
     if (!canEdit) return;
     if (currentView === 'cardDetails') setCurrentView('transactions');
     // O + global nunca herda o cartão aberto. O lançamento do cartão é feito
     // somente pelo formulário contextual da tela de detalhes do cartão.
     setActiveContextCardId(null);
     setEditingTransactionId(null);
-    setTransactionPreset('expense');
+    setTransactionPreset(preset);
     setTransactionModalOpen(true);
     setOpenMenu(null);
     setMobileMenuOpen(false);
@@ -335,21 +335,22 @@ function MobileMenuPanel({
   );
 }
 
-function MobileBottomNavigation({ currentView, setCurrentView, onNew }: { currentView: AppView; setCurrentView: (view: AppView) => void; onNew: () => void }) {
+function MobileBottomNavigation({ currentView, setCurrentView, onNew }: { currentView: AppView; setCurrentView: (view: AppView) => void; onNew: (preset: TransactionPreset) => void }) {
   return (
     <>
       <nav className="fixed inset-x-0 bottom-0 z-[65] border-t border-border bg-card/95 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_24px_-8px_rgba(0,0,0,0.12)] backdrop-blur-xl" aria-label="Navegação principal">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-1">
           <MobileNavItem icon={LayoutDashboard} label="Início" active={currentView === 'dashboard'} onClick={() => setCurrentView('dashboard')} />
-          <MobileNavItem icon={TrendingUp} label="Receber" active={currentView === 'agendaReceivable'} onClick={() => setCurrentView('agendaReceivable')} />
-          <MobileNavItem icon={TrendingDown} label="Pagar" active={currentView === 'agendaPayable'} onClick={() => setCurrentView('agendaPayable')} />
+          <MobileNavItem icon={WalletCards} label="Transações" active={currentView === 'transactions'} onClick={() => setCurrentView('transactions')} />
+          <div className="relative flex min-w-0 flex-1 justify-center">
+            <button type="button" onClick={() => onNew('expense')} aria-label="Novo lançamento" className="flex h-12 w-12 -translate-y-3 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-transform active:scale-95">
+              <Plus className="h-6 w-6" />
+            </button>
+          </div>
           <MobileNavItem icon={ReceiptText} label="Faturas" active={currentView === 'invoices'} onClick={() => setCurrentView('invoices')} />
           <MobileNavItem icon={BarChart3} label="Relatórios" active={currentView === 'reports'} onClick={() => setCurrentView('reports')} />
         </div>
       </nav>
-      <button type="button" onClick={onNew} aria-label="Novo lançamento" className="fixed bottom-[4.75rem] right-4 z-[75] flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-transform active:scale-95 lg:hidden">
-        <Plus className="h-5 w-5" />
-      </button>
     </>
   );
 }

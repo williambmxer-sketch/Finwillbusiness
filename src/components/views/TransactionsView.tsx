@@ -459,7 +459,7 @@ export function TransactionsView() {
   const handleExportPDF = () => {
     if (displayItems.length === 0) return;
 
-    const doc = new jsPDF();
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const tableColumn = ["Data", "Descrição", "Categoria", "Tipo", "Valor", "Situação"];
     const tableRows: any[] = [];
 
@@ -520,18 +520,98 @@ export function TransactionsView() {
       styles: { fontStyle: 'bold', halign: 'right', fillColor: [230, 230, 230], textColor: [0, 0, 0] }
     }]);
 
-    doc.text(`Relatório de Transações`, 14, 15);
-    doc.setFontSize(10);
     const cycleText = selectedCycle === 'all' ? 'Todo o Período' : formatCycleName(selectedCycle);
-    doc.text(`Período: ${cycleText}`, 14, 22);
+    const typeFilter = filters.receita && filters.despesa ? 'Receitas e despesas' : filters.receita ? 'Somente receitas' : filters.despesa ? 'Somente despesas' : 'Nenhum tipo';
+    const statusFilter = filters.paid && filters.pending ? 'Pagos e pendentes' : filters.paid ? 'Somente pagos' : filters.pending ? 'Somente pendentes' : 'Nenhuma situação';
+    const categoryFilter = selectedCategoryIds.length > 0
+      ? `Categorias: ${selectedCategoryIds.map(id => categories.find(category => category.id === id)?.name || 'Categoria').join(', ')}`
+      : '';
+    const cardFilter = selectedCardIds.length > 0
+      ? `Cartões: ${selectedCardIds.map(id => cards.find(card => card.id === id)?.name || 'Cartão').join(', ')}`
+      : '';
+    const activeFilters = [`Período: ${cycleText}`, `Tipo: ${typeFilter}`, `Situação: ${statusFilter}`, categoryFilter, cardFilter].filter(Boolean);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('Relatório de Transações', 12, 16);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(80, 80, 80);
+    const filterText = `Filtros aplicados: ${activeFilters.join('  •  ')}`;
+    const filterLines = doc.splitTextToSize(filterText, 186);
+    doc.text(filterLines, 12, 23, { maxWidth: 186 });
+    doc.setTextColor(0, 0, 0);
+
+    const summaryY = 29 + (filterLines.length - 1) * 4.5;
+    const summaryHeight = 18;
+    const saldo = totalGeralReceitas - totalGeralDespesas;
+    const saldoColor: [number, number, number] = saldo >= 0 ? [5, 150, 105] : [220, 38, 38];
+
+    // Resumo com fundo suave e cantos arredondados para separar visualmente
+    // os filtros da tabela e facilitar a leitura no PDF impresso.
+    doc.setFillColor(255, 247, 237);
+    doc.setDrawColor(255, 214, 183);
+    doc.setLineWidth(0.25);
+    doc.roundedRect(12, summaryY, 186, summaryHeight, 3, 3, 'FD');
+    doc.setFillColor(249, 115, 22);
+    doc.roundedRect(12, summaryY, 3, summaryHeight, 1.5, 1.5, 'F');
+
+    const summaryColumns = [
+      { label: 'RECEITAS', value: formatCurrency(totalGeralReceitas), color: [5, 150, 105] as [number, number, number] },
+      { label: 'DESPESAS', value: formatCurrency(totalGeralDespesas), color: [220, 38, 38] as [number, number, number] },
+      { label: 'SALDO', value: formatCurrency(saldo), color: saldoColor },
+    ];
+    summaryColumns.forEach((item, index) => {
+      const x = 20 + index * 59;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.setTextColor(105, 105, 105);
+      doc.text(item.label, x, summaryY + 6);
+      doc.setFontSize(10);
+      doc.setTextColor(...item.color);
+      doc.text(item.value, x, summaryY + 13);
+    });
+    doc.setTextColor(0, 0, 0);
 
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
-      startY: 25,
+      startY: summaryY + summaryHeight + 7,
+      margin: { left: 12, right: 12 },
       theme: 'grid',
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [249, 115, 22] } // primary/orange
+      styles: {
+        fontSize: 8,
+        cellPadding: { top: 2.2, right: 2.5, bottom: 2.2, left: 2.5 },
+        lineColor: [218, 218, 218],
+        lineWidth: 0.2,
+        valign: 'middle',
+        overflow: 'linebreak',
+      },
+      bodyStyles: { minCellHeight: 8 },
+      alternateRowStyles: { fillColor: [252, 252, 252] },
+      columnStyles: {
+        0: { cellWidth: 21 },
+        1: { cellWidth: 47 },
+        2: { cellWidth: 35 },
+        3: { cellWidth: 23 },
+        4: { cellWidth: 27, halign: 'right' },
+        5: { cellWidth: 27 },
+      },
+      headStyles: {
+        fillColor: false,
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        cellPadding: { top: 2.8, right: 2.5, bottom: 2.8, left: 2.5 },
+      },
+      willDrawCell: data => {
+        if (data.section === 'head') {
+          // Cada célula recebe seu próprio arredondamento, mantendo o laranja
+          // destacado sem transformar a tabela em um bloco pesado.
+          doc.setFillColor(249, 115, 22);
+          doc.roundedRect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 1.5, 1.5, 'F');
+          data.cell.styles.fillColor = false;
+        }
+      },
     });
 
     doc.save(`transacoes-${selectedCycle}.pdf`);
